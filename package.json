@@ -12,18 +12,23 @@
     "url": "https://github.com/KrwnOS/krwnos/issues"
   },
   "license": "MIT",
-  "workspaces": ["cli"],
+  "workspaces": [
+    "cli"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "cli": "node cli/bin/krwn.mjs",
     "setup": "tsx src/core/setup-state.ts",
+    "watcher:treasury": "tsx scripts/treasury-watcher.ts",
     "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "compose:logs": "docker compose -f deploy/docker-compose.yml logs -f app"
@@ -36,6 +41,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4",
+    "viem": "^2.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -49,7 +55,9 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.13",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=18.17"

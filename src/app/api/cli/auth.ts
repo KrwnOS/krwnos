@@ -51,11 +51,24 @@ export async function authenticateCli(
   lookup: CliTokenLookup,
 ): Promise<CliAuthContext> {
   const header = req.headers.get("authorization") ?? "";
-  if (!header.toLowerCase().startsWith("bearer ")) {
-    throw new CliAuthError("Missing bearer token");
+  let token = "";
+  if (header.toLowerCase().startsWith("bearer ")) {
+    token = header.slice(7).trim();
+  } else {
+    // SSE transports (native EventSource) cannot set Authorization
+    // headers. Fall back to a `?token=` query parameter so the
+    // in-browser UI can open /api/chat/stream without an extra proxy.
+    // NB: query tokens can leak into access logs — this is acceptable
+    // for MVP; production deployments should place the stream behind
+    // a same-origin reverse proxy that strips access logs for it.
+    try {
+      const url = new URL(req.url);
+      token = url.searchParams.get("token")?.trim() ?? "";
+    } catch {
+      token = "";
+    }
   }
-  const token = header.slice(7).trim();
-  if (!token) throw new CliAuthError("Empty bearer token");
+  if (!token) throw new CliAuthError("Missing bearer token");
 
   const hash = createHash("sha256").update(token).digest("hex");
   const row = await lookup.findByHash(hash);

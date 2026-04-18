@@ -1,0 +1,87 @@
+/**
+ * Formatting helpers for wallet UI.
+ * ------------------------------------------------------------
+ * Balances and transaction amounts are plain floats (schema =
+ * `Float`). Renderers format with the Krona symbol (⚜) by default
+ * but accept arbitrary currency codes ("USD", "EUR", etc.) for the
+ * future multi-currency story.
+ */
+
+export const KRONA_SYMBOL = "⚜";
+export const DEFAULT_CURRENCY = "KRN";
+
+/** Loose parser — accepts number | string | bigint. */
+export function toNumber(value: number | string | bigint): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Render an amount with the currency marker. For "KRN" we append
+ * the Krona glyph (⚜); for other currencies we append the 3-letter
+ * code.
+ *
+ *   formatAmount(12345.67)         -> "12 345.67 ⚜"
+ *   formatAmount(100, "USD")       -> "100.00 USD"
+ *   formatAmount(1, { withSymbol: false }) -> "1.00"
+ */
+export function formatAmount(
+  value: number | string | bigint,
+  currencyOrOpts:
+    | string
+    | { currency?: string; withSymbol?: boolean; fractionDigits?: number } = {},
+): string {
+  const opts =
+    typeof currencyOrOpts === "string"
+      ? { currency: currencyOrOpts }
+      : currencyOrOpts;
+  const currency = opts.currency ?? DEFAULT_CURRENCY;
+  const fractionDigits = opts.fractionDigits ?? 2;
+
+  const amount = toNumber(value);
+  const negative = amount < 0;
+  const abs = Math.abs(amount);
+
+  const [intPart, decPart = ""] = abs.toFixed(fractionDigits).split(".");
+  const major = formatThousands(intPart ?? "0");
+  const body = fractionDigits > 0 ? `${major}.${decPart}` : major;
+  const signed = negative ? `−${body}` : body;
+
+  if (opts.withSymbol === false) return signed;
+  if (currency === "KRN") return `${signed} ${KRONA_SYMBOL}`;
+  return `${signed} ${currency}`;
+}
+
+/** Back-compat alias — many call sites use `formatKrona(...)`. */
+export function formatKrona(
+  value: number | string | bigint,
+  opts: { withSymbol?: boolean } = {},
+): string {
+  return formatAmount(value, { currency: DEFAULT_CURRENCY, ...opts });
+}
+
+function formatThousands(digits: string): string {
+  // Thin space (U+202F) keeps digits grouped without visual noise.
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+}
+
+export function shortAddress(address: string, head = 8, tail = 6): string {
+  if (address.length <= head + tail + 1) return address;
+  return `${address.slice(0, head)}…${address.slice(-tail)}`;
+}
+
+/**
+ * Parse user-entered string ("12.50", "12,50", "1000") into a
+ * finite number. Returns null for invalid input — caller decides
+ * how to surface the error.
+ */
+export function parseAmountInput(raw: string): number | null {
+  const trimmed = raw.trim().replace(",", ".");
+  if (!trimmed) return null;
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}

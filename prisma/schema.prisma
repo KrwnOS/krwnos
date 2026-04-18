@@ -24,19 +24,37 @@ datasource db {
 // ---------------- Core identity ----------------
 
 model User {
-  id            String            @id @default(cuid())
-  email         String?           @unique
-  handle        String            @unique
-  displayName   String?
-  avatarUrl     String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  handle      String   @unique
+  displayName String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  ownedStates   State[]           @relation("StateOwner")
-  memberships   Membership[]
-  credentials   AuthCredential[]
-  cliTokens     CliToken[]
-  invitesSent   Invitation[]      @relation("InvitationCreator")
+  ownedStates State[]          @relation("StateOwner")
+  memberships Membership[]
+  credentials AuthCredential[]
+  cliTokens   CliToken[]
+  invitesSent Invitation[]     @relation("InvitationCreator")
+
+  // --- Financial layer ---
+  // Personal wallets of this user (one per State the user belongs to).
+  wallets               Wallet[]      @relation("WalletOwner")
+  // Transactions initiated (kicked off) by this user.
+  transactionsInitiated Transaction[] @relation("TxInitiator")
+
+  // --- Core Governance (Парламент) ---
+  proposalsCreated Proposal[] @relation("ProposalCreator")
+  votesCast        Vote[]     @relation("VoteAuthor")
+
+  // --- Krwn Exchange Engine ---
+  // Pairs this user has configured (as a Sovereign or delegated
+  // `core.exchange.manage_pairs` holder) and cross-state swaps
+  // they have initiated. Separate from the per-leg `Transaction`
+  // rows — those stay scoped to their respective State.
+  exchangePairsCreated ExchangePair[]         @relation("ExchangePairCreator")
+  crossTxsInitiated    CrossStateTransaction[] @relation("CrossTxInitiator")
 
   @@index([handle])
 }
@@ -52,21 +70,21 @@ enum AuthCredentialKind {
 }
 
 model AuthCredential {
-  id          String              @id @default(cuid())
-  userId      String
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  kind        AuthCredentialKind
+  kind       AuthCredentialKind
   // Passkey: credentialId (base64url). Wallet: address. OAuth: provider sub.
-  identifier  String
+  identifier String
   // Passkey COSE public key, or JSON metadata for other kinds.
-  publicKey   Bytes?
-  metadata    Json                @default("{}")
+  publicKey  Bytes?
+  metadata   Json               @default("{}")
 
-  label       String?
-  lastUsedAt  DateTime?
-  createdAt   DateTime            @default(now())
-  revokedAt   DateTime?
+  label      String?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
 
   @@unique([kind, identifier])
   @@index([userId])
@@ -75,18 +93,18 @@ model AuthCredential {
 // ---------------- State (Государство) ----------------
 
 model State {
-  id               String          @id @default(cuid())
-  slug             String          @unique
-  name             String
-  description      String?
-  ownerId          String
-  owner            User            @relation("StateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  ownerId     String
+  owner       User    @relation("StateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // JSONB config: theme, installedModules[], flags, etc.
-  config           Json            @default("{}")
+  config Json @default("{}")
 
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   verticalNodes    VerticalNode[]
   installedModules InstalledModule[]
@@ -94,40 +112,205 @@ model State {
   backups          BackupManifest[]
   cliTokens        CliToken[]
   tunnel           Tunnel?
+  chatChannels     ChatChannel[]
+
+  // --- Core Governance (Парламент) ---
+  proposals        Proposal[]
+  votes            Vote[]
+
+  // --- Палата Указов (Sovereign's Decree) ---
+  // Единый свод конституциональных параметров государства:
+  // фискальная политика, динамика Вертикали, правила входа/выхода.
+  // 1:1 с State; создаётся setup-ом и редактируется Сувереном через
+  // `state.configure`. См. `src/core/state-config.ts`.
+  settings StateSettings?
+
+  // --- Financial layer ---
+  // StateAsset rows are declared by the Sovereign through the
+  // Currency Factory (см. `src/modules/wallet/settings.ts`) and
+  // represent every unit of account the State understands — from
+  // pure Local Ledger tokens to imported on-chain contracts.
+  assets       StateAsset[]
+  wallets      Wallet[]
+  transactions Transaction[]
+
+  // --- Krwn Exchange Engine ---
+  // Outgoing / incoming cross-state swap records. Each
+  // `CrossStateTransaction` represents a single atomic journal
+  // entry spanning two sovereign ledgers (this State and the
+  // counterpart): source is debited in `fromAsset`, destination
+  // is credited in `toAsset` at the pegged `rate`. Foreign keys
+  // keep the audit trail visible from both sides.
+  crossTxsOut CrossStateTransaction[] @relation("CrossStateFrom")
+  crossTxsIn  CrossStateTransaction[] @relation("CrossStateTo")
 
   @@index([ownerId])
+}
+
+// ---------------- State Settings (Палата Указов) ----------------
+//
+// Sovereign-controlled constitutional parameters of a State. Each
+// row is 1:1 with `State` and is seeded with defaults at setup
+// time. Only the State owner (`isOwner`) or a holder of the core
+// `state.configure` permission may mutate it — see
+// `src/core/state-config.ts` for the full service contract.
+//
+// The shape is deliberately typed (columns, not a JSON blob) so
+// that hot paths — like the transaction-tax hook inside
+// `WalletService.transfer` — can read without a JSON decode. A
+// free-form `extras` column is kept for forward-compat (module-
+// specific knobs that don't yet warrant a column of their own).
+//
+// Treasury transparency modes:
+//   * "public"    — каждый гражданин может смотреть TreasuryWallet.
+//   * "council"   — видно только членам узла / предков (default).
+//   * "sovereign" — видит только Суверен.
+// Semantics are enforced by `WalletService.getTreasury`.
+
+enum TreasuryTransparency {
+  public
+  council
+  sovereign
+}
+
+model StateSettings {
+  id      String @id @default(cuid())
+  stateId String @unique
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // ---- Фискальная политика (Fiscal policy) ----
+  //
+  // `transactionTaxRate` — фракция в [0..1]; применяется поверх
+  //   `StateAsset.taxRate` на любом успешном INTERNAL/HYBRID-переводе
+  //   между личными кошельками. Идёт в корневую Казну (root-node
+  //   Treasury) атомарно в той же транзакции, что и основной перевод.
+  // `incomeTaxRate`      — фракция, удерживаемая из выплат из Казны
+  //   на личный кошелёк (treasury_allocation → PERSONAL). Имитирует
+  //   подоходный налог: «министр платит сотруднику — часть возвращается».
+  // `roleTaxRate`        — ежемесячная подписка на статус. Не взимается
+  //   автоматически (cron-слой будет добавлен позже), но хранится
+  //   здесь, чтобы единый источник правды был доступен всем модулям.
+  // `currencyDisplayName`— опциональная «парадная» витрина названия
+  //   валюты (влияет только на UI; единицей учёта остаётся
+  //   `StateAsset.symbol` первичного актива).
+  transactionTaxRate Float   @default(0)
+  incomeTaxRate      Float   @default(0)
+  roleTaxRate        Float   @default(0)
+  currencyDisplayName String?
+
+  // ---- Правила входа/выхода (Entry/exit rules) ----
+  //
+  // `citizenshipFeeAmount`  — сколько единиц первичной валюты
+  //   списывается с нового гражданина в пользу корневой Казны при
+  //   принятии инвайта. `0` = бесплатный вход. При отсутствии
+  //   кошелька у новичка (стандартный сценарий — он только что
+  //   пришёл) плата НЕ взимается: сначала auto-provision, потом
+  //   ждём пополнения. Это гибкая защита от спама, а не hard-gate.
+  // `rolesPurchasable`      — разрешает «выкуп» узла Вертикали,
+  //   если Суверен отдельно помечает его на продажу через metadata.
+  // `exitRefundRate`        — доля остатка на кошельке, возвращаемая
+  //   гражданину при добровольном выходе (в будущем — UI-модуль
+  //   «эмиграция»).
+  citizenshipFeeAmount Float   @default(0)
+  rolesPurchasable     Boolean @default(false)
+  exitRefundRate       Float   @default(0)
+
+  // ---- Динамика Вертикали (Vertical dynamics) ----
+  //
+  // `permissionInheritance` — включено: министр видит всё, что
+  //   видят подчинённые (поведение по умолчанию и поведение
+  //   текущего Permissions Engine). Отключено: каждый узел
+  //   изолирован; проверка `isMemberOfNodeOrAncestor` обрезается
+  //   до прямого членства. Используется `PermissionsEngine` в
+  //   проекциях будущего релиза.
+  // `autoPromotionEnabled`  — включает движок авто-продвижения.
+  //   Условия собираются из двух опциональных параметров ниже
+  //   (balance / days). Первое выполненное условие поднимает
+  //   гражданина в `autoPromotionTargetNodeId`. Фактическая
+  //   cron-задача будет реализована отдельным шагом.
+  // `treasuryTransparency`  — режим видимости всех TreasuryWallet
+  //   (см. enum `TreasuryTransparency`).
+  permissionInheritance     Boolean              @default(true)
+  autoPromotionEnabled      Boolean              @default(false)
+  autoPromotionMinBalance   Float?
+  autoPromotionMinDays      Int?
+  autoPromotionTargetNodeId String?
+  treasuryTransparency      TreasuryTransparency @default(council)
+
+  // ---- Управление (Core Governance) ----
+  //
+  // `governanceRules` — гибкий JSON-блок, описывающий, как работает
+  // «Парламент» в этом государстве. Форма:
+  //   {
+  //     "mode": "decree" | "consultation" | "auto_dao",
+  //     "sovereignVeto": boolean,
+  //     "quorumBps": int,        // 0..10000 basis points (0..100%)
+  //     "thresholdBps": int,     // минимальная доля "за" среди проголосовавших
+  //     "votingDurationSeconds": int,
+  //     "weightStrategy": "one_person_one_vote" | "by_node_weight" | "by_balance",
+  //     "nodeWeights": { "<nodeId>": number },
+  //     "balanceAssetId": string | null,   // для стратегии by_balance
+  //     "minProposerPermission": string | null,
+  //     "minProposerBalance": number | null,
+  //     "allowedConfigKeys": string[]      // whitelist параметров, изменяемых DAO
+  //   }
+  //
+  // См. `src/core/governance-rules.ts` — там живут типы, defaults и
+  // whitelist разрешённых `targetConfigKey`-ей. Модуль `core.governance`
+  // читает это поле перед каждой операцией.
+  governanceRules Json @default("{}")
+
+  // ---- Свободные знания (Extras) ----
+  // Канал для будущих модулей: любое поле, которому ещё рано
+  // становиться колонкой. Читается руками каждого модуля.
+  extras Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stateId])
 }
 
 // ---------------- Vertical Node (Узел власти) ----------------
 
 enum VerticalNodeType {
-  position    // конкретная должность (Минфин, Генерал)
-  department  // отдел / министерство
-  rank        // ранг / класс (Гражданин, Дворянин)
+  position // конкретная должность (Минфин, Генерал)
+  department // отдел / министерство
+  rank // ранг / класс (Гражданин, Дворянин)
 }
 
 model VerticalNode {
-  id           String            @id @default(cuid())
-  stateId      String
-  state        State             @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
-  parentId     String?
-  parent       VerticalNode?     @relation("NodeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children     VerticalNode[]    @relation("NodeHierarchy")
+  parentId String?
+  parent   VerticalNode?  @relation("NodeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children VerticalNode[] @relation("NodeHierarchy")
 
-  title        String
-  type         VerticalNodeType  @default(position)
+  title String
+  type  VerticalNodeType @default(position)
 
   // Canonical permission keys e.g. ["finance.read", "members.kick"]
-  permissions  String[]          @default([])
+  permissions String[] @default([])
 
   // Optional ordering for drag-and-drop UI
-  order        Int               @default(0)
+  order Int @default(0)
 
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  // When true, this node is the "waiting room" (Прихожая) where newly
+  // registered users land until a superior admits them into a real
+  // position. Exactly one lobby node per State is expected.
+  isLobby Boolean @default(false)
 
-  memberships  Membership[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    Membership[]
+  chatChannels   ChatChannel[]
+  // Optional dedicated treasury wallet (budget) for this node.
+  treasuryWallet Wallet?       @relation("TreasuryWallet")
+  // Invitations whose Magic Link drops the invitee directly at this node.
+  invitations    Invitation[]  @relation("InvitationTarget")
 
   @@index([stateId])
   @@index([parentId])
@@ -136,38 +319,50 @@ model VerticalNode {
 
 // ---------------- Membership (User <-> Node) ----------------
 
-model Membership {
-  id        String        @id @default(cuid())
-  userId    String
-  nodeId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  node      VerticalNode  @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+enum MembershipStatus {
+  // User is a full citizen of this node — permissions take effect.
+  active
+  // User registered openly and landed in the "Waiting Room" (Прихожая).
+  // The Permissions Engine treats these memberships as NON-GRANTING
+  // until a superior flips them to `active`.
+  pending
+}
 
-  title     String?       // optional personal title inside the node
-  createdAt DateTime      @default(now())
+model Membership {
+  id     String       @id @default(cuid())
+  userId String
+  nodeId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  node   VerticalNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  title     String? // optional personal title inside the node
+  status    MembershipStatus @default(active)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@unique([userId, nodeId])
   @@index([nodeId])
   @@index([userId])
+  @@index([status])
 }
 
 // ---------------- Modules (плагины) ----------------
 
 model InstalledModule {
-  id        String   @id @default(cuid())
-  stateId   String
-  state     State    @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
   // Registry slug, e.g. "core.chat", "treasury.v1"
-  slug      String
-  version   String   @default("0.0.0")
-  enabled   Boolean  @default(true)
+  slug    String
+  version String  @default("0.0.0")
+  enabled Boolean @default(true)
   // Per-state configuration of the plugin
-  config    Json     @default("{}")
+  config  Json    @default("{}")
 
   // Dedicated Postgres schema for this module's private tables.
   // Used by the isolation layer (см. docs/ISOLATION.md).
-  dbSchema  String?
+  dbSchema String?
 
   installedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -186,28 +381,32 @@ enum InvitationStatus {
 }
 
 model Invitation {
-  id            String            @id @default(cuid())
-  stateId       String
-  state         State             @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
   // Target node the invitee will be placed into on acceptance.
-  targetNodeId  String?
-  createdById   String
-  createdBy     User              @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  // SetNull — if the node is deleted after the invitation was issued
+  // we prefer to keep the audit row (it will just stop consuming).
+  targetNodeId String?
+  targetNode   VerticalNode? @relation("InvitationTarget", fields: [targetNodeId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   // SHA-256 hash of the opaque token. The raw token is shown once.
-  tokenHash     String            @unique
+  tokenHash String @unique
   // Short human-readable code embedded in QR (e.g. "KRWN-7HX2-9KQ4").
-  code          String            @unique
+  code      String @unique
 
-  label         String?
-  maxUses       Int               @default(1)
-  usesCount     Int               @default(0)
-  expiresAt     DateTime?
-  status        InvitationStatus  @default(active)
+  label     String?
+  maxUses   Int              @default(1)
+  usesCount Int              @default(0)
+  expiresAt DateTime?
+  status    InvitationStatus @default(active)
 
-  createdAt     DateTime          @default(now())
-  consumedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  consumedAt DateTime?
 
   @@index([stateId])
   @@index([status])
@@ -216,19 +415,19 @@ model Invitation {
 // ---------------- CLI tokens ----------------
 
 model CliToken {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // A token is scoped to ONE State (principle of least privilege).
-  stateId    String?
-  state      State?    @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  stateId String?
+  state   State?  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
   // SHA-256(raw token).
-  tokenHash  String    @unique
-  label      String
+  tokenHash String   @unique
+  label     String
   // PermissionKey scopes, or ["*"] for full Sovereign.
-  scopes     String[]  @default([])
+  scopes    String[] @default([])
 
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
@@ -242,19 +441,19 @@ model CliToken {
 // ---------------- Backups ----------------
 
 model BackupManifest {
-  id          String    @id @default(cuid())
-  stateId     String
-  state       State     @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
   // Opaque URI: file://, s3://, r2://, etc.
-  storageUri  String
-  schemaRev   Int
+  storageUri String
+  schemaRev  Int
   // Bytes of the archive, as reported by the backup engine.
-  sizeBytes   BigInt    @default(0)
+  sizeBytes  BigInt  @default(0)
   // sha256 of the final archive, hex-encoded.
-  checksum    String?
+  checksum   String?
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([stateId])
 }
@@ -270,18 +469,681 @@ enum TunnelProvider {
 }
 
 model Tunnel {
-  id          String          @id @default(cuid())
-  stateId     String          @unique
-  state       State           @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  stateId String @unique
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
-  provider    TunnelProvider  @default(none)
+  provider TunnelProvider @default(none)
   // Public hostname assigned to the State, e.g. "myclan.krwnos.app".
-  hostname    String?
+  hostname String?
   // Encrypted provider credentials / config blob.
-  config      Json            @default("{}")
+  config   Json           @default("{}")
 
-  status      String          @default("idle")
-  lastSeenAt  DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  status     String    @default("idle")
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// ---------------- Core Chat module ----------------
+//
+// First-party plugin "core.chat" tables live directly in the
+// main schema so that Prisma can express the relation to
+// VerticalNode (channels may be bound to a node of the Vertical).
+// The Permissions Engine enforces access: a channel tied to a
+// node is visible only to the node's members OR members of any
+// ancestor node (plus the Sovereign, as always).
+
+model ChatChannel {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Optional binding to a Vertical node. When null the channel is
+  // "open" — readable by anyone who holds the `chat.read` permission.
+  nodeId String?
+  node   VerticalNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  slug       String
+  title      String
+  topic      String?
+  // "public"  — any holder of chat.read can see it (node-bound channels
+  //              additionally require membership as described above).
+  // "private" — same as public but not listed without chat.admin.
+  visibility String  @default("public")
+  archived   Boolean @default(false)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@unique([stateId, slug])
+  @@index([stateId])
+  @@index([nodeId])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  authorId String
+  // Plain text body; rich-content extensions should live in metadata.
+  body     String
+  metadata Json   @default("{}")
+
+  // --- Directives (Системные приказы) ---
+  //
+  // When `isDirective` is true, the message behaves like a formal
+  // order issued by a user whose Vertical node is an ancestor of the
+  // channel's bound node. Every subordinate (channel members strictly
+  // below the sender, or the Sovereign's descendants) gets a row in
+  // `ChatDirectiveAck` and is nagged by the UI until they click
+  // "Принято к исполнению".
+  isDirective       Boolean @default(false)
+  // Snapshot of the sender's node id at publication time. Used by the
+  // UI to render a rank badge ("Приказ от Минфина") without re-walking
+  // the Vertical on every render.
+  directiveFromNode String?
+
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  acks ChatDirectiveAck[]
+
+  @@index([channelId, createdAt])
+  @@index([authorId])
+  @@index([isDirective])
+}
+
+// ChatDirectiveAck — one row per (directive, subordinate).
+// The presence of the row means "acknowledgement is required";
+// `ackedAt IS NOT NULL` means "Принято к исполнению" was clicked.
+model ChatDirectiveAck {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  userId    String
+  // Node id the subordinate held at the moment the directive was
+  // posted. Useful for audit — a reorg after the fact shouldn't
+  // retroactively excuse them from the order.
+  viaNodeId String?
+
+  requiredAt DateTime  @default(now())
+  ackedAt    DateTime?
+
+  @@unique([messageId, userId])
+  @@index([userId, ackedAt])
+  @@index([messageId])
+}
+
+// ---------------- Currency Factory (Фабрика Валют) ----------------
+//
+// Financial-sovereignty layer. Every State declares what it
+// considers "money": a Local Ledger token (virtual gold living
+// purely in Postgres), an imported on-chain contract (ERC-20 /
+// SPL / ...), or a Hybrid where balances move instantly inside
+// the DB and can be Withdraw'ed out to a real blockchain via a
+// pegged exchange rate.
+//
+//   * `INTERNAL`  — balance lives in `Wallet.balance`; no chain.
+//   * `ON_CHAIN`  — balance mirrors a real smart-contract token;
+//                   `contractAddress` + `network` are mandatory.
+//
+// The `mode` column overlays semantics on top of `type`:
+//   * `LOCAL`    — pure in-DB ledger (requires `type = INTERNAL`).
+//   * `EXTERNAL` — pure on-chain passthrough (`type = ON_CHAIN`).
+//   * `HYBRID`   — `type = INTERNAL` for speed, but can be
+//                  redeemed 1:`exchangeRate` against an attached
+//                  `contractAddress`.
+
+enum StateAssetType {
+  // Lives only inside KrwnOS' Postgres. Fast, free, no blockchain.
+  INTERNAL
+  // Mirrors a real smart-contract token on a public chain.
+  ON_CHAIN
+}
+
+enum StateAssetMode {
+  // Pure virtual currency — closed companies / small clans.
+  LOCAL
+  // Pure on-chain — every tx resolved against a public contract.
+  EXTERNAL
+  // Internal ledger with a pegged on-chain withdraw path.
+  HYBRID
+}
+
+model StateAsset {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Short ticker — "KRN", "GOLD", "ETH", "MYCOIN". Unique per State.
+  symbol String
+  // Human-readable display name — "Королевская Крона", "Pegged USDC".
+  name   String
+
+  type StateAssetType @default(INTERNAL)
+  mode StateAssetMode @default(LOCAL)
+
+  // Optional on-chain binding. Required when `type = ON_CHAIN` or
+  // `mode = HYBRID`. Format depends on `network` (0x… for EVM,
+  // base58 for Solana, etc.). Validated at the service layer.
+  contractAddress String?
+  // Opaque chain identifier. Suggested values:
+  //   "ethereum", "polygon", "arbitrum", "base", "bsc",
+  //   "solana", "sui", "tron".
+  network         String?
+  // EVM chain id for convenience (137 = Polygon, 1 = Mainnet, …).
+  chainId         Int?
+
+  // Minor-units per whole unit, 10^decimals. ERC-20 defaults to
+  // 18; USDC is 6; Solana lamports use 9. Clamp to 0..36.
+  decimals Int @default(18)
+
+  // HYBRID only: how many on-chain minor-units equal one internal
+  // unit at withdraw time. `null` = peg not yet configured.
+  exchangeRate Float?
+
+  // Cosmetic flags used by the navbar / wallet widget.
+  icon  String?
+  color String?
+
+  // Exactly one StateAsset per State should be flagged `isPrimary`
+  // — it's the "national currency" every new Wallet defaults to.
+  // Uniqueness is enforced at the service layer (partial unique
+  // indexes are not expressible in vanilla Prisma).
+  isPrimary Boolean @default(false)
+
+  // --- Currency Factory knobs (Sovereign-controlled) ---
+  //
+  // `canMint`       — Эмиссия. When true, `wallet.admin_mint` holders
+  //                   may print fresh units into circulation. Only
+  //                   meaningful for INTERNAL / HYBRID assets — the
+  //                   State does not own an ON_CHAIN contract.
+  // `taxRate`       — Налог штата. Fractional rate in [0..1] that is
+  //                   automatically withheld on every successful
+  //                   ledger transfer and routed into the State's
+  //                   primary (root-node) Treasury. Applied AFTER the
+  //                   main transfer atomically, through the same
+  //                   repository transaction. ON_CHAIN assets ignore
+  //                   this — we cannot modify a third-party contract.
+  // `publicSupply`  — Публичность. When true, the aggregate circulating
+  //                   supply of this asset is exposed through the
+  //                   public `/api/wallet/supply/:assetId` endpoint so
+  //                   citizens can audit monetary policy.
+  canMint      Boolean @default(true)
+  taxRate      Float   @default(0)
+  publicSupply Boolean @default(false)
+
+  // Free-form: peg source, risk tier, custody provider, etc.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallets      Wallet[]
+  transactions Transaction[]
+
+  // Exchange pairs that reference this asset as either leg.
+  // Populated by the Krwn Exchange Engine — see `ExchangePair`.
+  exchangeFrom ExchangePair[] @relation("ExchangePairFrom")
+  exchangeTo   ExchangePair[] @relation("ExchangePairTo")
+  crossTxsFrom CrossStateTransaction[] @relation("CrossTxFromAsset")
+  crossTxsTo   CrossStateTransaction[] @relation("CrossTxToAsset")
+
+  @@unique([stateId, symbol])
+  @@index([stateId])
+  @@index([stateId, isPrimary])
+  @@index([type])
+}
+
+// ---------------- Core Wallet module (Finance vertical) ----------------
+//
+// First-party plugin `core.wallet`. Lives in the main schema because it
+// needs structural relations to `User`, `State`, `VerticalNode` and to
+// itself (transactions are a pair of wallet pointers). The Permissions
+// Engine gates all operations — only holders of `wallet.transfer` may
+// move funds out of their personal wallet; treasury access requires
+// being a member of the node or any of its ancestors PLUS the
+// `wallet.view_treasury` / `wallet.admin_mint` permissions.
+//
+// NOTE on `Float` money:
+//   Per the current spec, `balance` / `amount` are stored as `Float`.
+//   For production-grade accounting consider switching to `Decimal`
+//   (Prisma supports it) or an integer-minor-units schema to avoid
+//   IEEE-754 rounding drift. Every transfer goes through a single DB
+//   transaction in `modules/wallet/repo.ts` so concurrent updates
+//   remain correct, but floats still accumulate rounding error at
+//   scale. The default currency is "KRN" (Krona, ⚜).
+
+enum WalletType {
+  PERSONAL // belongs to a User inside a State
+  TREASURY // budget of a VerticalNode
+}
+
+model Wallet {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  type WalletType @default(PERSONAL)
+
+  // Personal wallet pointer (type = PERSONAL).
+  userId String?
+  user   User?   @relation("WalletOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Treasury pointer (type = TREASURY). One treasury wallet per node.
+  nodeId String?       @unique
+  node   VerticalNode? @relation("TreasuryWallet", fields: [nodeId], references: [id], onDelete: Cascade)
+
+  // Opaque internal address — we generate `krwn1…` for every row.
+  // For ON_CHAIN / HYBRID assets the real blockchain address is
+  // stored in `externalAddress` below; the two are NEVER the same
+  // and `address` always stays the KrwnOS-local identifier.
+  address String @unique
+
+  // Canonical pointer to the unit of account. Nullable for backward
+  // compatibility with legacy rows — the service layer enforces a
+  // non-null value on every new wallet by resolving the State's
+  // primary `StateAsset`. When `asset.type = ON_CHAIN`, `balance`
+  // is a cached snapshot of the on-chain balance synced by the
+  // Treasury Watcher.
+  assetId String?
+  asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  // Real blockchain address this wallet represents (only set for
+  // ON_CHAIN / HYBRID assets). Mandatory before the first on-chain
+  // transfer can be requested. Format is chain-specific (0x… for
+  // EVM, base58 for Solana). The PUBLIC view never exposes the
+  // internal `address` for on-chain assets — UIs should render
+  // `externalAddress` instead.
+  externalAddress String?
+
+  // Treasury Watcher cursor: timestamp of the last successful sync
+  // and the block height it was observed at. Used to decide when to
+  // re-poll and to reject stale updates on eventually-consistent
+  // RPCs.
+  lastSyncedAt    DateTime?
+  lastSyncedBlock BigInt?
+
+  // Ledger balance (internal minor units / pegged display units).
+  balance Float @default(0)
+  // Denormalised asset symbol, kept in sync with `asset.symbol` by
+  // the service layer. Convenient for queries / UI without a join.
+  currency String @default("KRN")
+
+  // Free-form slot for display name, icon, treasury limits, etc.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations to transactions (as source / destination).
+  outgoingTxs Transaction[] @relation("TxFromWallet")
+  incomingTxs Transaction[] @relation("TxToWallet")
+
+  // One personal wallet per (user, state, asset) — a single user
+  // may hold parallel balances in different assets.
+  @@unique([stateId, userId, assetId])
+  @@index([stateId])
+  @@index([userId])
+  @@index([type])
+  @@index([assetId])
+  @@index([externalAddress])
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+  reversed
+}
+
+enum TransactionKind {
+  // Peer-to-peer between two personal wallets.
+  transfer
+  // Treasury → personal (salary, grant) or treasury → treasury (budget).
+  treasury_allocation
+  // System-level mint by the Sovereign. `fromWalletId` is null.
+  mint
+  // System-level burn (e.g. fees, corrections). `toWalletId` is null.
+  burn
+}
+
+model Transaction {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Either side may be null for `mint` / `burn` operations.
+  fromWalletId String?
+  fromWallet   Wallet? @relation("TxFromWallet", fields: [fromWalletId], references: [id], onDelete: SetNull)
+
+  toWalletId String?
+  toWallet   Wallet? @relation("TxToWallet", fields: [toWalletId], references: [id], onDelete: SetNull)
+
+  kind   TransactionKind   @default(transfer)
+  status TransactionStatus @default(completed)
+
+  // Always positive; direction is encoded in from/to.
+  amount Float
+
+  // Canonical pointer to the asset being moved. Nullable for
+  // legacy rows — every new transaction inherits `assetId` from
+  // the participating wallets via the service layer.
+  assetId String?
+  asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  // Denormalised asset symbol (mirror of `asset.symbol`). Kept in
+  // sync with the wallets' currency — mismatches are rejected.
+  currency String @default("KRN")
+
+  // --- Web3 / on-chain tracking ---
+  // For INTERNAL assets these are always null. For ON_CHAIN / HYBRID
+  // the service layer stores the unsigned intent hash (built by the
+  // provider), the broadcasted transaction hash once the client
+  // signs it, and the provider-reported confirmation status. The
+  // Treasury Watcher transitions `externalStatus` from "pending"
+  // through "confirmed" / "failed" / "dropped" as it observes the
+  // chain.
+  externalTxHash String?
+  externalStatus String?
+
+  // Free-form: memo, reference ids, "за что перевод", signed intent
+  // payload, RPC hints, etc.
+  metadata Json @default("{}")
+
+  // User who initiated the operation (for audit).
+  initiatedById String
+  initiatedBy   User   @relation("TxInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([stateId, createdAt])
+  @@index([fromWalletId])
+  @@index([toWalletId])
+  @@index([initiatedById])
+  @@index([kind])
+  @@index([assetId])
+  @@index([externalTxHash])
+}
+
+// ---------------- Krwn Exchange Engine (Inter-State Swap) ----------------
+//
+// Cross-sovereign economy layer. Every `ExchangePair` declares the
+// conversion rate between two `StateAsset`s — usually one asset per
+// State — so that cross-state transfers can debit the source in its
+// own currency and credit the destination in another without ever
+// routing through an external DEX.
+//
+// Pair semantics:
+//   * Directional: a `USD_A -> GLD_B` pair does NOT imply `GLD_B -> USD_A`.
+//     Both directions must be declared explicitly — this is how the
+//     Krwn Exchange Engine models trade treaties: each side
+//     configures its own outbound rate (and may refuse to open the
+//     reverse direction — économическая блокада).
+//   * `isManual = true`  — Sovereign fixes the rate by decree.
+//   * `isManual = false` — rate is a hint; the actual rate is
+//     computed on demand (future work: DEX / activity-pegged).
+//   * `enabled = false`  — санкция. The Exchange Engine rejects
+//     every `crossStateTransfer` that would flow through this pair.
+//
+// The `CrossStateTransaction` row is the global KrwnOS audit log —
+// it lives outside any single State so that both sides can inspect
+// the trade. The two per-State `Transaction` rows (`burn` on the
+// source side, `mint` on the destination side) remain the source of
+// truth for per-ledger balances.
+
+enum CrossStateTxStatus {
+  pending
+  completed
+  failed
+  reversed
+}
+
+model ExchangePair {
+  id String @id @default(cuid())
+
+  // "Source" leg — the asset being debited when this pair is used
+  // by `ExchangeService.crossStateTransfer`.
+  fromAssetId String
+  fromAsset   StateAsset @relation("ExchangePairFrom", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  // Denormalised for hot-path lookups / permission checks.
+  fromStateId String
+
+  // "Destination" leg — the asset being credited.
+  toAssetId String
+  toAsset   StateAsset @relation("ExchangePairTo", fields: [toAssetId], references: [id], onDelete: Cascade)
+  toStateId String
+
+  // 1 unit of `fromAsset` == `rate` units of `toAsset`. Always
+  // positive and finite; the service layer rejects `rate <= 0`.
+  rate Float
+
+  // When true the Sovereign pinned the rate manually and the engine
+  // uses it verbatim. When false the pair is a "market" placeholder
+  // — the engine will later consult an oracle / DEX / activity
+  // heuristic. Implemented as a toggle so the column shape stays
+  // forward-compatible.
+  isManual Boolean @default(true)
+
+  // Санкционная кнопка: if false, every cross-state transfer routed
+  // through this pair is rejected at the core level, regardless of
+  // per-wallet permissions.
+  enabled Boolean @default(true)
+
+  // Who authored this pair. Typically the Sovereign of `fromStateId`
+  // (or a delegate holding `core.exchange.manage_pairs`).
+  createdById String
+  createdBy   User   @relation("ExchangePairCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Free-form: peg source, treaty label, risk caps, allowlisted
+  // wallet ids, expiration hints, etc.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crossTransactions CrossStateTransaction[] @relation("CrossTxPair")
+
+  // A given directional edge is unique — two Sovereigns can't
+  // collide by registering competing rates for the same pair.
+  @@unique([fromAssetId, toAssetId])
+  @@index([fromAssetId])
+  @@index([toAssetId])
+  @@index([fromStateId])
+  @@index([toStateId])
+  @@index([enabled])
+}
+
+model CrossStateTransaction {
+  id String @id @default(cuid())
+
+  // Pair used at the time of the swap. `SetNull` on delete — we
+  // keep the audit row alive even if the treaty is later torn up.
+  pairId String?
+  pair   ExchangePair? @relation("CrossTxPair", fields: [pairId], references: [id], onDelete: SetNull)
+
+  // --- Source leg (debit) ---
+  fromStateId  String
+  fromState    State      @relation("CrossStateFrom", fields: [fromStateId], references: [id], onDelete: Cascade)
+  fromAssetId  String
+  fromAsset    StateAsset @relation("CrossTxFromAsset", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  fromWalletId String
+  // The per-State `Transaction` row that actually moved balances in
+  // the source ledger (kind=burn). `SetNull` so deleting history on
+  // one side does not cascade into the cross-state log.
+  fromTransactionId String?
+
+  // --- Destination leg (credit) ---
+  toStateId  String
+  toState    State      @relation("CrossStateTo", fields: [toStateId], references: [id], onDelete: Cascade)
+  toAssetId  String
+  toAsset    StateAsset @relation("CrossTxToAsset", fields: [toAssetId], references: [id], onDelete: Cascade)
+  toWalletId String
+  toTransactionId String?
+
+  // `fromAmount` is the quantity debited; `toAmount = fromAmount * rate`
+  // rounded to `toAsset.decimals`. `rate` snapshots `pair.rate` at
+  // the moment of execution so later edits of the pair do not
+  // rewrite history.
+  fromAmount Float
+  toAmount   Float
+  rate       Float
+
+  status CrossStateTxStatus @default(pending)
+
+  initiatedById String
+  initiatedBy   User   @relation("CrossTxInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+
+  // Free-form — memo, treaty reference, failure reason, etc.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([fromStateId, createdAt])
+  @@index([toStateId, createdAt])
+  @@index([initiatedById])
+  @@index([pairId])
+  @@index([status])
+}
+
+// ---------------- Core Governance (Парламент) ----------------
+//
+// Модуль `core.governance` превращает Палату Указов в гибкий
+// DAO: Суверен определяет набор параметров конституции, которые
+// граждане могут менять через голосование. В зависимости от
+// `StateSettings.governanceRules.mode` исход голосования либо:
+//   * `decree`        — игнорируется (только информация для Суверена);
+//   * `consultation`  — Суверен вручную применяет решение;
+//   * `auto_dao`      — Executor автоматически дергает
+//                       `StateConfigService.update()`.
+//
+// Исторические строки не удаляются: Proposal живёт вечно, меняя
+// только `status`. Это важно для аудита — любое изменение
+// конституции должно быть прослеживаемым.
+
+enum ProposalStatus {
+  // Предложение опубликовано, идёт сбор голосов.
+  active
+  // Голосование закрыто, кворум достигнут и "за" ≥ threshold.
+  passed
+  // Голосование закрыто, условия не выполнены.
+  rejected
+  // Успешное предложение применено Executor-ом (auto_dao) или
+  // Сувереном (consultation). После этого шага конституция обновлена.
+  executed
+  // Суверен воспользовался правом вето до или после голосования.
+  vetoed
+  // Создатель отозвал предложение до закрытия голосования.
+  cancelled
+  // Истёк срок и ни один голос не был подан (специальный подвид rejected).
+  expired
+}
+
+enum VoteChoice {
+  for_
+  against
+  abstain
+}
+
+model Proposal {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("ProposalCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  title       String
+  description String
+
+  // Какой ключ `StateSettings` предложение хочет изменить и на что.
+  // Валидируется сервисом против `governanceRules.allowedConfigKeys`
+  // — Суверен может ограничить набор «законных» рычагов.
+  targetConfigKey String
+  // JSON, т.к. значение может быть числом, строкой, boolean или
+  // структурой (например, `{ enabled: true, minDays: 30 }`). Сервис
+  // валидирует тип при применении через `StateConfigService.update()`.
+  newValue        Json
+
+  status    ProposalStatus @default(active)
+
+  // Snapshot правил на момент создания предложения. Суверен может
+  // позже изменить `StateSettings.governanceRules`, но уже открытое
+  // голосование продолжает жить по правилам времени публикации.
+  quorumBps       Int
+  thresholdBps    Int
+  weightStrategy  String // "one_person_one_vote" | "by_node_weight" | "by_balance"
+  modeAtCreation  String // "decree" | "consultation" | "auto_dao"
+  sovereignVetoAtCreation Boolean @default(true)
+
+  // Агрегаты пересчитываются при каждом `castVote` — так UI не
+  // дергает SUM(weight) при каждом рендере.
+  totalWeightFor     Float @default(0)
+  totalWeightAgainst Float @default(0)
+  totalWeightAbstain Float @default(0)
+  voteCount          Int   @default(0)
+
+  // Аудит: кто принял / отклонил решение.
+  executedById String?
+  vetoedById   String?
+  vetoReason   String?
+
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  closedAt   DateTime?
+  executedAt DateTime?
+
+  // Свободное поле для модулей-расширений (правки рейтинга
+  // предложения, реф. ссылки и т.д.).
+  metadata Json @default("{}")
+
+  votes Vote[]
+
+  @@index([stateId, status])
+  @@index([stateId, createdAt])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  // Дублируем stateId для быстрых выборок без JOIN (UI Парламента
+  // фильтрует голоса по state).
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("VoteAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  choice VoteChoice
+
+  // Вес голоса на момент его подачи. Пересчёт не делаем: если
+  // позже Суверен изменит стратегию (по балансу → по узлам),
+  // ранее поданные голоса сохранят свой исторический вес.
+  weight Float @default(1)
+
+  // Для аудита: какой стратегией посчитан вес (snapshot правил).
+  weightReason String @default("one_person_one_vote")
+
+  // Комментарий избирателя (опционально). Отображается в UI ленты
+  // голосования под предложением.
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([proposalId, userId])
+  @@index([proposalId])
+  @@index([userId])
+  @@index([stateId])
 }

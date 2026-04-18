@@ -45,6 +45,10 @@ export interface SetupStateResult {
   stateId: string;
   stateSlug: string;
   sovereignNodeId: string;
+  /** ID узла «Прихожая» (waiting room) — куда попадают открытые регистрации. */
+  lobbyNodeId: string;
+  /** Personal wallet of the Sovereign. */
+  walletId: string;
   /** Plaintext CLI token — показывается ОДИН раз. */
   cliToken: string;
   cliTokenId: string;
@@ -112,11 +116,78 @@ export async function setupState(
       },
     });
 
+    // "Прихожая" — узел, куда приземляются открытые регистрации
+    // (тип А). Права НЕ даёт; пользователь остаётся в статусе
+    // `pending` до тех пор, пока кто-то из вертикали не переведёт
+    // его в реальный узел.
+    const lobbyNode = await tx.verticalNode.create({
+      data: {
+        stateId: state.id,
+        parentId: sovereignNode.id,
+        title: "Waiting Room",
+        type: "rank",
+        permissions: [],
+        order: 999,
+        isLobby: true,
+      },
+    });
+
     await tx.membership.create({
       data: {
         userId: user.id,
         nodeId: sovereignNode.id,
         title: "Sovereign",
+        status: "active",
+      },
+    });
+
+    // National currency seed — every fresh State starts with a
+    // Local Ledger "KRN" asset flagged as the primary. The Sovereign
+    // can later introduce additional assets (EXTERNAL tokens,
+    // HYBRID peggings) via the Currency Factory.
+    const primaryAsset = await (tx as unknown as {
+      stateAsset: {
+        create: (args: unknown) => Promise<{ id: string; symbol: string }>;
+      };
+    }).stateAsset.create({
+      data: {
+        stateId: state.id,
+        symbol: "KRN",
+        name: "Krona",
+        type: "INTERNAL",
+        mode: "LOCAL",
+        decimals: 18,
+        isPrimary: true,
+        icon: "⚜",
+        color: "#C9A227",
+        metadata: { seed: true },
+      },
+    });
+
+    // Personal wallet for the Sovereign (one per User × State ×
+    // StateAsset). Bound to the national currency by default.
+    const wallet = await tx.wallet.create({
+      data: {
+        stateId: state.id,
+        type: "PERSONAL",
+        userId: user.id,
+        address: generateLedgerAddress("usr"),
+        currency: primaryAsset.symbol,
+        assetId: primaryAsset.id,
+      },
+    });
+
+    // Палата Указов — создаём пустую конституцию с дефолтными
+    // значениями сразу при bootstrap-е. Без неё первый запрос к
+    // `/api/state/constitution` лениво создал бы строку, но лучше,
+    // чтобы таблица всегда была синхронна с набором State.
+    await (tx as unknown as {
+      stateSettings: {
+        create: (args: unknown) => Promise<unknown>;
+      };
+    }).stateSettings.create({
+      data: {
+        stateId: state.id,
       },
     });
 
@@ -135,6 +206,8 @@ export async function setupState(
       stateId: state.id,
       stateSlug: state.slug,
       sovereignNodeId: sovereignNode.id,
+      lobbyNodeId: lobbyNode.id,
+      walletId: wallet.id,
       cliToken: rawCliToken,
       cliTokenId: cliToken.id,
     };
@@ -202,6 +275,16 @@ function normaliseSlug(raw: string): string {
 
 function normaliseHandle(raw: string): string {
   return raw.trim().toLowerCase().replace(/^@/, "");
+}
+
+/**
+ * Internal ledger address for new wallets. Not an EVM / Solana key.
+ * Kept here (and mirrored in `modules/wallet/repo.ts`) so the core
+ * bootstrap doesn't need to import a plugin.
+ */
+function generateLedgerAddress(prefix: "usr" | "tre"): string {
+  const body = randomBytes(16).toString("hex");
+  return `krwn1${prefix}${body}`;
 }
 
 // ============================================================

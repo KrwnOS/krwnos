@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
         stateId: result.stateId,
         stateSlug: result.stateSlug,
         sovereignNodeId: result.sovereignNodeId,
+        lobbyNodeId: result.lobbyNodeId,
+        walletId: result.walletId,
         userId: result.userId,
         cliToken: result.cliToken,
         cliTokenId: result.cliTokenId,

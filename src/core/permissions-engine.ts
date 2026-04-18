@@ -85,6 +85,47 @@ export class PermissionsEngine {
     return { granted: false, reason: "denied" };
   }
 
+  /**
+   * Checks whether the user is a direct member of `nodeId` or of any
+   * ancestor of it (walking `parentId` up to the root).
+   *
+   * Rationale: power in KrwnOS flows downwards — if the "Ministry of
+   * Finance" is a parent of "Tax Office", members of the ministry
+   * should naturally see everything scoped to the tax office,
+   * including resources like chat channels that are bound to it.
+   *
+   * The Sovereign (`isOwner`) satisfies this check unconditionally.
+   */
+  isMemberOfNodeOrAncestor(
+    input: Pick<PermissionCheckInput, "userId" | "isOwner" | "snapshot">,
+    nodeId: string,
+  ): { granted: boolean; sourceNodeId?: string; reason: "sovereign" | "direct" | "inherited" | "denied" } {
+    if (input.isOwner) return { granted: true, reason: "sovereign" };
+
+    const userNodes = input.snapshot.membershipsByUser.get(input.userId);
+    if (!userNodes || userNodes.size === 0) {
+      return { granted: false, reason: "denied" };
+    }
+
+    if (userNodes.has(nodeId)) {
+      return { granted: true, reason: "direct", sourceNodeId: nodeId };
+    }
+
+    // Walk the chain from nodeId up — if any ancestor is in the user's
+    // membership set, access is granted through inheritance.
+    const visited = new Set<string>();
+    let cursor: string | null | undefined = input.snapshot.nodes.get(nodeId)?.parentId ?? null;
+    while (cursor && !visited.has(cursor)) {
+      visited.add(cursor);
+      if (userNodes.has(cursor)) {
+        return { granted: true, reason: "inherited", sourceNodeId: cursor };
+      }
+      cursor = input.snapshot.nodes.get(cursor)?.parentId ?? null;
+    }
+
+    return { granted: false, reason: "denied" };
+  }
+
   /** Compute the full set of permissions a user effectively has. */
   resolveAll(input: PermissionCheckInput): Set<PermissionKey> {
     const result = new Set<PermissionKey>();

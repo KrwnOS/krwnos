@@ -59,11 +59,11 @@ KrwnOS спроектирован как «Sovereign Node»: одно госуд
 инстанс, которым вы полностью владеете.
 
 
-| Tier                    | Кому                               | Как                                                      |
-| ----------------------- | ---------------------------------- | -------------------------------------------------------- |
-| **Sandbox** (локально)  | Тесты, кланы в одной сети          | Krwn Desktop (Electron + Docker) или `docker compose up` |
-| **Pro** (свой VPS)      | Энтузиасты, продвинутые сообщества | `curl -sSL https://get.krwnos.com | bash`                |
-| **Cloud** (marketplace) | Кто хочет URL за минуту            | DigitalOcean / Linode / AWS one-click                    |
+| Tier                    | Кому                               | Как                                                         |
+| ----------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| **Sandbox** (локально)  | Тесты, кланы в одной сети          | Krwn Desktop (Electron + Docker) или `docker compose up`    |
+| **Pro** (свой VPS)      | Энтузиасты, продвинутые сообщества | `curl -sSL [https://get.krwnos.com](https://get.krwnos.com) |
+| **Cloud** (marketplace) | Кто хочет URL за минуту            | DigitalOcean / Linode / AWS one-click                       |
 
 
 Подробнее: `[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)`.
@@ -206,6 +206,7 @@ krwn status
 
 ## 8. Документация
 
+- `[docs/WHITEPAPER.md](./docs/WHITEPAPER.md)` — **обзорный white paper**: что это, что уже умеет, как этим пользоваться, roadmap.
 - `[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)` — ядро, Vertical, модули, правила зависимостей.
 - `[docs/DATABASE.md](./docs/DATABASE.md)` — схема БД и типовые запросы.
 - `[docs/MODULE_GUIDE.md](./docs/MODULE_GUIDE.md)` — как написать плагин.
