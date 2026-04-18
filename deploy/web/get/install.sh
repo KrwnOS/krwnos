@@ -65,8 +65,8 @@ fi
 info "Building containers"
 docker compose build --pull
 
-info "Running migrations"
-docker compose run --rm app npx prisma migrate deploy
+info "Applying schema (db push — no migrations yet in v0.1)"
+docker compose run --rm app npx prisma db push --skip-generate
 
 info "Starting services"
 if [ -n "$KRWN_TUNNEL" ]; then

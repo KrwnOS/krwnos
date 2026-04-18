@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "description": "KrwnOS — modular operating system for building digital states, companies and communities.",
+  "homepage": "https://krwnos.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KrwnOS/krwnos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KrwnOS/krwnos/issues"
+  },
+  "license": "MIT",
   "workspaces": ["cli"],
   "scripts": {
     "dev": "next dev",

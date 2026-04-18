@@ -70,8 +70,8 @@ CLOUDFLARE_TUNNEL_TOKEN=$Tunnel
 Info "Building containers"
 docker compose build --pull | Out-Host
 
-Info "Running migrations"
-docker compose run --rm app npx prisma migrate deploy | Out-Host
+Info "Applying schema (db push — no migrations yet in v0.1)"
+docker compose run --rm app npx prisma db push --skip-generate | Out-Host
 
 Info "Starting services"
 if ($Tunnel) {
