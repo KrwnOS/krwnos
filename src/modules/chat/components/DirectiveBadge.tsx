@@ -6,6 +6,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export function DirectiveBadge({
   acknowledged,
@@ -14,6 +15,7 @@ export function DirectiveBadge({
   acknowledged?: boolean;
   className?: string;
 }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -23,12 +25,16 @@ export function DirectiveBadge({
           : "border-crown/60 bg-crown/10 text-crown",
         className,
       )}
-      aria-label={acknowledged ? "Приказ выполнен" : "Системный приказ"}
+      aria-label={
+        acknowledged
+          ? t("chat.directive.ackedAria")
+          : t("chat.directive.badgeAria")
+      }
     >
       <span aria-hidden className="text-[10px]">
         {acknowledged ? "✓" : "★"}
       </span>
-      {acknowledged ? "Принято" : "Приказ"}
+      {acknowledged ? t("chat.directive.ack") : t("chat.directive.badge")}
     </span>
   );
 }

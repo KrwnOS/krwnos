@@ -3,13 +3,12 @@
  * ------------------------------------------------------------
  * Витрина для Суверена, где он программирует государство
  * целиком: фискальная политика, правила входа/выхода, динамика
- * Вертикали. Формирует один PATCH-запрос в
+ * Вертикали, Парламент. Формирует один PATCH-запрос в
  * `/api/state/constitution` при нажатии «Подписать указ».
  *
- * Транспорт идентичен `/admin/economy`: CLI-токен Суверена
- * хранится в `localStorage["krwn.token"]`, каждый fetch
- * отправляет Bearer. Серверный guard (StateConfigService) сам
- * отбрасывает все не-Sovereign запросы с 403.
+ * Все строки переведены через i18n: ключи живут под
+ * `constitution.*`, подписи пунктов whitelist'а Парламента —
+ * под `constitution.keys.<fieldName>`.
  */
 
 "use client";
@@ -19,10 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-// ------------------------------------------------------------
-// Wire types
-// ------------------------------------------------------------
+import { useI18n } from "@/lib/i18n";
 
 type TreasuryTransparency = "public" | "council" | "sovereign";
 type GovernanceMode = "decree" | "consultation" | "auto_dao";
@@ -64,23 +60,23 @@ interface StateSettingsDto {
   governanceRules: GovernanceRulesDto;
 }
 
-const GOVERNANCE_MANAGEABLE_KEY_LABELS: ReadonlyArray<{
-  key: string;
-  label: string;
-}> = [
-  { key: "transactionTaxRate", label: "Налог на перевод" },
-  { key: "incomeTaxRate", label: "Подоходный налог" },
-  { key: "roleTaxRate", label: "Налог на роль" },
-  { key: "currencyDisplayName", label: "Витрина валюты" },
-  { key: "citizenshipFeeAmount", label: "Плата за гражданство" },
-  { key: "rolesPurchasable", label: "Выкуп ролей" },
-  { key: "exitRefundRate", label: "Возврат при выходе" },
-  { key: "permissionInheritance", label: "Наследование прав" },
-  { key: "autoPromotionEnabled", label: "Авто-продвижение: вкл." },
-  { key: "autoPromotionMinBalance", label: "Авто-продвижение: баланс" },
-  { key: "autoPromotionMinDays", label: "Авто-продвижение: стаж" },
-  { key: "autoPromotionTargetNodeId", label: "Авто-продвижение: узел" },
-  { key: "treasuryTransparency", label: "Прозрачность казны" },
+// Keys the Sovereign can expose to the Parliament. The label
+// for each one is looked up via `constitution.keys.<key>` so
+// every locale can translate it independently.
+const GOVERNANCE_MANAGEABLE_KEYS: ReadonlyArray<string> = [
+  "transactionTaxRate",
+  "incomeTaxRate",
+  "roleTaxRate",
+  "currencyDisplayName",
+  "citizenshipFeeAmount",
+  "rolesPurchasable",
+  "exitRefundRate",
+  "permissionInheritance",
+  "autoPromotionEnabled",
+  "autoPromotionMinBalance",
+  "autoPromotionMinDays",
+  "autoPromotionTargetNodeId",
+  "treasuryTransparency",
 ];
 
 interface FormState {
@@ -98,9 +94,6 @@ interface FormState {
   autoPromotionTargetNodeId: string;
   treasuryTransparency: TreasuryTransparency;
 
-  // Governance — «конституция самого голосования». UI хранит
-  // проценты и дни, вычислители переводят в bps / секунды перед
-  // отправкой. Это даёт Суверену привычные единицы измерения.
   governanceMode: GovernanceMode;
   governanceSovereignVeto: boolean;
   governanceQuorumPct: string;
@@ -118,7 +111,7 @@ function toForm(settings: StateSettingsDto): FormState {
   const wildcard = g.allowedConfigKeys.includes("*");
   const allowedSet = new Set(g.allowedConfigKeys);
   const allowed: Record<string, boolean> = {};
-  for (const { key } of GOVERNANCE_MANAGEABLE_KEY_LABELS) {
+  for (const key of GOVERNANCE_MANAGEABLE_KEYS) {
     allowed[key] = wildcard || allowedSet.has(key);
   }
   return {
@@ -156,9 +149,8 @@ function toForm(settings: StateSettingsDto): FormState {
   };
 }
 
-// ------------------------------------------------------------
-
 export default function AdminConstitutionPage() {
+  const { t } = useI18n();
   const [token, setToken] = useState<string | null>(null);
   const [settings, setSettings] = useState<StateSettingsDto | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -241,10 +233,10 @@ export default function AdminConstitutionPage() {
       if ("settings" in payload) {
         setSettings(payload.settings);
         setForm(toForm(payload.settings));
-        setFlash("Указ подписан и вступил в силу.");
+        setFlash(t("constitution.signed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ошибка");
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setSaving(false);
     }
@@ -268,14 +260,13 @@ export default function AdminConstitutionPage() {
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-crown">
-            Палата Указов
+            {t("constitution.eyebrow")}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold">Конституция государства</h1>
+          <h1 className="mt-1 text-3xl font-semibold">
+            {t("constitution.title")}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-foreground/60">
-            Здесь Суверен задаёт правила, по которым живёт песочница:
-            фискальную политику, правила входа, динамику Вертикали. Любое
-            изменение мгновенно применяется к каждому переводу, инвайту и
-            проверке прав.
+            {t("constitution.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -285,7 +276,7 @@ export default function AdminConstitutionPage() {
             onClick={() => void reload()}
             disabled={loading}
           >
-            {loading ? "…" : "Обновить"}
+            {loading ? t("common.loadingDots") : t("common.refresh")}
           </Button>
           <Button
             variant="ghost"
@@ -297,15 +288,15 @@ export default function AdminConstitutionPage() {
               setForm(null);
             }}
           >
-            Сменить токен
+            {t("common.logout")}
           </Button>
         </div>
       </header>
 
       {error && (
         <Card className="mb-6 border-destructive/40 bg-destructive/5 text-sm text-destructive">
-          Ошибка: {error}. Для редактирования требуется CLI-токен Суверена или
-          держателя права <code>state.configure</code>.
+          {t("common.errorWith", { message: error })}
+          {t("constitution.errorHint", { perm: "state.configure" })}
         </Card>
       )}
 
@@ -316,25 +307,22 @@ export default function AdminConstitutionPage() {
       )}
 
       {!form && !error && (
-        <Card className="text-sm text-foreground/60">Загружаем конституцию…</Card>
+        <Card className="text-sm text-foreground/60">
+          {t("constitution.loading")}
+        </Card>
       )}
 
       {form && (
         <form className="space-y-6" onSubmit={onSubmit}>
           <Section
-            eyebrow="Глава I"
-            title="Фискальная политика"
-            description={
-              "Три налоговых слоя. Налог на транзакции применяется к любому " +
-              "переводу между гражданами. Подоходный — к выплатам из казны " +
-              "на личный кошелёк. Налог на роль хранится как декларация: его " +
-              "автоматически спишет cron-механика более поздних релизов."
-            }
+            eyebrow={t("constitution.ch1.eyebrow")}
+            title={t("constitution.ch1.title")}
+            description={t("constitution.ch1.desc")}
           >
             <Grid3>
               <NumberField
-                label="Налог на перевод (%)"
-                hint="С каждой P2P-операции уходит в корневую Казну."
+                label={t("constitution.ch1.transferTax")}
+                hint={t("constitution.ch1.transferTaxHint")}
                 value={form.transactionTaxPct}
                 onChange={(v) => setForm({ ...form, transactionTaxPct: v })}
                 min={0}
@@ -342,8 +330,8 @@ export default function AdminConstitutionPage() {
                 step={0.1}
               />
               <NumberField
-                label="Подоходный налог (%)"
-                hint="С начислений из казны на личный кошелёк."
+                label={t("constitution.ch1.incomeTax")}
+                hint={t("constitution.ch1.incomeTaxHint")}
                 value={form.incomeTaxPct}
                 onChange={(v) => setForm({ ...form, incomeTaxPct: v })}
                 min={0}
@@ -351,8 +339,8 @@ export default function AdminConstitutionPage() {
                 step={0.1}
               />
               <NumberField
-                label="Налог на роль (%/мес)"
-                hint="Месячная подписка на удержание высокой позиции."
+                label={t("constitution.ch1.roleTax")}
+                hint={t("constitution.ch1.roleTaxHint")}
                 value={form.roleTaxPct}
                 onChange={(v) => setForm({ ...form, roleTaxPct: v })}
                 min={0}
@@ -362,31 +350,24 @@ export default function AdminConstitutionPage() {
             </Grid3>
             <div className="mt-4">
               <TextField
-                label="Витрина названия валюты"
-                hint={
-                  "Необязательная подпись для UI. Настоящая единица учёта " +
-                  "остаётся в Фабрике Валют (тикер первичного актива)."
-                }
+                label={t("constitution.ch1.display")}
+                hint={t("constitution.ch1.displayHint")}
                 value={form.currencyDisplayName}
                 onChange={(v) => setForm({ ...form, currencyDisplayName: v })}
-                placeholder="Королевская Крона"
+                placeholder={t("constitution.ch1.displayPh")}
               />
             </div>
           </Section>
 
           <Section
-            eyebrow="Глава II"
-            title="Правила входа и выхода"
-            description={
-              "Плата за гражданство защищает от спама. Выкуп ролей позволяет " +
-              "превратить Вертикаль в биржу статусов. Возврат при выходе " +
-              "определяет, считается ли эмиграция легитимной."
-            }
+            eyebrow={t("constitution.ch2.eyebrow")}
+            title={t("constitution.ch2.title")}
+            description={t("constitution.ch2.desc")}
           >
             <Grid3>
               <NumberField
-                label="Плата за гражданство"
-                hint="В единицах первичной валюты. 0 = бесплатный вход."
+                label={t("constitution.ch2.citizenship")}
+                hint={t("constitution.ch2.citizenshipHint")}
                 value={form.citizenshipFeeAmount}
                 onChange={(v) =>
                   setForm({ ...form, citizenshipFeeAmount: v })
@@ -395,8 +376,8 @@ export default function AdminConstitutionPage() {
                 step={1}
               />
               <NumberField
-                label="Возврат при выходе (%)"
-                hint="Доля остатка, возвращаемая эмигранту."
+                label={t("constitution.ch2.exitRefund")}
+                hint={t("constitution.ch2.exitRefundHint")}
                 value={form.exitRefundPct}
                 onChange={(v) => setForm({ ...form, exitRefundPct: v })}
                 min={0}
@@ -404,8 +385,8 @@ export default function AdminConstitutionPage() {
                 step={0.1}
               />
               <ToggleField
-                label="Выкуп ролей разрешён"
-                hint="Позволяет выставить узел Вертикали на продажу."
+                label={t("constitution.ch2.rolesPurchasable")}
+                hint={t("constitution.ch2.rolesPurchasableHint")}
                 checked={form.rolesPurchasable}
                 onChange={(v) =>
                   setForm({ ...form, rolesPurchasable: v })
@@ -415,35 +396,30 @@ export default function AdminConstitutionPage() {
           </Section>
 
           <Section
-            eyebrow="Глава III"
-            title="Динамика Вертикали"
-            description={
-              "Определяет, как власть и прозрачность распределяются «сами " +
-              "собой». Наследование прав превращает министров в видящих всё " +
-              "в подразделении. Авто-продвижение назначает гражданину новую " +
-              "должность при выполнении условий."
-            }
+            eyebrow={t("constitution.ch3.eyebrow")}
+            title={t("constitution.ch3.title")}
+            description={t("constitution.ch3.desc")}
           >
             <Grid3>
               <ToggleField
-                label="Наследование прав"
-                hint="Министр видит всё, что видят его подчинённые."
+                label={t("constitution.ch3.inheritance")}
+                hint={t("constitution.ch3.inheritanceHint")}
                 checked={form.permissionInheritance}
                 onChange={(v) =>
                   setForm({ ...form, permissionInheritance: v })
                 }
               />
               <ToggleField
-                label="Авто-продвижение"
-                hint="Автоматически переводит гражданина в целевой узел."
+                label={t("constitution.ch3.autoPromo")}
+                hint={t("constitution.ch3.autoPromoHint")}
                 checked={form.autoPromotionEnabled}
                 onChange={(v) =>
                   setForm({ ...form, autoPromotionEnabled: v })
                 }
               />
               <SelectField
-                label="Прозрачность казны"
-                hint="Кто видит TreasuryWallet и его историю."
+                label={t("constitution.ch3.treasury")}
+                hint={t("constitution.ch3.treasuryHint")}
                 value={form.treasuryTransparency}
                 onChange={(v) =>
                   setForm({
@@ -452,9 +428,18 @@ export default function AdminConstitutionPage() {
                   })
                 }
                 options={[
-                  { value: "public", label: "Публичная — все граждане" },
-                  { value: "council", label: "Совет — узел и предки" },
-                  { value: "sovereign", label: "Только Суверен" },
+                  {
+                    value: "public",
+                    label: t("constitution.ch3.treasury.public"),
+                  },
+                  {
+                    value: "council",
+                    label: t("constitution.ch3.treasury.council"),
+                  },
+                  {
+                    value: "sovereign",
+                    label: t("constitution.ch3.treasury.sovereign"),
+                  },
                 ]}
               />
             </Grid3>
@@ -462,8 +447,8 @@ export default function AdminConstitutionPage() {
             {form.autoPromotionEnabled && (
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <NumberField
-                  label="Порог баланса"
-                  hint="Минимум средств для авто-повышения."
+                  label={t("constitution.ch3.promoBalance")}
+                  hint={t("constitution.ch3.promoBalanceHint")}
                   value={form.autoPromotionMinBalance}
                   onChange={(v) =>
                     setForm({ ...form, autoPromotionMinBalance: v })
@@ -472,8 +457,8 @@ export default function AdminConstitutionPage() {
                   step={1}
                 />
                 <NumberField
-                  label="Стаж, дней"
-                  hint="Сколько дней в системе должен провести гражданин."
+                  label={t("constitution.ch3.promoDays")}
+                  hint={t("constitution.ch3.promoDaysHint")}
                   value={form.autoPromotionMinDays}
                   onChange={(v) =>
                     setForm({ ...form, autoPromotionMinDays: v })
@@ -482,8 +467,8 @@ export default function AdminConstitutionPage() {
                   step={1}
                 />
                 <TextField
-                  label="Целевой узел (id)"
-                  hint="cuid узла Вертикали. Возьмите из /admin/vertical."
+                  label={t("constitution.ch3.promoTarget")}
+                  hint={t("constitution.ch3.promoTargetHint")}
                   value={form.autoPromotionTargetNodeId}
                   onChange={(v) =>
                     setForm({ ...form, autoPromotionTargetNodeId: v })
@@ -495,44 +480,44 @@ export default function AdminConstitutionPage() {
           </Section>
 
           <Section
-            eyebrow="Глава IV"
-            title="Парламент"
-            description={
-              "Включает или отключает прямую демократию. В режиме «Указ» " +
-              "предложения граждан остаются декларациями. В «Консультации» " +
-              "Суверен видит итоги и принимает решение вручную. В " +
-              "«Авто-DAO» успешные голосования меняют конституцию сами — но " +
-              "право вето Суверена по-прежнему доступно, если не выключено."
-            }
+            eyebrow={t("constitution.ch4.eyebrow")}
+            title={t("constitution.ch4.title")}
+            description={t("constitution.ch4.desc")}
           >
             <Grid3>
               <SelectField
-                label="Режим управления"
-                hint="Определяет, влияют ли голоса граждан на state settings."
+                label={t("constitution.ch4.mode")}
+                hint={t("constitution.ch4.modeHint")}
                 value={form.governanceMode}
                 onChange={(v) =>
                   setForm({ ...form, governanceMode: v as GovernanceMode })
                 }
                 options={[
-                  { value: "decree", label: "Указ — только Суверен" },
+                  {
+                    value: "decree",
+                    label: t("constitution.ch4.mode.decree"),
+                  },
                   {
                     value: "consultation",
-                    label: "Консультация — вручную",
+                    label: t("constitution.ch4.mode.consultation"),
                   },
-                  { value: "auto_dao", label: "Auto-DAO — автоматически" },
+                  {
+                    value: "auto_dao",
+                    label: t("constitution.ch4.mode.auto"),
+                  },
                 ]}
               />
               <ToggleField
-                label="Право вето Суверена"
-                hint="Разрешает Суверену наложить вето на любое решение."
+                label={t("constitution.ch4.veto")}
+                hint={t("constitution.ch4.vetoHint")}
                 checked={form.governanceSovereignVeto}
                 onChange={(v) =>
                   setForm({ ...form, governanceSovereignVeto: v })
                 }
               />
               <SelectField
-                label="Вес голоса"
-                hint="Как система считает вклад каждого голосующего."
+                label={t("constitution.ch4.weight")}
+                hint={t("constitution.ch4.weightHint")}
                 value={form.governanceWeightStrategy}
                 onChange={(v) =>
                   setForm({
@@ -543,23 +528,23 @@ export default function AdminConstitutionPage() {
                 options={[
                   {
                     value: "one_person_one_vote",
-                    label: "Один человек — один голос",
+                    label: t("constitution.ch4.weight.person"),
                   },
                   {
                     value: "by_node_weight",
-                    label: "По весу узла Вертикали",
+                    label: t("constitution.ch4.weight.node"),
                   },
                   {
                     value: "by_balance",
-                    label: "По балансу первичного актива",
+                    label: t("constitution.ch4.weight.balance"),
                   },
                 ]}
               />
             </Grid3>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <NumberField
-                label="Кворум (%)"
-                hint="Минимальная доля электората, подавшая голос."
+                label={t("constitution.ch4.quorum")}
+                hint={t("constitution.ch4.quorumHint")}
                 value={form.governanceQuorumPct}
                 onChange={(v) =>
                   setForm({ ...form, governanceQuorumPct: v })
@@ -569,8 +554,8 @@ export default function AdminConstitutionPage() {
                 step={0.5}
               />
               <NumberField
-                label="Порог «за» (%)"
-                hint="Доля «за» от общего числа поданных голосов."
+                label={t("constitution.ch4.threshold")}
+                hint={t("constitution.ch4.thresholdHint")}
                 value={form.governanceThresholdPct}
                 onChange={(v) =>
                   setForm({ ...form, governanceThresholdPct: v })
@@ -580,8 +565,8 @@ export default function AdminConstitutionPage() {
                 step={0.5}
               />
               <NumberField
-                label="Длительность, дни"
-                hint="Сколько длится голосование от создания до автозакрытия."
+                label={t("constitution.ch4.duration")}
+                hint={t("constitution.ch4.durationHint")}
                 value={form.governanceDurationDays}
                 onChange={(v) =>
                   setForm({ ...form, governanceDurationDays: v })
@@ -593,8 +578,8 @@ export default function AdminConstitutionPage() {
             </div>
             <div className="mt-4">
               <NumberField
-                label="Мин. баланс для создания предложения"
-                hint="Anti-spam: сколько первичной валюты нужно иметь. Пусто = не ограничивать."
+                label={t("constitution.ch4.minBalance")}
+                hint={t("constitution.ch4.minBalanceHint")}
                 value={form.governanceMinProposerBalance}
                 onChange={(v) =>
                   setForm({ ...form, governanceMinProposerBalance: v })
@@ -606,15 +591,15 @@ export default function AdminConstitutionPage() {
 
             <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-widest text-foreground/60">
-                Параметры, отдаваемые Парламенту
+                {t("constitution.ch4.allowedTitle")}
               </p>
               <p className="mt-1 text-xs text-foreground/50">
-                Отмеченные ключи граждане смогут предложить изменить
-                через <a href="/governance" className="underline decoration-dotted">Парламент</a>.
-                Снимите все галочки, чтобы оставить Парламент декоративным.
+                {t("constitution.ch4.allowedDesc", {
+                  link: t("constitution.ch4.allowedLink"),
+                })}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {GOVERNANCE_MANAGEABLE_KEY_LABELS.map(({ key, label }) => (
+                {GOVERNANCE_MANAGEABLE_KEYS.map((key) => (
                   <label
                     key={key}
                     className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background/30 px-3 py-2 text-sm"
@@ -633,7 +618,9 @@ export default function AdminConstitutionPage() {
                         })
                       }
                     />
-                    <span className="flex-1 text-foreground/80">{label}</span>
+                    <span className="flex-1 text-foreground/80">
+                      {t(`constitution.keys.${key}`)}
+                    </span>
                     <code className="text-[10px] text-foreground/40">
                       {key}
                     </code>
@@ -646,16 +633,18 @@ export default function AdminConstitutionPage() {
           <div className="flex items-center justify-end gap-3 border-t border-border/60 pt-6">
             <p className="text-xs text-foreground/50">
               {dirty
-                ? "Есть несохранённые изменения"
-                : "Все поля синхронизированы с БД"}
+                ? t("constitution.dirty")
+                : t("constitution.clean")}
             </p>
             <Button
               type="submit"
               variant="crown"
               disabled={!dirty || saving}
-              title={dirty ? undefined : "Измените любое поле, чтобы подписать указ"}
+              title={dirty ? undefined : t("constitution.signHint")}
             >
-              {saving ? "Подписываю…" : "Подписать указ"}
+              {saving
+                ? t("constitution.signing")
+                : t("constitution.sign")}
             </Button>
           </div>
         </form>
@@ -664,13 +653,7 @@ export default function AdminConstitutionPage() {
   );
 }
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
 function buildPatch(form: FormState): Record<string, unknown> {
-  // Все ставки UI хранит в процентах, API — во фракции. Переводим
-  // здесь — сервер-валидация отклонит любые значения вне [0..1].
   const toFraction = (raw: string): number => {
     const n = Number(raw);
     if (!Number.isFinite(n)) return 0;
@@ -698,8 +681,6 @@ function buildPatch(form: FormState): Record<string, unknown> {
     return t.length === 0 ? null : t;
   };
 
-  // Bps — «basis points» (0..10000). UI ведёт проценты с двумя
-  // знаками, серверу отдаём целое bps.
   const toBps = (raw: string): number => {
     const n = Number(raw);
     if (!Number.isFinite(n)) return 0;
@@ -708,13 +689,12 @@ function buildPatch(form: FormState): Record<string, unknown> {
   const toDurationSeconds = (raw: string): number => {
     const n = Number(raw);
     if (!Number.isFinite(n) || n <= 0) return 3 * 86_400;
-    // Clamp 1 минута .. 365 дней, чтобы пройти сервер-валидацию.
     const seconds = Math.round(n * 86_400);
     return Math.max(60, Math.min(60 * 60 * 24 * 365, seconds));
   };
 
   const allowedConfigKeys: string[] = [];
-  for (const { key } of GOVERNANCE_MANAGEABLE_KEY_LABELS) {
+  for (const key of GOVERNANCE_MANAGEABLE_KEYS) {
     if (form.governanceAllowedKeys[key]) allowedConfigKeys.push(key);
   }
 
@@ -757,14 +737,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   return (
     <Card className="mx-auto mt-24 max-w-md">
-      <CardTitle>Вход в Палату Указов</CardTitle>
+      <CardTitle>{t("constitution.token.title")}</CardTitle>
       <CardDescription>
-        Редактирование конституции требует CLI-токен Суверена (или держателя
-        права <code>state.configure</code>). Получите его через{" "}
-        <code>krwn token mint</code>.
+        {t("constitution.token.desc", {
+          perm: "state.configure",
+          cmd: "krwn token mint",
+        })}
       </CardDescription>
       <form
         className="mt-4 flex flex-col gap-2"
@@ -780,7 +762,7 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
           autoFocus
         />
         <Button type="submit" variant="crown">
-          Войти
+          {t("common.login")}
         </Button>
       </form>
     </Card>

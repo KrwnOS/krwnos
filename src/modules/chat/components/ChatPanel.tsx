@@ -16,6 +16,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { ChatSidebar } from "./ChatSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { DirectiveBadge } from "./DirectiveBadge";
@@ -24,6 +25,7 @@ import { useChat } from "./useChat";
 
 export function ChatPanel({ className }: { className?: string }) {
   const chat = useChat();
+  const { t } = useI18n();
 
   if (!chat.token) {
     return (
@@ -64,7 +66,10 @@ export function ChatPanel({ className }: { className?: string }) {
         )}
         {chat.error && (
           <div className="border-b border-red-500/30 bg-red-500/10 px-5 py-2 text-xs text-red-300">
-            Ошибка API ({chat.error.status}): {chat.error.message}
+            {t("chat.apiErr", {
+              status: chat.error.status,
+              message: chat.error.message,
+            })}
           </div>
         )}
         <ChatWindow
@@ -82,22 +87,32 @@ export function ChatPanel({ className }: { className?: string }) {
 
 // ------------------------------------------------------------
 
-function ConnectForm({ onSubmit }: { onSubmit: (token: string | null) => void }) {
+function ConnectForm({
+  onSubmit,
+}: {
+  onSubmit: (token: string | null) => void;
+}) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        const t = value.trim();
-        if (t) onSubmit(t);
+        const trimmed = value.trim();
+        if (trimmed) onSubmit(trimmed);
       }}
       className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-border/60 bg-muted/40 p-5"
     >
-      <h3 className="text-sm font-semibold">Подключение к чату</h3>
+      <h3 className="text-sm font-semibold">{t("chat.connect.title")}</h3>
       <p className="text-xs text-foreground/60">
-        Вставьте CLI-токен с scope'ами <code>chat.read</code>,{" "}
-        <code>chat.write</code> (и опционально <code>chat.admin</code>).
-        Его можно сгенерировать командой <code>krwn token mint</code>.
+        {splitDesc(
+          t("chat.connect.desc", {
+            read: "%%READ%%",
+            write: "%%WRITE%%",
+            admin: "%%ADMIN%%",
+            cmd: "%%CMD%%",
+          }),
+        )}
       </p>
       <input
         type="password"
@@ -112,9 +127,31 @@ function ConnectForm({ onSubmit }: { onSubmit: (token: string | null) => void })
         disabled={!value.trim()}
         className="rounded-md bg-crown px-3 py-2 text-sm font-semibold text-black hover:bg-crown/90 disabled:opacity-50"
       >
-        Войти в канал
+        {t("chat.connect.submit")}
       </button>
     </form>
+  );
+}
+
+/**
+ * Tiny helper: the connect-form description interleaves four
+ * inline `<code>` tokens. We render them by splitting on the
+ * `%%TOKEN%%` markers the translator returned.
+ */
+function splitDesc(template: string): React.ReactNode {
+  const tokens: Record<string, string> = {
+    "%%READ%%": "chat.read",
+    "%%WRITE%%": "chat.write",
+    "%%ADMIN%%": "chat.admin",
+    "%%CMD%%": "krwn token mint",
+  };
+  const re = /(%%READ%%|%%WRITE%%|%%ADMIN%%|%%CMD%%)/;
+  return template.split(re).map((chunk, idx) =>
+    chunk in tokens ? (
+      <code key={idx}>{tokens[chunk]}</code>
+    ) : (
+      <React.Fragment key={idx}>{chunk}</React.Fragment>
+    ),
   );
 }
 
@@ -129,6 +166,7 @@ function PendingTray({
   onJump: (channelId: string) => void;
   items: ReturnType<typeof useChat>["pendingDirectives"];
 }) {
+  const { t, tp } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-crown/40 bg-crown/[0.06]">
@@ -139,11 +177,12 @@ function PendingTray({
       >
         <DirectiveBadge />
         <span>
-          У вас {count}{" "}
-          {pluralize(count, "приказ", "приказа", "приказов")} без подтверждения.
+          {tp("chat.tray.items", count, {
+            word: tp("chat.tray.word", count),
+          })}
         </span>
         <span className="ml-auto text-[10px] uppercase tracking-widest">
-          {open ? "Скрыть" : "Показать"}
+          {open ? t("common.hide") : t("common.show")}
         </span>
       </button>
       {open && (
@@ -169,13 +208,5 @@ function PendingTray({
       )}
     </div>
   );
-}
-
-function pluralize(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
 }
 

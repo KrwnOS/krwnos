@@ -11,11 +11,10 @@
  *   4. Сувереном — нажимает "Применить" или "Вето" по закрытым
  *      голосованиям в режиме consultation.
  *
- * Транспорт идентичен остальным админским страницам: CLI-токен
- * хранится в `localStorage["krwn.token"]`. Серверные guard-ы
- * (permissions → 403) отрисовываются как inline-ошибки, а не
- * полный redirect — так гражданин видит ленту, даже если у него
- * нет права голосовать.
+ * Вся копирайтинговая часть живёт в `locales/*` под ключами
+ * `governance.*`. Подписи ключей whitelist-а — под
+ * `constitution.keys.<fieldName>`, чтобы совпадать со страницей
+ * Палаты Указов.
  */
 
 "use client";
@@ -25,10 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-// ------------------------------------------------------------
-// Wire types
-// ------------------------------------------------------------
+import { useI18n } from "@/lib/i18n";
 
 type GovernanceMode = "decree" | "consultation" | "auto_dao";
 type ProposalStatus =
@@ -40,6 +36,10 @@ type ProposalStatus =
   | "cancelled"
   | "expired";
 type VoteChoice = "for" | "against" | "abstain";
+type WeightStrategy =
+  | "one_person_one_vote"
+  | "by_node_weight"
+  | "by_balance";
 
 interface GovernanceRulesDto {
   mode: GovernanceMode;
@@ -47,10 +47,7 @@ interface GovernanceRulesDto {
   quorumBps: number;
   thresholdBps: number;
   votingDurationSeconds: number;
-  weightStrategy:
-    | "one_person_one_vote"
-    | "by_node_weight"
-    | "by_balance";
+  weightStrategy: WeightStrategy;
   nodeWeights: Record<string, number>;
   balanceAssetId: string | null;
   minProposerPermission: string | null;
@@ -60,7 +57,6 @@ interface GovernanceRulesDto {
 
 interface StateSettingsDto {
   governanceRules: GovernanceRulesDto;
-  // (остальные поля нас на этой странице не интересуют)
 }
 
 interface ProposalDto {
@@ -115,43 +111,27 @@ interface TallyDto {
 
 const TOKEN_STORAGE_KEY = "krwn.token";
 
-// ------------------------------------------------------------
-
-const KEY_LABELS: Record<string, string> = {
-  transactionTaxRate: "Налог на перевод (0..1)",
-  incomeTaxRate: "Подоходный налог (0..1)",
-  roleTaxRate: "Налог на роль (0..1)",
-  currencyDisplayName: "Витрина валюты (строка)",
-  citizenshipFeeAmount: "Плата за гражданство",
-  rolesPurchasable: "Выкуп ролей (true/false)",
-  exitRefundRate: "Возврат при выходе (0..1)",
-  permissionInheritance: "Наследование прав (true/false)",
-  autoPromotionEnabled: "Авто-продвижение (true/false)",
-  autoPromotionMinBalance: "Порог баланса",
-  autoPromotionMinDays: "Стаж, дней",
-  autoPromotionTargetNodeId: "Целевой узел (id)",
-  treasuryTransparency: "Прозрачность казны (public|council|sovereign)",
-};
-
-const MODE_LABELS: Record<GovernanceMode, string> = {
-  decree: "Указ — меняет только Суверен",
-  consultation: "Консультация — голос совещательный",
-  auto_dao: "Auto-DAO — успешное решение применяется автоматически",
-};
-
-const STATUS_LABELS: Record<ProposalStatus, string> = {
-  active: "Идёт голосование",
-  passed: "Принято",
-  rejected: "Отклонено",
-  executed: "Исполнено",
-  vetoed: "Вето",
-  cancelled: "Отозвано",
-  expired: "Истёк срок",
-};
-
-// ------------------------------------------------------------
+// All config keys Parliament can touch, mirrored from
+// `/admin/constitution`. We only use the list for iteration —
+// their labels come from `constitution.keys.*` in the locale.
+const ALL_KEYS = [
+  "transactionTaxRate",
+  "incomeTaxRate",
+  "roleTaxRate",
+  "currencyDisplayName",
+  "citizenshipFeeAmount",
+  "rolesPurchasable",
+  "exitRefundRate",
+  "permissionInheritance",
+  "autoPromotionEnabled",
+  "autoPromotionMinBalance",
+  "autoPromotionMinDays",
+  "autoPromotionTargetNodeId",
+  "treasuryTransparency",
+] as const;
 
 export default function GovernancePage() {
+  const { t, formatCompact, formatDateTime } = useI18n();
   const [token, setToken] = useState<string | null>(null);
   const [rules, setRules] = useState<GovernanceRulesDto | null>(null);
   const [proposals, setProposals] = useState<ProposalDto[]>([]);
@@ -240,14 +220,13 @@ export default function GovernancePage() {
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-crown">
-            Парламент
+            {t("governance.eyebrow")}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold">Ассамблея предложений</h1>
+          <h1 className="mt-1 text-3xl font-semibold">
+            {t("governance.title")}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-foreground/60">
-            Здесь граждане предлагают изменения к конституции. Режим
-            голосования выбирает Суверен — Парламент может быть чисто
-            совещательным, а может автоматически менять правила
-            государства по решению большинства.
+            {t("governance.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -257,7 +236,7 @@ export default function GovernancePage() {
             onClick={() => void reload()}
             disabled={loading}
           >
-            {loading ? "…" : "Обновить"}
+            {loading ? t("common.loadingDots") : t("common.refresh")}
           </Button>
           <Button
             variant="ghost"
@@ -269,14 +248,14 @@ export default function GovernancePage() {
               setRules(null);
             }}
           >
-            Сменить токен
+            {t("common.logout")}
           </Button>
         </div>
       </header>
 
       {error && (
         <Card className="mb-6 border-destructive/40 bg-destructive/5 text-sm text-destructive">
-          Ошибка: {error}
+          {t("common.errorWith", { message: error })}
         </Card>
       )}
 
@@ -286,37 +265,38 @@ export default function GovernancePage() {
         </Card>
       )}
 
-      {rules && (
-        <RulesOverview rules={rules} />
-      )}
+      {rules && <RulesOverview rules={rules} />}
 
-      {rules && <CreateProposalForm
-        rules={rules}
-        token={token}
-        onCreated={() => {
-          setFlash("Предложение опубликовано.");
-          void reload();
-        }}
-      />}
+      {rules && (
+        <CreateProposalForm
+          rules={rules}
+          token={token}
+          onCreated={() => {
+            setFlash(t("governance.flash.created"));
+            void reload();
+          }}
+        />
+      )}
 
       <div className="mb-4 mt-10 flex items-center gap-2">
         <FilterButton current={filter} value="active" onClick={setFilter}>
-          Активные
+          {t("governance.filter.active")}
         </FilterButton>
         <FilterButton current={filter} value="closed" onClick={setFilter}>
-          Завершённые
+          {t("governance.filter.closed")}
         </FilterButton>
         <FilterButton current={filter} value="all" onClick={setFilter}>
-          Все
+          {t("governance.filter.all")}
         </FilterButton>
       </div>
 
       <div className="space-y-4">
         {filtered.length === 0 && !loading && (
           <Card className="text-sm text-foreground/60">
-            Предложений не найдено. {filter === "active"
-              ? "Все голосования закрыты — или никто ещё не внёс ни одного предложения."
-              : "Попробуйте другой фильтр."}
+            {t("governance.empty.prefix")}{" "}
+            {filter === "active"
+              ? t("governance.empty.active")
+              : t("governance.empty.other")}
           </Card>
         )}
         {filtered.map((p) => (
@@ -328,6 +308,8 @@ export default function GovernancePage() {
               if (msg) setFlash(msg);
               void reload();
             }}
+            formatCompact={formatCompact}
+            formatDateTime={formatDateTime}
           />
         ))}
       </div>
@@ -335,52 +317,68 @@ export default function GovernancePage() {
   );
 }
 
-// ------------------------------------------------------------
-
 function RulesOverview({ rules }: { rules: GovernanceRulesDto }) {
+  const { t, formatDuration } = useI18n();
   const allowed =
     rules.allowedConfigKeys.includes("*")
-      ? Object.keys(KEY_LABELS)
+      ? ALL_KEYS.slice()
       : rules.allowedConfigKeys;
+
+  const modeLabel =
+    rules.mode === "decree"
+      ? t("governance.mode.decree")
+      : rules.mode === "consultation"
+        ? t("governance.mode.consultation")
+        : t("governance.mode.auto");
+
+  const weightLabel =
+    rules.weightStrategy === "by_node_weight"
+      ? t("governance.rules.weight.node")
+      : rules.weightStrategy === "by_balance"
+        ? t("governance.rules.weight.balance")
+        : t("governance.rules.weight.person");
 
   return (
     <Card className="mb-6">
-      <CardTitle>Правила Парламента</CardTitle>
+      <CardTitle>{t("governance.rules.title")}</CardTitle>
       <CardDescription>
-        Снимок «конституции самого голосования». Редактируется только
-        Сувереном через <a href="/admin/constitution" className="underline decoration-dotted">Палату Указов</a>.
+        <DescriptionWithLink
+          template={t("governance.rules.desc", { link: "%%LINK%%" })}
+          linkHref="/admin/constitution"
+          linkText={t("governance.rules.link")}
+        />
       </CardDescription>
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-        <Stat label="Режим" value={MODE_LABELS[rules.mode]} />
+        <Stat label={t("governance.rules.mode")} value={modeLabel} />
         <Stat
-          label="Кворум"
-          value={`${(rules.quorumBps / 100).toFixed(2)}% от электората`}
+          label={t("governance.rules.quorum")}
+          value={t("governance.rules.quorumValue", {
+            pct: (rules.quorumBps / 100).toFixed(2),
+          })}
         />
         <Stat
-          label="Порог принятия"
-          value={`${(rules.thresholdBps / 100).toFixed(2)}% "за"`}
+          label={t("governance.rules.threshold")}
+          value={t("governance.rules.thresholdValue", {
+            pct: (rules.thresholdBps / 100).toFixed(2),
+          })}
         />
         <Stat
-          label="Длительность"
+          label={t("governance.rules.duration")}
           value={formatDuration(rules.votingDurationSeconds)}
         />
+        <Stat label={t("governance.rules.weight")} value={weightLabel} />
         <Stat
-          label="Стратегия веса"
-          value={formatStrategy(rules.weightStrategy)}
-        />
-        <Stat
-          label="Право вето Суверена"
-          value={rules.sovereignVeto ? "включено" : "выключено"}
+          label={t("governance.rules.veto")}
+          value={rules.sovereignVeto ? t("common.on") : t("common.off")}
         />
       </dl>
       <div className="mt-4">
         <p className="text-xs uppercase tracking-wider text-foreground/50">
-          Разрешённые к изменению ключи
+          {t("governance.rules.allowed")}
         </p>
         {allowed.length === 0 ? (
           <p className="mt-2 text-sm text-foreground/60">
-            Суверен пока не отдал ни одного параметра на откуп. Подавать
-            предложения невозможно.
+            {t("governance.rules.allowedEmpty")}
           </p>
         ) : (
           <div className="mt-2 flex flex-wrap gap-2">
@@ -388,7 +386,7 @@ function RulesOverview({ rules }: { rules: GovernanceRulesDto }) {
               <span
                 key={k}
                 className="rounded-md border border-border/60 bg-background/60 px-2 py-1 font-mono text-xs"
-                title={KEY_LABELS[k] ?? k}
+                title={t(`constitution.keys.${k}`)}
               >
                 {k}
               </span>
@@ -400,8 +398,6 @@ function RulesOverview({ rules }: { rules: GovernanceRulesDto }) {
   );
 }
 
-// ------------------------------------------------------------
-
 function CreateProposalForm({
   rules,
   token,
@@ -411,9 +407,10 @@ function CreateProposalForm({
   token: string;
   onCreated: () => void;
 }) {
+  const { t } = useI18n();
   const allowed =
     rules.allowedConfigKeys.includes("*")
-      ? Object.keys(KEY_LABELS)
+      ? ALL_KEYS.slice()
       : rules.allowedConfigKeys;
 
   const [title, setTitle] = useState("");
@@ -433,7 +430,7 @@ function CreateProposalForm({
   if (rules.mode === "decree") {
     return (
       <Card className="mb-2 border-dashed text-sm text-foreground/60">
-        Текущий режим — «Указ». Предложения граждан отключены.
+        {t("governance.create.disabledByDecree")}
       </Card>
     );
   }
@@ -444,7 +441,7 @@ function CreateProposalForm({
     setSubmitting(true);
     setErr(null);
     try {
-      const parsed = coerceValue(targetKey, newValue);
+      const parsed = coerceValue(targetKey, newValue, t);
       const res = await fetch("/api/governance/proposals", {
         method: "POST",
         headers: {
@@ -475,7 +472,7 @@ function CreateProposalForm({
       setNewValue("");
       onCreated();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "ошибка");
+      setErr(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setSubmitting(false);
     }
@@ -483,28 +480,24 @@ function CreateProposalForm({
 
   return (
     <Card className="mb-6">
-      <CardTitle>Новое предложение</CardTitle>
-      <CardDescription>
-        Выберите ключ из whitelist-а Суверена и предложите его новое
-        значение. Значение автоматически конвертируется в правильный
-        тип (число / bool / строка / null) — шпаргалка рядом с полем.
-      </CardDescription>
+      <CardTitle>{t("governance.create.title")}</CardTitle>
+      <CardDescription>{t("governance.create.desc")}</CardDescription>
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
         <div>
-          <Label>Название</Label>
+          <Label>{t("governance.create.name")}</Label>
           <Input
             className="mt-1"
-            placeholder="Снизить налог на перевод до 1%"
+            placeholder={t("governance.create.namePh")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
           />
         </div>
         <div>
-          <Label>Обоснование</Label>
+          <Label>{t("governance.create.why")}</Label>
           <textarea
             className="mt-1 min-h-[100px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder="Почему это стоит принять. Какие риски."
+            placeholder={t("governance.create.whyPh")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={8000}
@@ -512,7 +505,7 @@ function CreateProposalForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label>Параметр конституции</Label>
+            <Label>{t("governance.create.key")}</Label>
             <select
               className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
               value={targetKey}
@@ -520,28 +513,34 @@ function CreateProposalForm({
             >
               {allowed.map((k) => (
                 <option key={k} value={k}>
-                  {KEY_LABELS[k] ?? k}
+                  {t(`constitution.keys.${k}`)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <Label>Новое значение</Label>
+            <Label>{t("governance.create.value")}</Label>
             <Input
               className="mt-1 font-mono"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
-              placeholder={valueHint(targetKey)}
+              placeholder={valueHint(targetKey, t)}
             />
             <p className="mt-1 text-[11px] text-foreground/50">
-              {valueHint(targetKey)}
+              {valueHint(targetKey, t)}
             </p>
           </div>
         </div>
-        {err && <p className="text-xs text-destructive">Ошибка: {err}</p>}
+        {err && (
+          <p className="text-xs text-destructive">
+            {t("common.errorWith", { message: err })}
+          </p>
+        )}
         <div className="flex justify-end">
           <Button type="submit" variant="crown" disabled={submitting}>
-            {submitting ? "Публикую…" : "Опубликовать"}
+            {submitting
+              ? t("governance.create.submitting")
+              : t("governance.create.submit")}
           </Button>
         </div>
       </form>
@@ -549,17 +548,20 @@ function CreateProposalForm({
   );
 }
 
-// ------------------------------------------------------------
-
 function ProposalCard({
   proposal,
   token,
   onChanged,
+  formatCompact,
+  formatDateTime,
 }: {
   proposal: ProposalDto;
   token: string;
   onChanged: (msg?: string) => void;
+  formatCompact: (n: number) => string;
+  formatDateTime: (d: string | Date) => string;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [tally, setTally] = useState<TallyDto | null>(null);
   const [votes, setVotes] = useState<VoteDto[] | null>(null);
@@ -608,9 +610,9 @@ function ProposalCard({
         );
       }
       await loadDetail();
-      onChanged("Голос учтён.");
+      onChanged(t("governance.flash.voted"));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "ошибка");
+      setErr(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -636,10 +638,12 @@ function ProposalCard({
         );
       }
       onChanged(
-        path === "execute" ? "Решение применено." : "Предложение получило вето.",
+        path === "execute"
+          ? t("governance.flash.executed")
+          : t("governance.flash.vetoed"),
       );
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "ошибка");
+      setErr(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -654,22 +658,23 @@ function ProposalCard({
           ? "text-amber-500"
           : "text-foreground/60";
 
+  const modeShortKey =
+    proposal.modeAtCreation === "auto_dao"
+      ? "governance.mode.short.auto"
+      : proposal.modeAtCreation === "consultation"
+        ? "governance.mode.short.consultation"
+        : "governance.mode.short.decree";
+
   return (
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest">
             <span className={cn("font-semibold", statusTint)}>
-              {STATUS_LABELS[proposal.status]}
+              {t(`governance.status.${proposal.status}`)}
             </span>
             <span className="text-foreground/40">•</span>
-            <span className="text-foreground/50">
-              {proposal.modeAtCreation === "auto_dao"
-                ? "auto-DAO"
-                : proposal.modeAtCreation === "consultation"
-                  ? "консультация"
-                  : "указ"}
-            </span>
+            <span className="text-foreground/50">{t(modeShortKey)}</span>
           </div>
           <h2 className="mt-1 text-lg font-semibold">{proposal.title}</h2>
           <p className="mt-1 text-xs text-foreground/50">
@@ -685,15 +690,33 @@ function ProposalCard({
           size="sm"
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? "Свернуть" : "Подробнее"}
+          {expanded ? t("common.collapse") : t("common.details")}
         </Button>
       </div>
 
       <div className="mt-3 grid gap-2 text-xs text-foreground/60 sm:grid-cols-4">
-        <Counter label="За" value={proposal.totalWeightFor} tone="pos" />
-        <Counter label="Против" value={proposal.totalWeightAgainst} tone="neg" />
-        <Counter label="Воздержались" value={proposal.totalWeightAbstain} />
-        <Counter label="Голосов" value={proposal.voteCount} />
+        <Counter
+          label={t("governance.proposal.count.for")}
+          value={proposal.totalWeightFor}
+          tone="pos"
+          fmt={formatCompact}
+        />
+        <Counter
+          label={t("governance.proposal.count.against")}
+          value={proposal.totalWeightAgainst}
+          tone="neg"
+          fmt={formatCompact}
+        />
+        <Counter
+          label={t("governance.proposal.count.abstain")}
+          value={proposal.totalWeightAbstain}
+          fmt={formatCompact}
+        />
+        <Counter
+          label={t("governance.proposal.count.votes")}
+          value={proposal.voteCount}
+          fmt={formatCompact}
+        />
       </div>
 
       {expanded && (
@@ -705,28 +728,35 @@ function ProposalCard({
           {tally && (
             <div className="grid gap-2 rounded-md border border-border/50 bg-background/40 p-3 text-xs sm:grid-cols-4">
               <Stat
-                label="Кворум"
+                label={t("governance.proposal.tally.quorum")}
                 value={
                   tally.quorumReached
-                    ? `достигнут (${fmt(tally.totalCastWeight)}/${fmt(tally.electorateSize)})`
-                    : `${fmt(tally.totalCastWeight)}/${fmt(tally.electorateSize)}`
+                    ? t("governance.proposal.tally.quorumReached", {
+                        cast: formatCompact(tally.totalCastWeight),
+                        total: formatCompact(tally.electorateSize),
+                      })
+                    : `${formatCompact(tally.totalCastWeight)}/${formatCompact(tally.electorateSize)}`
                 }
               />
               <Stat
-                label="Порог"
+                label={t("governance.proposal.tally.threshold")}
                 value={
                   tally.thresholdReached
-                    ? "пройден"
-                    : "не пройден"
+                    ? t("governance.proposal.tally.thresholdPassed")
+                    : t("governance.proposal.tally.thresholdFailed")
                 }
               />
               <Stat
-                label="Прогноз"
-                value={tally.willPass ? "будет принято" : "будет отклонено"}
+                label={t("governance.proposal.tally.forecast")}
+                value={
+                  tally.willPass
+                    ? t("governance.proposal.tally.willPass")
+                    : t("governance.proposal.tally.willReject")
+                }
               />
               <Stat
-                label="Истекает"
-                value={new Date(proposal.expiresAt).toLocaleString()}
+                label={t("governance.proposal.tally.expires")}
+                value={formatDateTime(proposal.expiresAt)}
               />
             </div>
           )}
@@ -739,7 +769,7 @@ function ProposalCard({
                 disabled={busy}
                 onClick={() => void vote("for")}
               >
-                За
+                {t("governance.proposal.vote.for")}
               </Button>
               <Button
                 variant="outline"
@@ -747,7 +777,7 @@ function ProposalCard({
                 disabled={busy}
                 onClick={() => void vote("against")}
               >
-                Против
+                {t("governance.proposal.vote.against")}
               </Button>
               <Button
                 variant="ghost"
@@ -755,7 +785,7 @@ function ProposalCard({
                 disabled={busy}
                 onClick={() => void vote("abstain")}
               >
-                Воздержаться
+                {t("governance.proposal.vote.abstain")}
               </Button>
               {proposal.sovereignVetoAtCreation && (
                 <Button
@@ -764,7 +794,7 @@ function ProposalCard({
                   disabled={busy}
                   onClick={() => void actOn("veto")}
                 >
-                  Наложить вето
+                  {t("governance.proposal.veto")}
                 </Button>
               )}
             </div>
@@ -779,7 +809,7 @@ function ProposalCard({
                   disabled={busy}
                   onClick={() => void actOn("execute")}
                 >
-                  Применить решение
+                  {t("governance.proposal.applyExecute")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -787,23 +817,29 @@ function ProposalCard({
                   disabled={busy}
                   onClick={() => void actOn("veto")}
                 >
-                  Вето
+                  {t("governance.proposal.vetoShort")}
                 </Button>
               </div>
             )}
 
           {proposal.status === "vetoed" && proposal.vetoReason && (
             <p className="text-xs text-amber-500">
-              Причина вето: {proposal.vetoReason}
+              {t("governance.proposal.vetoReason", {
+                reason: proposal.vetoReason,
+              })}
             </p>
           )}
 
-          {err && <p className="text-xs text-destructive">Ошибка: {err}</p>}
+          {err && (
+            <p className="text-xs text-destructive">
+              {t("common.errorWith", { message: err })}
+            </p>
+          )}
 
           {votes && votes.length > 0 && (
             <div>
               <p className="text-[11px] uppercase tracking-wider text-foreground/50">
-                Голоса ({votes.length})
+                {t("governance.proposal.votesHeader", { count: votes.length })}
               </p>
               <ul className="mt-2 space-y-1 text-xs">
                 {votes.map((v) => (
@@ -822,12 +858,14 @@ function ProposalCard({
                       )}
                     >
                       {v.choice === "for"
-                        ? "за"
+                        ? t("governance.proposal.vote.short.for")
                         : v.choice === "against"
-                          ? "против"
-                          : "—"}
+                          ? t("governance.proposal.vote.short.against")
+                          : t("common.dash")}
                     </span>
-                    <span className="text-foreground/40">× {fmt(v.weight)}</span>
+                    <span className="text-foreground/40">
+                      × {formatCompact(v.weight)}
+                    </span>
                     {v.comment && (
                       <span className="text-foreground/60">— {v.comment}</span>
                     )}
@@ -842,15 +880,38 @@ function ProposalCard({
   );
 }
 
-// ------------------------------------------------------------
-// Shared helpers
-// ------------------------------------------------------------
-
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-6 py-12">
       {children}
     </main>
+  );
+}
+
+/**
+ * Splits a translation template that contains a single `%%LINK%%`
+ * token into plain text + an anchor. The template is always
+ * "…{link}…" in the locale — we interpolate with a known marker
+ * rather than raw JSX so the locale file stays string-only.
+ */
+function DescriptionWithLink({
+  template,
+  linkHref,
+  linkText,
+}: {
+  template: string;
+  linkHref: string;
+  linkText: string;
+}) {
+  const parts = template.split("%%LINK%%");
+  return (
+    <>
+      {parts[0]}
+      <a href={linkHref} className="underline decoration-dotted">
+        {linkText}
+      </a>
+      {parts[1] ?? ""}
+    </>
   );
 }
 
@@ -877,10 +938,12 @@ function Counter({
   label,
   value,
   tone,
+  fmt,
 }: {
   label: string;
   value: number;
   tone?: "pos" | "neg";
+  fmt: (n: number) => string;
 }) {
   const color =
     tone === "pos"
@@ -927,13 +990,13 @@ function FilterButton({
 }
 
 function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   return (
     <Card className="mx-auto mt-24 max-w-md">
-      <CardTitle>Вход в Парламент</CardTitle>
+      <CardTitle>{t("governance.token.title")}</CardTitle>
       <CardDescription>
-        Голосование и подача предложений требуют CLI-токен гражданина.
-        Получите его через <code>krwn token mint</code>.
+        {t("governance.token.desc", { cmd: "krwn token mint" })}
       </CardDescription>
       <form
         className="mt-4 flex flex-col gap-2"
@@ -949,86 +1012,101 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
           autoFocus
         />
         <Button type="submit" variant="crown">
-          Войти
+          {t("common.login")}
         </Button>
       </form>
     </Card>
   );
 }
 
-function fmt(n: number): string {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(2)}k`;
-  return Number.isInteger(n) ? String(n) : n.toFixed(2);
-}
-
-function formatDuration(seconds: number): string {
-  const days = Math.floor(seconds / 86_400);
-  const hours = Math.floor((seconds % 86_400) / 3_600);
-  const mins = Math.floor((seconds % 3_600) / 60);
-  if (days > 0) return `${days}д ${hours}ч`;
-  if (hours > 0) return `${hours}ч ${mins}м`;
-  return `${mins}м`;
-}
-
-function formatStrategy(s: string): string {
-  if (s === "by_node_weight") return "по весу узла";
-  if (s === "by_balance") return "по балансу кошелька";
-  return "один человек — один голос";
-}
-
-function valueHint(key: string): string {
-  const numericRate = ["transactionTaxRate", "incomeTaxRate", "roleTaxRate", "exitRefundRate"];
-  const numericAmount = ["citizenshipFeeAmount", "autoPromotionMinBalance", "autoPromotionMinDays"];
-  const boolKeys = ["rolesPurchasable", "permissionInheritance", "autoPromotionEnabled"];
-  if (numericRate.includes(key)) return "Например: 0.05 (=5%). Диапазон 0..1.";
-  if (numericAmount.includes(key)) return "Целое или дробное число ≥ 0. Пусто → null.";
-  if (boolKeys.includes(key)) return "true или false";
-  if (key === "treasuryTransparency") return "public | council | sovereign";
+function valueHint(
+  key: string,
+  t: (k: string, vars?: Record<string, string | number>) => string,
+): string {
+  const numericRate = [
+    "transactionTaxRate",
+    "incomeTaxRate",
+    "roleTaxRate",
+    "exitRefundRate",
+  ];
+  const numericAmount = [
+    "citizenshipFeeAmount",
+    "autoPromotionMinBalance",
+    "autoPromotionMinDays",
+  ];
+  const boolKeys = [
+    "rolesPurchasable",
+    "permissionInheritance",
+    "autoPromotionEnabled",
+  ];
+  if (numericRate.includes(key)) return t("governance.hint.rate");
+  if (numericAmount.includes(key)) return t("governance.hint.amount");
+  if (boolKeys.includes(key)) return t("governance.hint.bool");
+  if (key === "treasuryTransparency") return t("governance.hint.transparency");
   if (key === "currencyDisplayName" || key === "autoPromotionTargetNodeId") {
-    return "Строка (пусто → null)";
+    return t("governance.hint.string");
   }
-  return "JSON-совместимое значение";
+  return t("governance.hint.jsonFallback");
 }
 
-function coerceValue(key: string, raw: string): unknown {
+function coerceValue(
+  key: string,
+  raw: string,
+  t: (k: string) => string,
+): unknown {
   const trimmed = raw.trim();
-  const numericRate = ["transactionTaxRate", "incomeTaxRate", "roleTaxRate", "exitRefundRate"];
+  const numericRate = [
+    "transactionTaxRate",
+    "incomeTaxRate",
+    "roleTaxRate",
+    "exitRefundRate",
+  ];
   const numericAmount = ["citizenshipFeeAmount", "autoPromotionMinBalance"];
   const numericInt = ["autoPromotionMinDays"];
-  const boolKeys = ["rolesPurchasable", "permissionInheritance", "autoPromotionEnabled"];
+  const boolKeys = [
+    "rolesPurchasable",
+    "permissionInheritance",
+    "autoPromotionEnabled",
+  ];
   if (numericRate.includes(key)) {
     const n = Number(trimmed);
-    if (!Number.isFinite(n)) throw new Error("Ожидается число.");
+    if (!Number.isFinite(n)) throw new Error(t("governance.coerce.numberNeeded"));
     return n;
   }
   if (numericAmount.includes(key)) {
     if (trimmed === "") return null;
     const n = Number(trimmed);
-    if (!Number.isFinite(n) || n < 0) throw new Error("Ожидается число ≥ 0.");
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(t("governance.coerce.nonNeg"));
+    }
     return n;
   }
   if (numericInt.includes(key)) {
     if (trimmed === "") return null;
     const n = Number(trimmed);
-    if (!Number.isInteger(n) || n < 0) throw new Error("Ожидается целое ≥ 0.");
+    if (!Number.isInteger(n) || n < 0) {
+      throw new Error(t("governance.coerce.intNonNeg"));
+    }
     return n;
   }
   if (boolKeys.includes(key)) {
     if (trimmed === "true") return true;
     if (trimmed === "false") return false;
-    throw new Error("Ожидается true или false.");
+    throw new Error(t("governance.coerce.bool"));
   }
   if (key === "treasuryTransparency") {
-    if (trimmed !== "public" && trimmed !== "council" && trimmed !== "sovereign") {
-      throw new Error("public | council | sovereign");
+    if (
+      trimmed !== "public" &&
+      trimmed !== "council" &&
+      trimmed !== "sovereign"
+    ) {
+      throw new Error(t("governance.coerce.transparency"));
     }
     return trimmed;
   }
   if (key === "currencyDisplayName" || key === "autoPromotionTargetNodeId") {
     return trimmed === "" ? null : trimmed;
   }
-  // fallback — JSON literal
   try {
     return JSON.parse(trimmed);
   } catch {

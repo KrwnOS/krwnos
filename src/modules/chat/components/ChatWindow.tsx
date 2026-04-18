@@ -13,6 +13,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n, useT, type TFunction } from "@/lib/i18n";
 import type {
   ChannelAccessInfo,
   ChatMessage,
@@ -38,10 +39,12 @@ export function ChatWindow({
   onSend,
   onAcknowledge,
 }: ChatWindowProps) {
+  const { t, formatTime } = useI18n();
+
   if (!channel) {
     return (
       <section className="flex h-full flex-1 items-center justify-center text-sm text-foreground/50">
-        Выберите канал слева — или создайте новый через `chat.admin`.
+        {t("chat.empty")}
       </section>
     );
   }
@@ -54,6 +57,8 @@ export function ChatWindow({
         currentUserId={currentUserId}
         pendingDirectives={pendingDirectives}
         onAcknowledge={onAcknowledge}
+        t={t}
+        formatTime={formatTime}
       />
       <Composer
         canPostDirective={channel.canPostDirective}
@@ -67,7 +72,8 @@ export function ChatWindow({
 // ------------------------------------------------------------
 
 function Header({ channel }: { channel: ChannelAccessInfo }) {
-  const sub = subtitleForAccessReason(channel);
+  const t = useT();
+  const sub = subtitleForAccessReason(channel, t);
   return (
     <header className="flex items-center justify-between border-b border-border/60 px-5 py-3">
       <div className="flex flex-col">
@@ -85,16 +91,19 @@ function Header({ channel }: { channel: ChannelAccessInfo }) {
   );
 }
 
-function subtitleForAccessReason(info: ChannelAccessInfo): string {
+function subtitleForAccessReason(
+  info: ChannelAccessInfo,
+  t: TFunction,
+): string {
   switch (info.accessReason) {
     case "sovereign":
-      return "Суверен";
+      return t("chat.access.sovereign");
     case "direct":
-      return "Мой отдел";
+      return t("chat.access.direct");
     case "inherited":
-      return "Надзор";
+      return t("chat.access.inherited");
     default:
-      return "Общий";
+      return t("chat.access.general");
   }
 }
 
@@ -105,11 +114,15 @@ function MessageList({
   currentUserId,
   pendingDirectives,
   onAcknowledge,
+  t,
+  formatTime,
 }: {
   messages: ChatMessage[];
   currentUserId: string | null;
   pendingDirectives: PendingDirective[];
   onAcknowledge: (messageId: string) => Promise<void>;
+  t: TFunction;
+  formatTime: (d: Date | string) => string;
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -135,9 +148,7 @@ function MessageList({
       className="flex-1 overflow-y-auto px-5 py-4"
     >
       {messages.length === 0 ? (
-        <p className="text-sm text-foreground/40">
-          Пока сообщений нет. Будьте первым.
-        </p>
+        <p className="text-sm text-foreground/40">{t("chat.noMessages")}</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {messages.map((m) => (
@@ -147,6 +158,8 @@ function MessageList({
               isOwn={m.authorId === currentUserId}
               requiresAck={pendingForMe.has(m.id)}
               onAcknowledge={onAcknowledge}
+              t={t}
+              formatTime={formatTime}
             />
           ))}
         </ul>
@@ -160,11 +173,15 @@ function MessageRow({
   isOwn,
   requiresAck,
   onAcknowledge,
+  t,
+  formatTime,
 }: {
   message: ChatMessage;
   isOwn: boolean;
   requiresAck: boolean;
   onAcknowledge: (messageId: string) => Promise<void>;
+  t: TFunction;
+  formatTime: (d: Date | string) => string;
 }) {
   const [acking, setAcking] = useState(false);
   const [ackError, setAckError] = useState<string | null>(null);
@@ -175,7 +192,7 @@ function MessageRow({
     try {
       await onAcknowledge(message.id);
     } catch (err) {
-      setAckError(err instanceof Error ? err.message : "Ошибка");
+      setAckError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setAcking(false);
     }
@@ -194,7 +211,7 @@ function MessageRow({
     >
       <header className="flex items-center gap-2 text-xs text-foreground/60">
         <span className={cn("font-medium", isOwn && "text-crown")}>
-          {isOwn ? "вы" : shortId(message.authorId)}
+          {isOwn ? t("chat.sender.you") : shortId(message.authorId)}
         </span>
         {message.isDirective && (
           <DirectiveBadge acknowledged={!requiresAck && !isOwn} />
@@ -211,7 +228,7 @@ function MessageRow({
       {message.isDirective && requiresAck && !isOwn && (
         <div className="mt-2 flex items-center gap-2 rounded-md bg-background/60 p-2">
           <span className="text-xs text-foreground/70">
-            Требуется подтверждение выполнения.
+            {t("chat.ack.required")}
           </span>
           <button
             type="button"
@@ -219,7 +236,7 @@ function MessageRow({
             disabled={acking}
             className="ml-auto rounded-md bg-crown px-3 py-1 text-xs font-semibold text-black shadow transition hover:bg-crown/90 disabled:opacity-60"
           >
-            {acking ? "..." : "Принято к исполнению"}
+            {acking ? t("chat.ack.submitting") : t("chat.ack.submit")}
           </button>
         </div>
       )}
@@ -241,6 +258,7 @@ function Composer({
   onSend: (body: string, asDirective: boolean) => Promise<void>;
   channelTitle: string;
 }) {
+  const t = useT();
   const [value, setValue] = useState("");
   const [asDirective, setAsDirective] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -256,7 +274,7 @@ function Composer({
       setValue("");
       setAsDirective(false);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "send failed");
+      setErr(e instanceof Error ? e.message : t("chat.composer.errSend"));
     } finally {
       setBusy(false);
     }
@@ -283,8 +301,8 @@ function Composer({
           onKeyDown={onKeyDown}
           placeholder={
             asDirective
-              ? `Приказ в #${channelTitle}… (Markdown поддерживается)`
-              : `Сообщение в #${channelTitle}… (Markdown поддерживается)`
+              ? t("chat.composer.sendDirective", { title: channelTitle })
+              : t("chat.composer.sendMessage", { title: channelTitle })
           }
           rows={2}
           className="min-h-[44px] w-full resize-none bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
@@ -317,7 +335,9 @@ function Composer({
               "disabled:opacity-50",
             )}
           >
-            {asDirective ? "Издать приказ" : "Отправить"}
+            {asDirective
+              ? t("chat.composer.issueDirective")
+              : t("chat.composer.send")}
           </button>
         </div>
       </div>
@@ -329,9 +349,4 @@ function Composer({
 
 function shortId(id: string): string {
   return id.length <= 8 ? id : `${id.slice(0, 6)}…${id.slice(-2)}`;
-}
-
-function formatTime(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }

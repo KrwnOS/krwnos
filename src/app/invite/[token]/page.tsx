@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
+import { getServerT } from "@/lib/i18n/server";
 
 interface PageProps {
   params: { token: string };
@@ -20,6 +21,8 @@ export default async function InvitePage({ params }: PageProps) {
 
   if (!invitation) notFound();
 
+  const { t, formatDateTime } = await getServerT();
+
   const expired =
     invitation.expiresAt != null && invitation.expiresAt.getTime() < Date.now();
   const exhausted = invitation.usesCount >= invitation.maxUses;
@@ -33,9 +36,12 @@ export default async function InvitePage({ params }: PageProps) {
       </div>
 
       <Card className="w-full">
-        <CardTitle>Приглашение в «{invitation.state.name}»</CardTitle>
+        <CardTitle>
+          {t("invite.title", { stateName: invitation.state.name })}
+        </CardTitle>
         <CardDescription>
-          Код: <span className="font-mono text-crown">{invitation.code}</span>
+          {t("invite.codeLabel")}{" "}
+          <span className="font-mono text-crown">{invitation.code}</span>
           {invitation.label ? (
             <>
               {" · "}
@@ -46,17 +52,17 @@ export default async function InvitePage({ params }: PageProps) {
 
         <div className="mt-6 space-y-3 text-sm text-foreground/70">
           <div className="flex justify-between">
-            <span>Uses</span>
+            <span>{t("invite.uses")}</span>
             <span className="font-mono">
               {invitation.usesCount} / {invitation.maxUses}
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Expires</span>
+            <span>{t("invite.expires")}</span>
             <span className="font-mono">
               {invitation.expiresAt
-                ? invitation.expiresAt.toISOString()
-                : "never"}
+                ? formatDateTime(invitation.expiresAt)
+                : t("invite.never")}
             </span>
           </div>
         </div>
@@ -65,18 +71,18 @@ export default async function InvitePage({ params }: PageProps) {
           {invalid ? (
             <Button disabled variant="outline" className="w-full">
               {expired
-                ? "Приглашение истекло"
+                ? t("invite.expired")
                 : exhausted
-                  ? "Приглашение исчерпано"
-                  : "Приглашение недоступно"}
+                  ? t("invite.exhausted")
+                  : t("invite.unavailable")}
             </Button>
           ) : (
             <form action={`/api/invite/${params.token}/accept`} method="POST">
               <Button type="submit" variant="crown" className="w-full" size="lg">
-                Принять приглашение
+                {t("invite.accept")}
               </Button>
               <p className="mt-3 text-center text-xs text-foreground/50">
-                Подтверждение потребует Passkey или кошелёк.
+                {t("invite.acceptHint")}
               </p>
             </form>
           )}

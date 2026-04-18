@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import {
   formatAmount,
   parseAmountInput,
@@ -64,6 +65,7 @@ export function TransferForm({
   onCancel,
   className,
 }: TransferFormProps): React.ReactElement {
+  const t = useT();
   const [source, setSource] = React.useState<SourceChoice>(
     defaultSource ?? { kind: "personal" },
   );
@@ -89,15 +91,15 @@ export function TransferForm({
     setError(null);
 
     if (!amountValid) {
-      setError("Введите корректную сумму (например, 100 или 100.50).");
+      setError(t("wallet.err.amount"));
       return;
     }
     if (!enoughFunds) {
-      setError("Недостаточно средств на выбранном кошельке.");
+      setError(t("wallet.err.insufficient"));
       return;
     }
     if (destValue.trim().length === 0) {
-      setError("Укажите получателя.");
+      setError(t("wallet.err.noRecipient"));
       return;
     }
 
@@ -122,7 +124,9 @@ export function TransferForm({
         const payload = (await res.json().catch(() => ({}))) as {
           error?: string;
         };
-        setError(payload.error ?? `Сервер вернул ${res.status}`);
+        setError(
+          payload.error ?? t("wallet.err.serverStatus", { status: res.status }),
+        );
         return;
       }
 
@@ -141,59 +145,63 @@ export function TransferForm({
     <Card
       className={cn("w-full max-w-md space-y-5", className)}
       role="region"
-      aria-label="Перевод Крон"
+      aria-label={t("wallet.transferTitle")}
     >
       <header>
         <h2 className="text-lg font-semibold text-foreground">
-          Перевод Крон
+          {t("wallet.transferTitle")}
         </h2>
         <p className="mt-1 text-xs text-foreground/50">
-          Отправьте Кроны с личного счёта или с бюджета отдела.
+          {t("wallet.transferDesc")}
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <fieldset>
           <legend className="text-xs uppercase tracking-widest text-foreground/50">
-            Источник
+            {t("wallet.source")}
           </legend>
           <div className="mt-2 space-y-2">
             <SourceOption
               selected={source.kind === "personal"}
               onSelect={() => setSource({ kind: "personal" })}
-              title="Личный счёт"
-              subtitle={`Баланс: ${formatAmount(personal.balance, {
-                currency: personal.currency,
-              })}`}
+              title={t("wallet.source.personal")}
+              subtitle={t("wallet.source.balance", {
+                amount: formatAmount(personal.balance, {
+                  currency: personal.currency,
+                }),
+              })}
             />
             {treasuries.length > 0 ? (
-              treasuries.map((t) => (
+              treasuries.map((tr) => (
                 <SourceOption
-                  key={t.wallet.id}
+                  key={tr.wallet.id}
                   selected={
                     source.kind === "treasury" &&
-                    source.nodeId === t.wallet.nodeId
+                    source.nodeId === tr.wallet.nodeId
                   }
                   onSelect={() =>
                     setSource({
                       kind: "treasury",
-                      nodeId: t.wallet.nodeId ?? "",
+                      nodeId: tr.wallet.nodeId ?? "",
                     })
                   }
-                  title={t.label}
-                  subtitle={`Бюджет: ${formatAmount(t.wallet.balance, {
-                    currency: t.wallet.currency,
-                  })}`}
+                  title={tr.label}
+                  subtitle={t("wallet.source.budget", {
+                    amount: formatAmount(tr.wallet.balance, {
+                      currency: tr.wallet.currency,
+                    }),
+                  })}
                   accent
                 />
               ))
             ) : (
               <p className="text-xs text-foreground/40">
-                Бюджеты отделов недоступны — нужна роль с правом
+                {t("wallet.source.noTreasuries.prefix")}
                 <code className="ml-1 rounded bg-foreground/10 px-1 py-0.5 font-mono text-[10px]">
                   wallet.view_treasury
                 </code>
-                .
+                {t("wallet.source.noTreasuries.suffix")}
               </p>
             )}
           </div>
@@ -201,7 +209,7 @@ export function TransferForm({
 
         <div>
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Получатель
+            {t("wallet.recipient")}
           </label>
           <div className="mt-2 flex gap-2">
             <select
@@ -209,9 +217,9 @@ export function TransferForm({
               onChange={(e) => setDestKind(e.target.value as DestinationKind)}
               className="h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground"
             >
-              <option value="user">Пользователь</option>
-              <option value="treasury">Казна</option>
-              <option value="walletId">Wallet ID</option>
+              <option value="user">{t("wallet.recipient.user")}</option>
+              <option value="treasury">{t("wallet.recipient.treasury")}</option>
+              <option value="walletId">{t("wallet.recipient.walletId")}</option>
             </select>
             <Input
               value={destValue}
@@ -224,7 +232,7 @@ export function TransferForm({
 
         <div>
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Сумма (⚜)
+            {t("wallet.amount")}
           </label>
           <Input
             inputMode="decimal"
@@ -240,13 +248,13 @@ export function TransferForm({
 
         <div>
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Memo (за что)
+            {t("wallet.memo")}
           </label>
           <Input
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             maxLength={280}
-            placeholder="Зарплата за апрель"
+            placeholder={t("wallet.memoPh")}
             className="mt-2"
           />
         </div>
@@ -263,7 +271,7 @@ export function TransferForm({
         <div className="flex items-center justify-end gap-2 pt-2">
           {onCancel ? (
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Отмена
+              {t("common.cancel")}
             </Button>
           ) : null}
           <Button
@@ -271,7 +279,7 @@ export function TransferForm({
             variant="crown"
             disabled={submitting || !amountValid || !enoughFunds}
           >
-            {submitting ? "Отправка…" : "Подтвердить"}
+            {submitting ? t("common.sending") : t("common.confirm")}
           </Button>
         </div>
       </form>

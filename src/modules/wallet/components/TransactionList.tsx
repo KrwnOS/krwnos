@@ -19,6 +19,7 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useI18n, type TFunction } from "@/lib/i18n";
 import {
   formatAmount,
   toNumber,
@@ -41,33 +42,42 @@ type Direction = "in" | "out" | "mint" | "burn" | "neutral";
 export function TransactionList({
   walletId,
   transactions,
-  title = "Последние транзакции",
+  title,
   emptyHint,
   className,
 }: TransactionListProps): React.ReactElement {
+  const { t, formatDateTime } = useI18n();
+  const effectiveTitle = title ?? t("wallet.lastTransactions");
+
   if (transactions.length === 0) {
     return (
       <Card className={cn("text-center text-sm text-foreground/50", className)}>
-        {title ? (
+        {effectiveTitle ? (
           <h3 className="mb-3 text-left text-sm font-semibold uppercase tracking-widest text-foreground/60">
-            {title}
+            {effectiveTitle}
           </h3>
         ) : null}
-        <p className="py-6">{emptyHint ?? "Операций пока нет."}</p>
+        <p className="py-6">{emptyHint ?? t("wallet.noOperations")}</p>
       </Card>
     );
   }
 
   return (
     <Card className={cn("p-0", className)}>
-      {title ? (
+      {effectiveTitle ? (
         <h3 className="border-b border-border/40 px-5 py-3 text-sm font-semibold uppercase tracking-widest text-foreground/60">
-          {title}
+          {effectiveTitle}
         </h3>
       ) : null}
       <ul className="divide-y divide-border/40">
         {transactions.map((tx) => (
-          <TransactionRow key={tx.id} tx={tx} walletId={walletId} />
+          <TransactionRow
+            key={tx.id}
+            tx={tx}
+            walletId={walletId}
+            t={t}
+            formatDateTime={formatDateTime}
+          />
         ))}
       </ul>
     </Card>
@@ -77,9 +87,13 @@ export function TransactionList({
 function TransactionRow({
   tx,
   walletId,
+  t,
+  formatDateTime,
 }: {
   tx: TransactionDto;
   walletId: string;
+  t: TFunction;
+  formatDateTime: (d: Date | string) => string;
 }): React.ReactElement {
   const dir = directionOf(tx, walletId);
   const amount = toNumber(tx.amount);
@@ -108,14 +122,16 @@ function TransactionRow({
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm text-foreground">
-            {labelFor(tx, dir)}
+            {labelFor(tx, dir, t)}
           </p>
           <p className="truncate text-xs text-foreground/50">
-            {new Date(tx.createdAt).toLocaleString("ru-RU")}
+            {formatDateTime(tx.createdAt)}
             {failed ? (
               <>
                 {" · "}
-                <span className="text-rose-400">{statusLabel(tx.status)}</span>
+                <span className="text-rose-400">
+                  {statusLabel(tx.status, t)}
+                </span>
               </>
             ) : null}
           </p>
@@ -160,31 +176,33 @@ function arrowFor(dir: Direction): string {
   }
 }
 
-function labelFor(tx: TransactionDto, dir: Direction): string {
+function labelFor(tx: TransactionDto, dir: Direction, t: TFunction): string {
   const memo = typeof tx.metadata?.memo === "string" ? tx.metadata.memo : null;
   if (memo) return memo;
 
   switch (tx.kind) {
     case "mint":
-      return dir === "mint" ? "Эмиссия (приход)" : "Эмиссия";
+      return dir === "mint" ? t("wallet.tx.mint.in") : t("wallet.tx.mint");
     case "burn":
-      return "Burn";
+      return t("wallet.tx.burn");
     case "treasury_allocation":
-      return "Казначейская операция";
+      return t("wallet.tx.treasuryOp");
     case "transfer":
     default:
-      return dir === "in" ? "Входящий перевод" : "Исходящий перевод";
+      return dir === "in"
+        ? t("wallet.tx.transferIn")
+        : t("wallet.tx.transferOut");
   }
 }
 
-function statusLabel(s: TransactionDto["status"]): string {
+function statusLabel(s: TransactionDto["status"], t: TFunction): string {
   switch (s) {
     case "failed":
-      return "отклонено";
+      return t("wallet.tx.status.failed");
     case "pending":
-      return "в обработке";
+      return t("wallet.tx.status.pending");
     case "reversed":
-      return "отменено";
+      return t("wallet.tx.status.reversed");
     default:
       return s;
   }

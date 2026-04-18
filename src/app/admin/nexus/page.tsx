@@ -14,15 +14,8 @@
  * общую ленту событий. На 401 (нет/битый токен) показываем форму
  * ввода CLI-токена — тот же сценарий, что у `/admin/economy`.
  *
- * Как будет развиваться:
- *   * Каждый установленный модуль («Модуль торговли», «Модуль
- *     безопасности», …) сможет контрибьютить `ModuleWidget` через
- *     Registry. Nexus будет дополнительно рендерить их рядом с
- *     тремя «коренными» карточками.
- *   * Владелец сможет перетаскивать карточки и сохранять layout.
- *   * Сейчас всё, что может потребовать плагин — это вернуть из
- *     `module.getWidget()` компонент; мы специально оставили слот
- *     `{/* Future: module widgets */}` в сетке ниже.
+ * Копирайтинг страницы живёт в `locales/*`; формат чисел/дат и
+ * плюрализация узлов проксируются через `useI18n()`.
  */
 
 "use client";
@@ -34,10 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-// ------------------------------------------------------------
-// Wire types (mirror /api/admin/nexus)
-// ------------------------------------------------------------
+import { useI18n } from "@/lib/i18n";
 
 type ProposalStatus =
   | "draft"
@@ -82,16 +72,11 @@ interface NexusDto {
 }
 
 const TOKEN_STORAGE_KEY = "krwn.token";
-
-// Куда уходит гражданин, если он попытался открыть Nexus без прав.
-// Общая лента событий пока не выделена в отдельный роут — используем
-// корень приложения, там живёт чат и общая витрина.
 const CITIZEN_FEED_PATH = "/";
-
-// ------------------------------------------------------------
 
 export default function AdminNexusPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [token, setToken] = useState<string | null>(null);
   const [data, setData] = useState<NexusDto | null>(null);
   const [loading, setLoading] = useState(false);
@@ -113,8 +98,6 @@ export default function AdminNexusPage() {
       });
 
       if (res.status === 403) {
-        // Не Суверен и нет system.admin — это обычный гражданин.
-        // Отправляем его на общую ленту событий, как требует guard.
         router.replace(CITIZEN_FEED_PATH);
         return;
       }
@@ -156,16 +139,13 @@ export default function AdminNexusPage() {
       <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-crown">
-            Nexus
+            {t("nexus.eyebrow")}
           </p>
           <h1 className="mt-1 text-3xl font-semibold">
-            Главная Суверена
+            {t("nexus.title")}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-foreground/60">
-            Рубка управления государством. Отсюда видно состояние
-            Вертикали, монетарной политики и Палаты Законов. Позже
-            каждый установленный модуль сможет принести сюда свою
-            карточку — Nexus станет настраиваемым рабочим столом.
+            {t("nexus.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -175,7 +155,7 @@ export default function AdminNexusPage() {
             onClick={() => void reload()}
             disabled={loading}
           >
-            {loading ? "…" : "Обновить"}
+            {loading ? t("common.loadingDots") : t("common.refresh")}
           </Button>
           <Button
             variant="ghost"
@@ -186,21 +166,21 @@ export default function AdminNexusPage() {
               setData(null);
             }}
           >
-            Сменить токен
+            {t("common.logout")}
           </Button>
         </div>
       </header>
 
       {error && (
         <Card className="mb-6 border-destructive/40 bg-destructive/5 text-sm text-destructive">
-          Ошибка: {error}. Проверьте, что токен выдан Суверену либо
-          держателю глобального права <code>system.admin</code>.
+          {t("common.errorWith", { message: error })}
+          {t("nexus.errorHint")} <code>system.admin</code>.
         </Card>
       )}
 
       {!data && !error && (
         <Card className="text-sm text-foreground/60">
-          Загружаем состояние государства…
+          {t("nexus.loading")}
         </Card>
       )}
 
@@ -216,32 +196,22 @@ export default function AdminNexusPage() {
             installed={data.governance.installed}
             proposals={data.governance.proposals}
           />
-          {/* Future: module widgets will be rendered here. Каждый
-              плагин вернёт `ModuleWidget` через Registry, а Nexus
-              поместит его в эту же сетку рядом с тремя
-              «коренными» карточками. */}
         </section>
       )}
     </Shell>
   );
 }
 
-// ------------------------------------------------------------
-// Cards
-// ------------------------------------------------------------
-
 function VerticalCard({ totalNodes }: { totalNodes: number }) {
+  const { t, tp } = useI18n();
   return (
     <Card className="flex flex-col gap-4">
       <div>
         <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/50">
-          Вертикаль
+          {t("nexus.vertical.eyebrow")}
         </p>
-        <CardTitle className="mt-1">Дерево власти</CardTitle>
-        <CardDescription>
-          Узлы, должности и ранги — графовая структура, по которой
-          распределяются права.
-        </CardDescription>
+        <CardTitle className="mt-1">{t("nexus.vertical.title")}</CardTitle>
+        <CardDescription>{t("nexus.vertical.desc")}</CardDescription>
       </div>
 
       <div className="flex items-end gap-2">
@@ -249,19 +219,19 @@ function VerticalCard({ totalNodes }: { totalNodes: number }) {
           {totalNodes}
         </span>
         <span className="pb-1 text-sm text-foreground/60">
-          {pluralise(totalNodes, ["узел", "узла", "узлов"])}
+          {tp("nexus.vertical.nodes", totalNodes)}
         </span>
       </div>
 
       <div className="mt-auto flex flex-wrap gap-2">
         <Link href="/admin/vertical">
           <Button variant="crown" size="sm">
-            Добавить узел
+            {t("nexus.vertical.addNode")}
           </Button>
         </Link>
         <Link href="/admin/vertical">
           <Button variant="outline" size="sm">
-            Открыть дерево
+            {t("nexus.vertical.openTree")}
           </Button>
         </Link>
       </div>
@@ -278,20 +248,18 @@ function EconomyCard({
   transactionTaxRate: number;
   currencyDisplayName: string | null;
 }) {
+  const { t, formatPercent, formatNumber } = useI18n();
   const displayName =
-    currencyDisplayName ?? asset?.name ?? "Валюта не определена";
-  const symbol = asset?.symbol ?? "—";
-  // taxRate в системе хранится как фракция [0..1]. Палата Указов
-  // задаёт государственный налог на перевод (transactionTaxRate),
-  // Фабрика Валют — ставку конкретного актива. Показываем обе.
+    currencyDisplayName ?? asset?.name ?? t("nexus.economy.noCurrency");
+  const symbol = asset?.symbol ?? t("common.dash");
   const stateTaxPct = formatPercent(transactionTaxRate);
-  const assetTaxPct = asset ? formatPercent(asset.taxRate) : "—";
+  const assetTaxPct = asset ? formatPercent(asset.taxRate) : t("common.dash");
 
   return (
     <Card className="flex flex-col gap-4">
       <div>
         <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/50">
-          Экономика
+          {t("nexus.economy.eyebrow")}
         </p>
         <CardTitle className="mt-1 flex items-center gap-2">
           <span
@@ -306,18 +274,23 @@ function EconomyCard({
             ({symbol})
           </span>
         </CardTitle>
-        <CardDescription>
-          Монетарная политика государства: ставки налога и объём
-          циркулирующей валюты.
-        </CardDescription>
+        <CardDescription>{t("nexus.economy.desc")}</CardDescription>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
-        <Stat label="Налог (штат)" value={stateTaxPct} hint="Палата Указов" />
-        <Stat label="Налог (актив)" value={assetTaxPct} hint="Фабрика Валют" />
         <Stat
-          label="Объём в системе"
-          value={asset ? formatAmount(asset.totalSupply) : "—"}
+          label={t("nexus.economy.stateTax")}
+          value={stateTaxPct}
+          hint={t("nexus.economy.stateTaxHint")}
+        />
+        <Stat
+          label={t("nexus.economy.assetTax")}
+          value={assetTaxPct}
+          hint={t("nexus.economy.assetTaxHint")}
+        />
+        <Stat
+          label={t("nexus.economy.supply")}
+          value={asset ? formatNumber(asset.totalSupply) : t("common.dash")}
           hint={asset ? symbol : undefined}
           span={2}
         />
@@ -326,12 +299,12 @@ function EconomyCard({
       <div className="mt-auto flex flex-wrap gap-2">
         <Link href="/admin/economy">
           <Button variant="crown" size="sm">
-            Настройки валюты
+            {t("nexus.economy.openFactory")}
           </Button>
         </Link>
         <Link href="/admin/constitution">
           <Button variant="outline" size="sm">
-            Палата Указов
+            {t("nexus.economy.openConstitution")}
           </Button>
         </Link>
       </div>
@@ -346,28 +319,28 @@ function GovernanceCard({
   installed: boolean;
   proposals: ProposalDto[];
 }) {
+  const { t, formatDate } = useI18n();
   return (
     <Card className="flex flex-col gap-4">
       <div>
         <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/50">
-          Законы
+          {t("nexus.governance.eyebrow")}
         </p>
-        <CardTitle className="mt-1">Последние предложения</CardTitle>
-        <CardDescription>
-          Три последних Proposal из модуля Governance с текущим
-          статусом рассмотрения.
-        </CardDescription>
+        <CardTitle className="mt-1">{t("nexus.governance.title")}</CardTitle>
+        <CardDescription>{t("nexus.governance.desc")}</CardDescription>
       </div>
 
       {!installed ? (
         <div className="rounded-lg border border-border/60 bg-background/40 p-4 text-sm text-foreground/60">
-          Модуль <code>governance</code> ещё не установлен. Когда
-          Суверен подключит его через <code>krwn module install</code>,
-          здесь появится лента предложений.
+          {t("nexus.governance.notInstalled.before")}{" "}
+          <code>governance</code>{" "}
+          {t("nexus.governance.notInstalled.middle")}{" "}
+          <code>krwn module install</code>
+          {t("nexus.governance.notInstalled.after")}
         </div>
       ) : proposals.length === 0 ? (
         <div className="rounded-lg border border-border/60 bg-background/40 p-4 text-sm text-foreground/60">
-          Палата Законов пока пуста — ни одного предложения не внесено.
+          {t("nexus.governance.empty")}
         </div>
       ) : (
         <ul className="space-y-2">
@@ -396,23 +369,15 @@ function GovernanceCard({
             variant={installed ? "crown" : "outline"}
             size="sm"
             disabled={!installed}
-            title={
-              installed
-                ? undefined
-                : "Установите модуль governance, чтобы открыть Палату Законов."
-            }
+            title={installed ? undefined : t("nexus.governance.installHint")}
           >
-            Палата Законов
+            {t("nexus.governance.open")}
           </Button>
         </Link>
       </div>
     </Card>
   );
 }
-
-// ------------------------------------------------------------
-// Tiny presentational helpers
-// ------------------------------------------------------------
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -456,48 +421,37 @@ function Stat({
 }
 
 function StatusBadge({ status }: { status: ProposalStatus }) {
-  const map: Record<ProposalStatus, { label: string; tone: string }> = {
-    draft: { label: "черновик", tone: "border-border text-foreground/60" },
-    open: { label: "открыто", tone: "border-crown/60 text-crown" },
-    passed: {
-      label: "принят",
-      tone: "border-emerald-500/50 text-emerald-400",
-    },
-    rejected: {
-      label: "отклонён",
-      tone: "border-destructive/50 text-destructive",
-    },
-    executed: {
-      label: "исполнен",
-      tone: "border-emerald-500/50 text-emerald-400",
-    },
-    expired: {
-      label: "истёк",
-      tone: "border-border text-foreground/40",
-    },
+  const { t } = useI18n();
+  const tone: Record<ProposalStatus, string> = {
+    draft: "border-border text-foreground/60",
+    open: "border-crown/60 text-crown",
+    passed: "border-emerald-500/50 text-emerald-400",
+    rejected: "border-destructive/50 text-destructive",
+    executed: "border-emerald-500/50 text-emerald-400",
+    expired: "border-border text-foreground/40",
   };
-  const { label, tone } = map[status] ?? map.draft;
   return (
     <span
       className={cn(
         "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-widest",
-        tone,
+        tone[status] ?? tone.draft,
       )}
     >
-      {label}
+      {t(`nexus.status.${status}`)}
     </span>
   );
 }
 
 function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   return (
     <Card className="mx-auto mt-24 max-w-md">
-      <CardTitle>Вход в Nexus</CardTitle>
+      <CardTitle>{t("nexus.token.title")}</CardTitle>
       <CardDescription>
-        Nexus открыт только Суверену государства или держателю
-        глобального права <code>system.admin</code>. Используйте
-        CLI-токен, выданный командой <code>krwn token mint</code>.
+        {t("nexus.token.desc.before")} <code>system.admin</code>
+        {t("nexus.token.desc.middle")} <code>krwn token mint</code>
+        {t("nexus.token.desc.after")}
       </CardDescription>
       <form
         className="mt-4 flex flex-col gap-2"
@@ -513,46 +467,9 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
           autoFocus
         />
         <Button type="submit" variant="crown">
-          Войти
+          {t("common.login")}
         </Button>
       </form>
     </Card>
   );
-}
-
-// ------------------------------------------------------------
-// Formatters
-// ------------------------------------------------------------
-
-function formatPercent(fraction: number): string {
-  if (!Number.isFinite(fraction)) return "—";
-  const pct = fraction * 100;
-  const precision = pct === 0 || pct >= 10 ? 0 : 2;
-  return `${pct.toFixed(precision)}%`;
-}
-
-function formatAmount(value: number): string {
-  if (!Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("ru-RU", {
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-}
-
-function pluralise(n: number, forms: [string, string, string]): string {
-  const abs = Math.abs(n) % 100;
-  const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return forms[2];
-  if (n1 > 1 && n1 < 5) return forms[1];
-  if (n1 === 1) return forms[0];
-  return forms[2];
 }

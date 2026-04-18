@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface SetupSuccess {
   stateId: string;
@@ -15,6 +16,7 @@ interface SetupSuccess {
 }
 
 export function SetupWizard() {
+  const t = useT();
   const [state, setState] = useState<"form" | "submitting" | "done">("form");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SetupSuccess | null>(null);
@@ -84,12 +86,12 @@ export function SetupWizard() {
     const activeToken = rotated ?? result.cliToken;
     return (
       <Card className="w-full">
-        <CardTitle>State создан</CardTitle>
+        <CardTitle>{t("setup.done.title")}</CardTitle>
         <CardDescription>
           <span className="font-mono text-foreground/80">
             /s/{result.stateSlug}
           </span>{" "}
-          — ваше цифровое государство живо.
+          {t("setup.done.subtitle")}
         </CardDescription>
 
         <div className="mt-6 space-y-3 text-sm">
@@ -101,9 +103,13 @@ export function SetupWizard() {
         <div className="mt-8 rounded-md border border-crown/40 bg-crown/5 p-4">
           <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-widest text-crown">
             <span>
-              {rotated ? "Rotated CLI token" : "Bootstrap CLI token"}
+              {rotated
+                ? t("setup.done.rotatedToken")
+                : t("setup.done.bootstrapToken")}
             </span>
-            <span className="text-foreground/40">shown once</span>
+            <span className="text-foreground/40">
+              {t("setup.done.shownOnce")}
+            </span>
           </div>
           <code className="block break-all font-mono text-sm text-foreground">
             {activeToken}
@@ -118,8 +124,7 @@ export function SetupWizard() {
         {!rotated ? (
           <div className="mt-6 flex flex-col gap-2">
             <p className="text-xs text-foreground/60">
-              Рекомендуется сразу заменить bootstrap-токен — старый
-              будет немедленно отозван.
+              {t("setup.done.replaceHint")}
             </p>
             <Button
               type="button"
@@ -127,20 +132,21 @@ export function SetupWizard() {
               onClick={rotateBootstrap}
               disabled={rotating}
             >
-              {rotating ? "Ротация…" : "Заменить bootstrap-токен"}
+              {rotating
+                ? t("setup.done.rotating")
+                : t("setup.done.rotate")}
             </Button>
           </div>
         ) : (
           <p className="mt-6 text-xs text-green-500">
-            ✓ Прежний bootstrap-токен отозван. Сохраните новый — повторно
-            он не появится.
+            {t("setup.done.rotated")}
           </p>
         )}
 
         <div className="mt-8 flex flex-col gap-2">
           <a href={`/s/${result.stateSlug}`}>
             <Button variant="crown" size="lg" className="w-full">
-              Войти в государство
+              {t("setup.done.enter")}
             </Button>
           </a>
         </div>
@@ -156,7 +162,7 @@ export function SetupWizard() {
     <Card className="w-full">
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <Field
-          label="Название государства"
+          label={t("setup.form.stateName")}
           name="stateName"
           placeholder="Crown Republic"
           required
@@ -164,23 +170,23 @@ export function SetupWizard() {
           maxLength={80}
         />
         <Field
-          label="URL-slug"
+          label={t("setup.form.stateSlug")}
           name="stateSlug"
           placeholder="crown-republic"
-          hint="Оставьте пустым — сгенерируем из названия."
+          hint={t("setup.form.stateSlugHint")}
           pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
         />
         <Field
-          label="Краткое описание"
+          label={t("setup.form.stateDesc")}
           name="stateDescription"
-          placeholder="Государство сообщества разработчиков…"
+          placeholder={t("setup.form.stateDescPh")}
           maxLength={500}
         />
 
         <div className="my-1 h-px bg-border/60" />
 
         <Field
-          label="Ваш @handle"
+          label={t("setup.form.ownerHandle")}
           name="ownerHandle"
           placeholder="sovereign"
           required
@@ -189,17 +195,17 @@ export function SetupWizard() {
           pattern="[a-z0-9_]{3,32}"
         />
         <Field
-          label="Отображаемое имя"
+          label={t("setup.form.ownerDisplayName")}
           name="ownerDisplayName"
-          placeholder="Red Master"
+          placeholder={t("setup.form.ownerDisplayNamePh")}
           maxLength={80}
         />
         <Field
-          label="Email"
+          label={t("setup.form.ownerEmail")}
           name="ownerEmail"
           type="email"
           placeholder="red@example.com"
-          hint="Опционально. Passkey/кошелёк можно подключить позже."
+          hint={t("setup.form.ownerEmailHint")}
         />
 
         {error && (
@@ -212,7 +218,9 @@ export function SetupWizard() {
           size="lg"
           disabled={state === "submitting"}
         >
-          {state === "submitting" ? "Коронуем…" : "Короновать Суверена"}
+          {state === "submitting"
+            ? t("setup.form.submitting")
+            : t("setup.form.submit")}
         </Button>
       </form>
     </Card>

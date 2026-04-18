@@ -14,6 +14,7 @@
  */
 
 import * as React from "react";
+import { useT } from "@/lib/i18n";
 import { WalletCard } from "./WalletCard";
 import { TransferModal } from "./TransferModal";
 import type { TransactionDto, WalletDto } from "./types";
@@ -40,6 +41,7 @@ export function WalletNavbar({
   className,
   authToken,
 }: WalletNavbarProps): React.ReactElement | null {
+  const t = useT();
   const [wallet, setWallet] = React.useState<WalletDto | null>(null);
   const [treasuries, setTreasuries] = React.useState<WalletDto[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -99,21 +101,25 @@ export function WalletNavbar({
   if (!token) {
     return (
       <div className={className}>
-        <span className="text-xs text-foreground/40">Wallet offline</span>
+        <span className="text-xs text-foreground/40">
+          {t("wallet.offline")}
+        </span>
       </div>
     );
   }
   if (loading && !wallet) {
     return (
       <div className={className}>
-        <span className="text-xs text-foreground/40">Загрузка…</span>
+        <span className="text-xs text-foreground/40">
+          {t("common.loading")}
+        </span>
       </div>
     );
   }
   if (!wallet) {
     return (
       <div className={className}>
-        <span className="text-xs text-foreground/40">Нет кошелька</span>
+        <span className="text-xs text-foreground/40">{t("wallet.none")}</span>
       </div>
     );
   }
@@ -125,7 +131,7 @@ export function WalletNavbar({
           type="button"
           onClick={() => setTransferOpen(true)}
           className="block"
-          title="Открыть перевод"
+          title={t("wallet.openTransfer")}
         >
           <WalletCard wallet={wallet} variant="compact" />
         </button>
@@ -136,11 +142,13 @@ export function WalletNavbar({
         onClose={() => setTransferOpen(false)}
         onSuccess={() => void load()}
         personal={wallet}
-        treasuries={treasuries.map((t) => ({
-          wallet: t,
+        treasuries={treasuries.map((tr) => ({
+          wallet: tr,
           label:
-            (t.metadata?.nodeTitle as string | undefined) ??
-            `Казна · ${t.nodeId?.slice(0, 8)}`,
+            (tr.metadata?.nodeTitle as string | undefined) ??
+            t("wallet.treasuryLabel", {
+              id: tr.nodeId?.slice(0, 8) ?? "",
+            }),
         }))}
         authToken={token}
       />

@@ -9,6 +9,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { formatAmount, shortAddress } from "./format";
 import type { WalletDto } from "./types";
 
@@ -30,6 +31,7 @@ export function WalletCard({
   variant = "full",
   className,
 }: WalletCardProps): React.ReactElement {
+  const t = useT();
   const [copied, setCopied] = React.useState(false);
 
   const copy = React.useCallback(async () => {
@@ -68,7 +70,7 @@ export function WalletCard({
           })}
         </span>
         <span className="text-xs text-foreground/50">
-          {isTreasury ? "Treasury" : "Personal"}
+          {isTreasury ? t("wallet.type.treasury") : t("wallet.type.personal")}
         </span>
       </div>
     );
@@ -85,7 +87,8 @@ export function WalletCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-foreground/50">
-            {label ?? (isTreasury ? "Казна узла" : "Личный кошелёк")}
+            {label ??
+              (isTreasury ? t("wallet.treasury") : t("wallet.personalBalance"))}
           </p>
           <p
             className={cn(
@@ -104,7 +107,9 @@ export function WalletCard({
               : "bg-foreground/10 text-foreground/80",
           )}
         >
-          {isTreasury ? "TREASURY" : "PERSONAL"}
+          {isTreasury
+            ? t("wallet.type.treasuryUpper")
+            : t("wallet.type.personalUpper")}
         </span>
       </div>
 
@@ -112,11 +117,11 @@ export function WalletCard({
         type="button"
         onClick={copy}
         className="mt-4 flex items-center gap-2 rounded-md px-0 py-0 font-mono text-xs text-foreground/60 transition-colors hover:text-foreground"
-        title="Скопировать адрес"
+        title={t("common.copyAddress")}
       >
         <span>{shortAddress(wallet.address, 10, 8)}</span>
         <span className="text-foreground/40">
-          {copied ? "скопировано" : "копировать"}
+          {copied ? t("common.copied") : t("common.copy")}
         </span>
       </button>
 
@@ -131,7 +136,7 @@ export function WalletCard({
               : "border border-border bg-background/60 text-foreground hover:bg-foreground/5",
           )}
         >
-          Перевести
+          {t("wallet.transfer")}
         </button>
       ) : null}
     </div>

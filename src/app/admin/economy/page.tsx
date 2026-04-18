@@ -5,21 +5,17 @@
  * here they can:
  *
  *   1. See every registered `StateAsset` of their State.
- *   2. Create a new asset (DurovCoin, Empire Gold, USD, …) —
- *      picking the type (INTERNAL / ON_CHAIN), mode (LOCAL /
- *      EXTERNAL / HYBRID), `canMint` (Эмиссия), `taxRate`
- *      (Налог штата) and `publicSupply` (Публичность).
- *   3. Tweak those knobs on any existing asset.
- *   4. Press "Установить государственную валюту" on any asset
- *      to promote it to the national currency — clearing the
- *      `isPrimary` flag on every sibling atomically.
+ *   2. Create a new asset (DurovCoin, Empire Gold, USD, …).
+ *   3. Tweak the three knobs on any asset (mint / tax / supply).
+ *   4. Promote any asset to the national currency.
  *
  * Transport: the page is a client component that speaks to the
  * existing `/api/wallet/assets` + `/api/wallet/supply/:id`
- * endpoints with a Bearer token pulled from
- * `localStorage["krwn.token"]` (same scheme the chat widget
- * uses). No server actions — keeps the file a single self-
- * contained blob and avoids leaking the CLI token into RSC.
+ * endpoints with a Bearer token pulled from `localStorage`.
+ *
+ * i18n: all user-facing copy comes from `locales/*`. Percentages
+ * go through `useI18n().formatPercent` so they respect the
+ * active locale's decimal separator.
  */
 
 "use client";
@@ -29,10 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-// ------------------------------------------------------------
-// Wire types (mirror the API responses).
-// ------------------------------------------------------------
+import { useI18n } from "@/lib/i18n";
 
 type AssetType = "INTERNAL" | "ON_CHAIN";
 type AssetMode = "LOCAL" | "EXTERNAL" | "HYBRID";
@@ -59,9 +52,8 @@ interface StateAssetDto {
 
 const TOKEN_STORAGE_KEY = "krwn.token";
 
-// ------------------------------------------------------------
-
 export default function AdminEconomyPage() {
+  const { t, formatPercent } = useI18n();
   const [token, setToken] = useState<string | null>(null);
   const [assets, setAssets] = useState<StateAssetDto[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -124,13 +116,13 @@ export default function AdminEconomyPage() {
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-crown">
-            Фабрика Валют
+            {t("economy.eyebrow")}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold">Экономика государства</h1>
+          <h1 className="mt-1 text-3xl font-semibold">
+            {t("economy.title")}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-foreground/60">
-            Определите национальную валюту, настройте эмиссию, налог штата и
-            публичность. Ровно один актив государства может быть помечен как
-            «флаг» — его и увидят граждане по умолчанию.
+            {t("economy.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -140,7 +132,7 @@ export default function AdminEconomyPage() {
             onClick={() => void reload()}
             disabled={loading}
           >
-            {loading ? "…" : "Обновить"}
+            {loading ? t("common.loadingDots") : t("common.refresh")}
           </Button>
           <Button
             variant="ghost"
@@ -151,15 +143,15 @@ export default function AdminEconomyPage() {
               setAssets(null);
             }}
           >
-            Сменить токен
+            {t("common.logout")}
           </Button>
         </div>
       </header>
 
       {error && (
         <Card className="mb-6 border-destructive/40 bg-destructive/5 text-sm text-destructive">
-          Ошибка: {error}. Проверьте, что токен выдан с правом{" "}
-          <code>wallet.manage_assets</code> или вы — Суверен.
+          {t("common.errorWith", { message: error })}
+          {t("economy.errorHint", { perm: "wallet.manage_assets" })}
         </Card>
       )}
 
@@ -171,16 +163,19 @@ export default function AdminEconomyPage() {
             </span>
             <div>
               <CardTitle>
-                Текущая валюта: {primary.name}{" "}
+                {t("economy.current")} {primary.name}{" "}
                 <span className="text-foreground/50">({primary.symbol})</span>
               </CardTitle>
               <CardDescription>
-                {prettyMode(primary)} · {primary.decimals} decimals ·{" "}
-                {primary.canMint ? "эмиссия открыта" : "эмиссия заморожена"} ·
-                налог {formatPercent(primary.taxRate)} ·
+                {prettyMode(primary)} ·{" "}
+                {t("economy.decimals", { count: primary.decimals })} ·{" "}
+                {primary.canMint
+                  ? t("economy.mintOpen")
+                  : t("economy.mintFrozen")}{" "}
+                · {t("economy.tax", { pct: formatPercent(primary.taxRate) })} ·{" "}
                 {primary.publicSupply
-                  ? " объём публичен"
-                  : " объём скрыт"}
+                  ? t("economy.supplyPublic")
+                  : t("economy.supplyHidden")}
               </CardDescription>
             </div>
           </div>
@@ -190,7 +185,7 @@ export default function AdminEconomyPage() {
       <section className="grid gap-4">
         {assets?.length === 0 && (
           <Card className="text-sm text-foreground/60">
-            Валюты ещё не зарегистрированы. Создайте первую ниже.
+            {t("economy.empty")}
           </Card>
         )}
         {assets?.map((asset) => (
@@ -205,17 +200,13 @@ export default function AdminEconomyPage() {
 
       <section className="mt-12">
         <h2 className="mb-3 text-sm uppercase tracking-widest text-foreground/50">
-          Новая валюта
+          {t("economy.newHeader")}
         </h2>
         <CreateAssetForm token={token} onCreated={reload} />
       </section>
     </AdminShell>
   );
 }
-
-// ------------------------------------------------------------
-// Sub-components
-// ------------------------------------------------------------
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
@@ -226,14 +217,16 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 }
 
 function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   return (
     <Card className="mx-auto mt-24 max-w-md">
-      <CardTitle>Вход в экономический контур</CardTitle>
+      <CardTitle>{t("economy.token.title")}</CardTitle>
       <CardDescription>
-        Для управления валютами нужен CLI-токен Суверена (или лицо с правом{" "}
-        <code>wallet.manage_assets</code>). Сгенерируйте его командой{" "}
-        <code>krwn token mint</code>.
+        {t("economy.token.desc", {
+          perm: "wallet.manage_assets",
+          cmd: "krwn token mint",
+        })}
       </CardDescription>
       <form
         className="mt-4 flex flex-col gap-2"
@@ -249,7 +242,7 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
           autoFocus
         />
         <Button type="submit" variant="crown">
-          Войти
+          {t("common.login")}
         </Button>
       </form>
     </Card>
@@ -265,11 +258,10 @@ function AssetRow({
   token: string;
   onChanged: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Local edit state for the three Currency Factory knobs. We
-  // commit via PATCH only when the user presses "Сохранить".
   const [canMint, setCanMint] = useState(asset.canMint);
   const [taxPct, setTaxPct] = useState((asset.taxRate * 100).toString());
   const [publicSupply, setPublicSupply] = useState(asset.publicSupply);
@@ -295,7 +287,7 @@ function AssetRow({
     try {
       const rate = Number(taxPct) / 100;
       if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
-        throw new Error("Налог должен быть в диапазоне 0..100%.");
+        throw new Error(t("economy.asset.taxRange"));
       }
       const res = await fetch(`/api/wallet/assets/${asset.id}`, {
         method: "PATCH",
@@ -315,7 +307,7 @@ function AssetRow({
       }
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ошибка");
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -335,7 +327,7 @@ function AssetRow({
       }
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ошибка");
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -365,12 +357,13 @@ function AssetRow({
               </span>
               {asset.isPrimary && (
                 <span className="ml-2 rounded-full border border-crown/40 px-2 py-0.5 text-[10px] uppercase tracking-widest text-crown">
-                  Флаг государства
+                  {t("economy.asset.flag")}
                 </span>
               )}
             </CardTitle>
             <CardDescription>
-              {prettyMode(asset)} · {asset.decimals} decimals
+              {prettyMode(asset)} ·{" "}
+              {t("economy.decimals", { count: asset.decimals })}
               {asset.contractAddress && (
                 <>
                   {" · "}
@@ -388,33 +381,31 @@ function AssetRow({
             onClick={() => void promote()}
             title={
               asset.isPrimary
-                ? "Этот актив уже является валютой государства"
+                ? t("economy.asset.alreadyPrimary")
                 : undefined
             }
           >
             {asset.isPrimary
-              ? "Текущая валюта"
-              : "Установить государственную валюту"}
+              ? t("economy.asset.current")
+              : t("economy.asset.promote")}
           </Button>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <ToggleField
-          label="Эмиссия"
-          hint="Разрешено ли печатать новые деньги (mint)."
+          label={t("economy.asset.mint")}
+          hint={t("economy.asset.mintHint")}
           checked={canMint}
           onChange={setCanMint}
           disabled={!canMintEditable || busy}
           disabledReason={
-            !canMintEditable
-              ? "Вне-чейн актив: контракт не под нашим контролем."
-              : undefined
+            !canMintEditable ? t("economy.asset.mintLocked") : undefined
           }
         />
         <div>
           <label className="text-xs font-semibold uppercase tracking-widest text-foreground/60">
-            Налог штата (%)
+            {t("economy.asset.taxPct")}
           </label>
           <Input
             type="number"
@@ -428,13 +419,13 @@ function AssetRow({
           />
           <p className="mt-1 text-xs text-foreground/50">
             {taxEditable
-              ? "Процент, автоматически удерживаемый в Казну с каждого перевода."
-              : "Для ON_CHAIN активов налог не применяется."}
+              ? t("economy.asset.taxHint")
+              : t("economy.asset.taxNA")}
           </p>
         </div>
         <ToggleField
-          label="Публичность"
-          hint="Виден ли общий объём валюты гражданам (и внешним аудиторам)."
+          label={t("economy.asset.public")}
+          hint={t("economy.asset.publicHint")}
           checked={publicSupply}
           onChange={setPublicSupply}
           disabled={busy}
@@ -442,7 +433,9 @@ function AssetRow({
       </div>
 
       {error && (
-        <p className="mt-4 text-sm text-destructive">Ошибка: {error}</p>
+        <p className="mt-4 text-sm text-destructive">
+          {t("common.errorWith", { message: error })}
+        </p>
       )}
 
       <div className="mt-4 flex items-center justify-end gap-2">
@@ -452,7 +445,7 @@ function AssetRow({
           disabled={!dirty || busy}
           onClick={() => void save()}
         >
-          {busy ? "Сохраняю…" : "Сохранить"}
+          {busy ? t("common.saving") : t("common.save")}
         </Button>
       </div>
     </Card>
@@ -514,6 +507,7 @@ function CreateAssetForm({
   token: string;
   onCreated: () => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const [symbol, setSymbol] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState<AssetType>("INTERNAL");
@@ -528,8 +522,6 @@ function CreateAssetForm({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Default the mode to match the type. The server validates
-    // this anyway; we only do it here to avoid UX friction.
     setMode(type === "INTERNAL" ? "LOCAL" : "EXTERNAL");
   }, [type]);
 
@@ -579,7 +571,7 @@ function CreateAssetForm({
       setIsPrimary(false);
       await onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ошибка");
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -590,34 +582,34 @@ function CreateAssetForm({
   return (
     <Card>
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
-        <Field label="Название валюты">
+        <Field label={t("economy.form.name")}>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="DurovCoin, Empire Gold, USD…"
+            placeholder={t("economy.form.namePh")}
             required
           />
         </Field>
-        <Field label="Тикер (symbol)">
+        <Field label={t("economy.form.symbol")}>
           <Input
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            placeholder="KRN"
+            placeholder={t("economy.form.symbolPh")}
             maxLength={16}
             required
           />
         </Field>
-        <Field label="Тип">
+        <Field label={t("economy.form.type")}>
           <select
             className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
             value={type}
             onChange={(e) => setType(e.target.value as AssetType)}
           >
-            <option value="INTERNAL">INTERNAL — виртуальная</option>
-            <option value="ON_CHAIN">ON_CHAIN — токен в блокчейне</option>
+            <option value="INTERNAL">{t("economy.form.type.internal")}</option>
+            <option value="ON_CHAIN">{t("economy.form.type.onchain")}</option>
           </select>
         </Field>
-        <Field label="Режим учёта">
+        <Field label={t("economy.form.mode")}>
           <select
             className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
             value={mode}
@@ -625,39 +617,47 @@ function CreateAssetForm({
           >
             {type === "INTERNAL" && (
               <>
-                <option value="LOCAL">LOCAL — только леджер</option>
-                <option value="HYBRID">HYBRID — леджер + withdraw</option>
+                <option value="LOCAL">
+                  {t("economy.form.mode.local")}
+                </option>
+                <option value="HYBRID">
+                  {t("economy.form.mode.hybridInternal")}
+                </option>
               </>
             )}
             {type === "ON_CHAIN" && (
               <>
-                <option value="EXTERNAL">EXTERNAL — чистый on-chain</option>
-                <option value="HYBRID">HYBRID — с мгновенным учётом</option>
+                <option value="EXTERNAL">
+                  {t("economy.form.mode.external")}
+                </option>
+                <option value="HYBRID">
+                  {t("economy.form.mode.hybridOnchain")}
+                </option>
               </>
             )}
           </select>
         </Field>
         {onChain && (
           <>
-            <Field label="Сеть">
+            <Field label={t("economy.form.network")}>
               <Input
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
-                placeholder="ethereum, polygon, solana…"
+                placeholder={t("economy.form.networkPh")}
                 required
               />
             </Field>
-            <Field label="Адрес контракта">
+            <Field label={t("economy.form.contract")}>
               <Input
                 value={contractAddress}
                 onChange={(e) => setContractAddress(e.target.value)}
-                placeholder="0x…"
+                placeholder={t("economy.form.contractPh")}
                 required
               />
             </Field>
           </>
         )}
-        <Field label="Налог штата (%)">
+        <Field label={t("economy.form.taxPct")}>
           <Input
             type="number"
             step="0.1"
@@ -676,7 +676,7 @@ function CreateAssetForm({
               onChange={(e) => setCanMint(e.target.checked)}
               disabled={type === "ON_CHAIN" && mode === "EXTERNAL"}
             />
-            Эмиссия разрешена
+            {t("economy.form.canMint")}
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -684,7 +684,7 @@ function CreateAssetForm({
               checked={publicSupply}
               onChange={(e) => setPublicSupply(e.target.checked)}
             />
-            Публичный объём
+            {t("economy.form.publicSupply")}
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -692,17 +692,19 @@ function CreateAssetForm({
               checked={isPrimary}
               onChange={(e) => setIsPrimary(e.target.checked)}
             />
-            Сразу сделать национальной валютой
+            {t("economy.form.isPrimary")}
           </label>
         </div>
         {error && (
           <p className="sm:col-span-2 text-sm text-destructive">
-            Ошибка: {error}
+            {t("common.errorWith", { message: error })}
           </p>
         )}
         <div className="sm:col-span-2 flex justify-end">
           <Button type="submit" variant="crown" disabled={busy}>
-            {busy ? "Создаю…" : "Зарегистрировать валюту"}
+            {busy
+              ? t("economy.form.submitting")
+              : t("economy.form.submit")}
           </Button>
         </div>
       </form>
@@ -726,18 +728,10 @@ function Field({
   );
 }
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
 function prettyMode(asset: StateAssetDto): string {
   const bits: string[] = [asset.type, asset.mode];
   if (asset.network) bits.push(asset.network);
   return bits.join(" · ");
-}
-
-function formatPercent(fraction: number): string {
-  return `${(fraction * 100).toFixed(fraction === 0 ? 0 : 2)}%`;
 }
 
 function shortenAddr(addr: string): string {

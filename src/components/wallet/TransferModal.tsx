@@ -19,6 +19,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { formatAmount, parseAmountInput } from "./format";
 import type { WalletDto } from "./types";
@@ -49,6 +50,7 @@ type DestinationKind = "user" | "treasury" | "walletId";
 
 export function TransferModal(props: TransferModalProps): React.ReactElement | null {
   const { open, onClose, onSuccess, personal, treasuries = [], authToken } = props;
+  const t = useT();
 
   const [source, setSource] = React.useState<SourceChoice>(
     props.defaultSource ?? { kind: "personal" },
@@ -86,15 +88,15 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
     setError(null);
 
     if (!amountValid) {
-      setError("Введите корректную сумму (формат: 100 или 100.50).");
+      setError(t("wallet.err.amountModal"));
       return;
     }
     if (!enoughFunds) {
-      setError("Недостаточно средств на выбранном кошельке.");
+      setError(t("wallet.err.insufficient"));
       return;
     }
     if (destValue.trim().length === 0) {
-      setError("Укажите получателя.");
+      setError(t("wallet.err.noRecipient"));
       return;
     }
 
@@ -120,7 +122,9 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
           error?: string;
           code?: string;
         };
-        setError(payload.error ?? `Сервер вернул ${res.status}`);
+        setError(
+          payload.error ?? t("wallet.err.serverStatus", { status: res.status }),
+        );
         return;
       }
 
@@ -147,13 +151,13 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
       >
         <div className="flex items-start justify-between">
           <h2 className="text-lg font-semibold text-foreground">
-            Перевод Крон
+            {t("wallet.transferTitle")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-foreground/40 hover:text-foreground"
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             ✕
           </button>
@@ -162,29 +166,37 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
         {treasuries.length > 0 ? (
           <fieldset className="mt-4">
             <legend className="text-xs uppercase tracking-widest text-foreground/50">
-              Источник
+              {t("wallet.source")}
             </legend>
             <div className="mt-2 space-y-2">
               <SourceOption
                 selected={source.kind === "personal"}
                 onSelect={() => setSource({ kind: "personal" })}
-                title="Личные средства"
-                subtitle={`Баланс: ${formatAmount(personal.balance, { currency: personal.currency })}`}
+                title={t("wallet.source.personalModal")}
+                subtitle={t("wallet.source.balance", {
+                  amount: formatAmount(personal.balance, {
+                    currency: personal.currency,
+                  }),
+                })}
               />
-              {treasuries.map((t) => (
+              {treasuries.map((tr) => (
                 <SourceOption
-                  key={t.wallet.id}
+                  key={tr.wallet.id}
                   selected={
-                    source.kind === "treasury" && source.nodeId === t.wallet.nodeId
+                    source.kind === "treasury" && source.nodeId === tr.wallet.nodeId
                   }
                   onSelect={() =>
                     setSource({
                       kind: "treasury",
-                      nodeId: t.wallet.nodeId ?? "",
+                      nodeId: tr.wallet.nodeId ?? "",
                     })
                   }
-                  title={t.label}
-                  subtitle={`Казна: ${formatAmount(t.wallet.balance, { currency: t.wallet.currency })}`}
+                  title={tr.label}
+                  subtitle={t("wallet.source.treasury", {
+                    amount: formatAmount(tr.wallet.balance, {
+                      currency: tr.wallet.currency,
+                    }),
+                  })}
                   accent
                 />
               ))}
@@ -192,7 +204,7 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
           </fieldset>
         ) : (
           <p className="mt-4 text-xs text-foreground/50">
-            Перевод со своего личного кошелька. Баланс:{" "}
+            {t("wallet.personalOnly.prefix")}{" "}
             <span className="font-mono tabular-nums text-foreground">
               {formatAmount(personal.balance, { currency: personal.currency })}
             </span>
@@ -201,7 +213,7 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
         <div className="mt-5">
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Получатель
+            {t("wallet.recipient")}
           </label>
           <div className="mt-2 flex gap-2">
             <select
@@ -209,9 +221,11 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
               onChange={(e) => setDestKind(e.target.value as DestinationKind)}
               className="rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground"
             >
-              <option value="user">Пользователь (userId)</option>
-              <option value="treasury">Казна (nodeId)</option>
-              <option value="walletId">Wallet ID</option>
+              <option value="user">{t("wallet.recipient.userModal")}</option>
+              <option value="treasury">
+                {t("wallet.recipient.treasuryModal")}
+              </option>
+              <option value="walletId">{t("wallet.recipient.walletId")}</option>
             </select>
             <input
               type="text"
@@ -225,7 +239,7 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
         <div className="mt-5">
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Сумма (⚜)
+            {t("wallet.amount")}
           </label>
           <input
             type="text"
@@ -242,14 +256,14 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
         <div className="mt-5">
           <label className="block text-xs uppercase tracking-widest text-foreground/50">
-            Memo (за что)
+            {t("wallet.memo")}
           </label>
           <input
             type="text"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             maxLength={280}
-            placeholder="Зарплата за апрель"
+            placeholder={t("wallet.memoPh")}
             className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           />
         </div>
@@ -265,14 +279,14 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
         <div className="mt-6 flex items-center justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             type="submit"
             variant="crown"
             disabled={submitting || !amountValid || !enoughFunds}
           >
-            {submitting ? "Отправка…" : "Подтвердить"}
+            {submitting ? t("common.sending") : t("common.confirm")}
           </Button>
         </div>
       </form>

@@ -6,35 +6,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
-// The chat panel is a client-only bundle (localStorage, EventSource).
-// Loading it lazily keeps the marketing page lightweight and makes SSR
-// safe regardless of what `useChat` does on mount.
 const ChatPanel = dynamic(
   () => import("@/modules/chat/components").then((m) => m.ChatPanel),
   { ssr: false, loading: () => <ChatPanelFallback /> },
 );
 
-const pillars = [
-  {
-    title: "The State",
-    desc: "Изолированный инстанс со своим Сувереном, правилами и набором установленных модулей.",
-  },
-  {
-    title: "The Vertical",
-    desc: "Графовая структура власти. Полномочия наследуются и ветвятся сверху вниз.",
-  },
-  {
-    title: "The Kernel",
-    desc: "Auth, Permissions, Event Bus и Registry — минимальный набор сервисов ядра.",
-  },
-  {
-    title: "The Modules",
-    desc: "Чат, Казначейство, Задачи, Голосования — плагины, расширяющие государство.",
-  },
-];
+const PILLAR_KEYS = ["state", "vertical", "kernel", "modules"] as const;
 
 export default function HomePage() {
+  const t = useT();
   const [chatOpen, setChatOpen] = useState(false);
 
   return (
@@ -49,7 +31,7 @@ export default function HomePage() {
           <nav className="flex items-center gap-2">
             <Link href="/docs/ARCHITECTURE">
               <Button variant="ghost" size="sm">
-                Docs
+                {t("common.docs")}
               </Button>
             </Link>
             <Button
@@ -58,65 +40,64 @@ export default function HomePage() {
               onClick={() => setChatOpen((v) => !v)}
               aria-pressed={chatOpen}
             >
-              {chatOpen ? "Скрыть чат" : "Открыть чат"}
+              {chatOpen ? t("home.chat.close") : t("home.chat.open")}
             </Button>
             <Button variant="crown" size="sm">
-              Coronate
+              {t("home.cta.coronate")}
             </Button>
           </nav>
         </header>
 
         <section className="mt-24 flex flex-col items-start gap-6">
           <span className="rounded-full border border-crown/40 px-3 py-1 text-xs uppercase tracking-widest text-crown">
-            Community OS
+            {t("home.hero.eyebrow")}
           </span>
           <h1 className="text-5xl font-semibold leading-tight md:text-6xl">
-            Построй своё{" "}
-            <span className="text-crown">цифровое государство.</span>
+            {t("home.hero.titlePre")}{" "}
+            <span className="text-crown">{t("home.hero.titleCrown")}</span>
           </h1>
           <p className="max-w-2xl text-lg text-foreground/70">
-            KrwnOS — модульная операционная система для создания и управления
-            сообществами, компаниями и кланами. Суверен собирает Вертикаль
-            власти, подключает плагины и раздаёт права вниз по иерархии.
+            {t("home.hero.body")}
           </p>
           <div className="mt-2 flex gap-3">
             <Button variant="crown" size="lg">
-              Создать State
+              {t("home.hero.createState")}
             </Button>
             <Link href="/docs/MODULE_GUIDE">
               <Button variant="outline" size="lg">
-                Разработать модуль
+                {t("home.hero.buildModule")}
               </Button>
             </Link>
           </div>
         </section>
 
         <section className="mt-24 grid gap-4 md:grid-cols-2">
-          {pillars.map((p) => (
-            <Card key={p.title}>
-              <CardTitle>{p.title}</CardTitle>
-              <CardDescription>{p.desc}</CardDescription>
+          {PILLAR_KEYS.map((key) => (
+            <Card key={key}>
+              <CardTitle>{t(`home.pillar.${key}.title`)}</CardTitle>
+              <CardDescription>
+                {t(`home.pillar.${key}.desc`)}
+              </CardDescription>
             </Card>
           ))}
         </section>
 
         <footer className="mt-24 border-t border-border/60 pt-6 text-sm text-foreground/50">
-          MVP — Phase 1 Foundation. See{" "}
+          {t("home.footer.mvp")}{" "}
           <Link href="/" className="text-crown hover:underline">
-            ROADMAP
+            {t("home.footer.roadmap")}
           </Link>
           .
         </footer>
       </main>
 
-      {/* Floating toggle that's always reachable on mobile. */}
       {!chatOpen && (
         <button
           type="button"
           onClick={() => setChatOpen(true)}
           className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-crown/60 bg-background/90 px-4 py-2 text-sm font-semibold text-crown shadow-[0_0_24px_-6px_rgba(212,175,55,0.5)] backdrop-blur hover:bg-crown hover:text-black"
         >
-          <span aria-hidden>◈</span> Чат
+          <span aria-hidden>◈</span> {t("home.chat.float")}
         </button>
       )}
 
@@ -127,8 +108,6 @@ export default function HomePage() {
   );
 }
 
-// ------------------------------------------------------------
-
 function ChatSidePanel({
   open,
   onClose,
@@ -138,9 +117,9 @@ function ChatSidePanel({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <>
-      {/* Backdrop: shown only below `lg` so desktop keeps the doc readable. */}
       <div
         className={cn(
           "fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden",
@@ -158,14 +137,14 @@ function ChatSidePanel({
       >
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-2">
           <span className="text-xs font-semibold uppercase tracking-widest text-crown">
-            Core.Chat
+            {t("home.sidepanel.label")}
           </span>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md px-2 py-1 text-xs text-foreground/60 hover:bg-foreground/10"
           >
-            Закрыть ✕
+            {t("common.closeX")}
           </button>
         </div>
         <div className="min-h-0 flex-1">{children}</div>
@@ -175,9 +154,10 @@ function ChatSidePanel({
 }
 
 function ChatPanelFallback() {
+  const t = useT();
   return (
     <div className="flex h-full items-center justify-center text-xs text-foreground/50">
-      Подготавливаем канал связи…
+      {t("home.chat.preparing")}
     </div>
   );
 }

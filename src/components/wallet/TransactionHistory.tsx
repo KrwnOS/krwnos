@@ -10,6 +10,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useI18n, type TFunction } from "@/lib/i18n";
 import { formatAmount, toNumber } from "./format";
 import type { TransactionDto } from "./types";
 
@@ -24,10 +25,7 @@ export interface TransactionHistoryProps {
 
 type Direction = "in" | "out" | "mint" | "burn" | "neutral";
 
-function directionOf(
-  tx: TransactionDto,
-  walletId: string,
-): Direction {
+function directionOf(tx: TransactionDto, walletId: string): Direction {
   if (tx.kind === "mint" && tx.toWalletId === walletId) return "mint";
   if (tx.kind === "burn" && tx.fromWalletId === walletId) return "burn";
   if (tx.toWalletId === walletId) return "in";
@@ -41,6 +39,8 @@ export function TransactionHistory({
   className,
   emptyHint,
 }: TransactionHistoryProps): React.ReactElement {
+  const { t, formatDateTime } = useI18n();
+
   if (transactions.length === 0) {
     return (
       <div
@@ -49,7 +49,7 @@ export function TransactionHistory({
           className,
         )}
       >
-        {emptyHint ?? "Операций пока нет."}
+        {emptyHint ?? t("wallet.noOperations")}
       </div>
     );
   }
@@ -71,10 +71,13 @@ export function TransactionHistory({
               <span
                 className={cn(
                   "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                  dir === "in" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-                  dir === "out" && "border-rose-500/30 bg-rose-500/10 text-rose-300",
+                  dir === "in" &&
+                    "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+                  dir === "out" &&
+                    "border-rose-500/30 bg-rose-500/10 text-rose-300",
                   dir === "mint" && "border-crown/40 bg-crown/10 text-crown",
-                  dir === "burn" && "border-foreground/30 bg-foreground/10 text-foreground/70",
+                  dir === "burn" &&
+                    "border-foreground/30 bg-foreground/10 text-foreground/70",
                   dir === "neutral" && "border-border bg-background/40",
                 )}
                 aria-hidden
@@ -83,15 +86,15 @@ export function TransactionHistory({
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm text-foreground">
-                  {labelFor(tx, dir)}
+                  {labelFor(tx, dir, t)}
                 </p>
                 <p className="truncate text-xs text-foreground/50">
-                  {new Date(tx.createdAt).toLocaleString("ru-RU")}
+                  {formatDateTime(tx.createdAt)}
                   {isFailed ? (
                     <>
                       {" · "}
                       <span className="text-rose-400">
-                        {statusLabel(tx.status)}
+                        {statusLabel(tx.status, t)}
                       </span>
                     </>
                   ) : null}
@@ -132,35 +135,35 @@ function arrowFor(dir: Direction): string {
   }
 }
 
-function labelFor(tx: TransactionDto, dir: Direction): string {
+function labelFor(tx: TransactionDto, dir: Direction, t: TFunction): string {
   const memo = typeof tx.metadata?.memo === "string" ? tx.metadata.memo : null;
   if (memo) return memo;
 
   switch (tx.kind) {
     case "mint":
-      return dir === "mint" ? "Эмиссия (приход)" : "Эмиссия";
+      return dir === "mint" ? t("wallet.tx.mint.in") : t("wallet.tx.mint");
     case "burn":
-      return "Burn";
+      return t("wallet.tx.burn");
     case "treasury_allocation":
-      return dir === "in"
-        ? "Перевод из казны"
-        : dir === "out"
-          ? "Перевод из казны"
-          : "Казначейская операция";
+      return dir === "in" || dir === "out"
+        ? t("wallet.tx.treasuryFrom")
+        : t("wallet.tx.treasuryOp");
     case "transfer":
     default:
-      return dir === "in" ? "Входящий перевод" : "Исходящий перевод";
+      return dir === "in"
+        ? t("wallet.tx.transferIn")
+        : t("wallet.tx.transferOut");
   }
 }
 
-function statusLabel(s: TransactionDto["status"]): string {
+function statusLabel(s: TransactionDto["status"], t: TFunction): string {
   switch (s) {
     case "failed":
-      return "отклонено";
+      return t("wallet.tx.status.failed");
     case "pending":
-      return "в обработке";
+      return t("wallet.tx.status.pending");
     case "reversed":
-      return "отменено";
+      return t("wallet.tx.status.reversed");
     default:
       return s;
   }

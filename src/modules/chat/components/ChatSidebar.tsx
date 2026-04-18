@@ -16,6 +16,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { ChannelAccessInfo, PendingDirective } from "../service";
 import { groupChannels } from "./useChat";
 
@@ -32,6 +33,7 @@ export function ChatSidebar({
   onSelect,
   pendingDirectives,
 }: ChatSidebarProps) {
+  const t = useT();
   const groups = React.useMemo(() => groupChannels(channels), [channels]);
   const pendingByChannel = React.useMemo(() => {
     const m = new Map<string, number>();
@@ -45,38 +47,38 @@ export function ChatSidebar({
     <aside className="flex h-full w-60 shrink-0 flex-col gap-4 border-r border-border/60 bg-background/80 p-3 text-sm">
       <header className="flex items-center justify-between px-2 pt-1">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/50">
-          Каналы
+          {t("chat.sidebar.channels")}
         </span>
         <span className="text-[10px] text-foreground/40">{channels.length}</span>
       </header>
 
       <Group
-        title="Общие"
+        title={t("chat.sidebar.general")}
         items={groups.general}
-        empty="Публичных каналов нет"
+        empty={t("chat.sidebar.generalEmpty")}
         activeId={activeChannelId}
         onSelect={onSelect}
         pendingByChannel={pendingByChannel}
       />
       <Group
-        title="Мой отдел"
+        title={t("chat.sidebar.department")}
         items={groups.department}
-        empty="Вас ещё не назначили в узел"
+        empty={t("chat.sidebar.departmentEmpty")}
         activeId={activeChannelId}
         onSelect={onSelect}
         pendingByChannel={pendingByChannel}
       />
       <Group
-        title="Прямые связи"
+        title={t("chat.sidebar.direct")}
         items={groups.direct}
-        empty="Нет подчинённых узлов"
+        empty={t("chat.sidebar.directEmpty")}
         activeId={activeChannelId}
         onSelect={onSelect}
         pendingByChannel={pendingByChannel}
       />
       {groups.other.length > 0 && (
         <Group
-          title="Иное"
+          title={t("chat.sidebar.other")}
           items={groups.other}
           empty=""
           activeId={activeChannelId}
@@ -103,6 +105,7 @@ function Group({
   onSelect: (id: string) => void;
   pendingByChannel: Map<string, number>;
 }) {
+  const t = useT();
   return (
     <section className="flex flex-col gap-1">
       <h3 className="px-2 text-[10px] font-semibold uppercase tracking-wider text-foreground/50">
@@ -135,7 +138,7 @@ function Group({
                     <span className="truncate">{info.channel.title}</span>
                     {info.canPostDirective && (
                       <span
-                        title="Вы можете издавать приказы в этот канал"
+                        title={t("chat.sidebar.canDirective")}
                         className="shrink-0 rounded-sm border border-crown/40 px-1 text-[9px] uppercase tracking-wider text-crown"
                       >
                         +

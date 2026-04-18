@@ -3,10 +3,9 @@
 /**
  * WalletWidget — compact wallet card for the top navbar.
  * ------------------------------------------------------------
- * Renders the caller's balance ("Моя казна") and a clickable,
- * copy-to-clipboard internal address. Fetches data from
- * `/api/wallet/me` on mount using the CLI bearer token stored at
- * `localStorage["krwn.cli_token"]`.
+ * Renders the caller's balance and a clickable, copy-to-clipboard
+ * internal address. Fetches data from `/api/wallet/me` on mount
+ * using the CLI bearer token stored at `localStorage["krwn.cli_token"]`.
  *
  * Built on top of the shadcn `Card` + `Button` primitives to stay
  * visually consistent with the rest of the UI.
@@ -16,6 +15,7 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import {
   formatAmount,
   shortAddress,
@@ -28,9 +28,9 @@ export interface WalletWidgetProps {
   className?: string;
   /** Bearer token override. If omitted, read from localStorage. */
   authToken?: string;
-  /** Triggered when the user clicks the "Перевести" CTA. */
+  /** Triggered when the user clicks the transfer CTA. */
   onTransferClick?: () => void;
-  /** Override label above the balance. Defaults to "Моя казна". */
+  /** Override label above the balance. Defaults to the i18n "wallet.my". */
   label?: string;
 }
 
@@ -45,8 +45,11 @@ export function WalletWidget({
   className,
   authToken,
   onTransferClick,
-  label = "Моя казна",
+  label,
 }: WalletWidgetProps): React.ReactElement {
+  const t = useT();
+  const effectiveLabel = label ?? t("wallet.my");
+
   const [wallet, setWallet] = React.useState<WalletDto | null>(null);
   const [token, setToken] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -105,12 +108,9 @@ export function WalletWidget({
   if (!token) {
     return (
       <Card
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5",
-          className,
-        )}
+        className={cn("flex items-center gap-2 px-3 py-1.5", className)}
       >
-        <span className="text-xs text-foreground/40">Wallet offline</span>
+        <span className="text-xs text-foreground/40">{t("wallet.offline")}</span>
       </Card>
     );
   }
@@ -118,7 +118,7 @@ export function WalletWidget({
   if (loading && !wallet) {
     return (
       <Card className={cn("px-3 py-1.5", className)}>
-        <span className="text-xs text-foreground/40">Загрузка…</span>
+        <span className="text-xs text-foreground/40">{t("common.loading")}</span>
       </Card>
     );
   }
@@ -126,7 +126,7 @@ export function WalletWidget({
   if (!wallet) {
     return (
       <Card className={cn("px-3 py-1.5", className)}>
-        <span className="text-xs text-foreground/40">Нет кошелька</span>
+        <span className="text-xs text-foreground/40">{t("wallet.none")}</span>
       </Card>
     );
   }
@@ -153,7 +153,7 @@ export function WalletWidget({
 
       <div className="flex min-w-0 flex-col leading-tight">
         <span className="text-[10px] uppercase tracking-widest text-foreground/50">
-          {label}
+          {effectiveLabel}
         </span>
         <span
           className={cn(
@@ -168,10 +168,10 @@ export function WalletWidget({
       <button
         type="button"
         onClick={copyAddress}
-        title="Скопировать адрес"
+        title={t("common.copyAddress")}
         className="hidden rounded-md px-2 py-1 font-mono text-[11px] text-foreground/60 transition-colors hover:text-foreground sm:inline-flex"
       >
-        {copied ? "скопировано" : shortAddress(wallet.address, 6, 4)}
+        {copied ? t("common.copied") : shortAddress(wallet.address, 6, 4)}
       </button>
 
       {onTransferClick ? (
@@ -182,7 +182,7 @@ export function WalletWidget({
           onClick={onTransferClick}
           className="ml-1"
         >
-          Перевести
+          {t("wallet.transfer")}
         </Button>
       ) : null}
     </Card>
