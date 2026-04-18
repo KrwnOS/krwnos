@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KrwnOS — Community Operating System</title>
+    <meta
+      name="description"
+      content="Модульная операционная система для создания цифровых государств, компаний и сообществ."
+    />
+    <meta property="og:title" content="KrwnOS — Community OS" />
+    <meta
+      property="og:description"
+      content="Постройте своё цифровое государство. Суверенный узел, вертикаль власти, plug-in модули."
+    />
+    <meta property="og:image" content="https://krwnos.com/og.png" />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root {
+        --bg: #0a0a0c;
+        --fg: #f5efdf;
+        --muted: #7a7466;
+        --border: #22201a;
+        --crown: #d4af37;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; }
+      body {
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--crown); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      main { max-width: 880px; margin: 0 auto; padding: 64px 24px; }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 96px;
+      }
+      .logo {
+        width: 36px; height: 36px; border-radius: 8px;
+        background: var(--crown); color: #000;
+        display: grid; place-items: center; font-weight: 700;
+      }
+      .brand { font-weight: 600; letter-spacing: 0.02em; }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border: 1px solid color-mix(in srgb, var(--crown) 40%, transparent);
+        border-radius: 999px;
+        font-size: 11px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--crown);
+        margin-bottom: 24px;
+      }
+      h1 {
+        font-size: clamp(40px, 7vw, 64px);
+        font-weight: 600;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin-bottom: 24px;
+      }
+      h1 em { color: var(--crown); font-style: normal; }
+      .lead {
+        color: color-mix(in srgb, var(--fg) 70%, transparent);
+        font-size: 18px;
+        max-width: 620px;
+        margin-bottom: 40px;
+      }
+      pre {
+        background: #13120f;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        overflow-x: auto;
+        font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: color-mix(in srgb, var(--fg) 90%, transparent);
+      }
+      pre .crown { color: var(--crown); }
+      .cta {
+        display: inline-flex; align-items: center;
+        height: 48px; padding: 0 24px;
+        border-radius: 8px;
+        background: var(--crown); color: #000;
+        font-weight: 600;
+        box-shadow: 0 0 40px -10px color-mix(in srgb, var(--crown) 60%, transparent);
+      }
+      .cta:hover { text-decoration: none; opacity: 0.9; }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 64px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--fg) 3%, transparent);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .card h3 { font-size: 16px; margin-bottom: 8px; }
+      .card p { font-size: 14px; color: var(--muted); }
+      footer {
+        margin-top: 120px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        color: var(--muted);
+        display: flex; gap: 16px; flex-wrap: wrap;
+      }
+      section { margin-top: 80px; }
+      section h2 {
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="logo">K</div>
+        <div class="brand">KrwnOS</div>
+      </header>
+
+      <span class="pill">Community OS</span>
+      <h1>Постройте своё <em>цифровое государство.</em></h1>
+      <p class="lead">
+        KrwnOS — модульная операционная система для создания и
+        управления сообществами, компаниями и кланами. Суверен
+        собирает Вертикаль власти, подключает плагины и раздаёт
+        права вниз по иерархии.
+      </p>
+
+      <a
+        href="https://github.com/KrwnOS/krwnos"
+        class="cta"
+      >Смотреть на GitHub →</a>
+
+      <section>
+        <h2>Установка (Pro tier)</h2>
+        <pre><span class="crown">$</span> curl -sSL https://get.krwnos.com | bash</pre>
+      </section>
+
+      <section>
+        <h2>Или на Windows</h2>
+        <pre><span class="crown">&gt;</span> iwr -useb https://get.krwnos.com/install.ps1 | iex</pre>
+      </section>
+
+      <div class="row">
+        <div class="card">
+          <h3>The State</h3>
+          <p>Изолированный инстанс со своим Сувереном, правилами и набором модулей.</p>
+        </div>
+        <div class="card">
+          <h3>The Vertical</h3>
+          <p>Графовая иерархия власти. Права наследуются сверху вниз.</p>
+        </div>
+        <div class="card">
+          <h3>The Kernel</h3>
+          <p>Auth · Permissions · Event Bus · Module Registry.</p>
+        </div>
+        <div class="card">
+          <h3>The Modules</h3>
+          <p>Чат, казначейство, задачи, голосования — плагины расширяют государство.</p>
+        </div>
+      </div>
+
+      <footer>
+        <span>© 2026 KrwnOS</span>
+        <a href="https://github.com/KrwnOS/krwnos">GitHub</a>
+        <a href="https://github.com/KrwnOS/krwnos/blob/main/docs/ARCHITECTURE.md">Docs</a>
+        <a href="https://github.com/KrwnOS/krwnos/blob/main/docs/DEPLOYMENT.md">Deployment</a>
+      </footer>
+    </main>
+  </body>
+</html>

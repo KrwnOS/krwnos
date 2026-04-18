@@ -1,0 +1,36 @@
+# ------------------------------------------------------------
+# krwnos.com — landing page
+# Принудительный HTTPS + www→apex редирект + базовая безопасность.
+# ------------------------------------------------------------
+
+RewriteEngine On
+
+# --- Принудительный HTTPS -----------------------------------
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP_HOST} !^localhost$
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# --- www → apex ---------------------------------------------
+RewriteCond %{HTTP_HOST} ^www\.krwnos\.com$ [NC]
+RewriteRule ^(.*)$ https://krwnos.com/$1 [R=301,L]
+
+# --- Безопасность -------------------------------------------
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+</IfModule>
+
+# --- Кэш статики --------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html              "access plus 5 minutes"
+  ExpiresByType text/css               "access plus 7 days"
+  ExpiresByType image/svg+xml          "access plus 30 days"
+  ExpiresByType image/png              "access plus 30 days"
+  ExpiresByType image/x-icon           "access plus 30 days"
+</IfModule>
+
+# --- Дефолтный индекс ---------------------------------------
+DirectoryIndex index.html

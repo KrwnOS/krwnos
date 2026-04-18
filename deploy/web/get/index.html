@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>get.krwnos.com — KrwnOS installer</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        font: 15px/1.6 system-ui, sans-serif;
+        background: #0a0a0c; color: #f5efdf;
+        max-width: 640px; margin: 80px auto; padding: 0 24px;
+      }
+      h1 { font-size: 22px; margin-bottom: 20px; }
+      pre {
+        background: #13120f;
+        border: 1px solid #22201a;
+        border-radius: 8px;
+        padding: 16px;
+        overflow-x: auto;
+      }
+      code { color: #d4af37; }
+      a { color: #d4af37; }
+    </style>
+  </head>
+  <body>
+    <h1>KrwnOS installer</h1>
+    <p>Запустите в терминале:</p>
+
+    <p><strong>Linux / macOS:</strong></p>
+    <pre><code>curl -sSL https://get.krwnos.com | bash</code></pre>
+
+    <p><strong>Windows (PowerShell 7+):</strong></p>
+    <pre><code>iwr -useb https://get.krwnos.com/install.ps1 | iex</code></pre>
+
+    <p>Исходники и документация — на
+      <a href="https://github.com/KrwnOS/krwnos">GitHub</a>.</p>
+    <p>Главная: <a href="https://krwnos.com">krwnos.com</a></p>
+  </body>
+</html>

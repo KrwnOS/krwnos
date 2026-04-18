@@ -1,0 +1,33 @@
+# ------------------------------------------------------------
+# get.krwnos.com — installer endpoint.
+# Отдаёт .sh и .ps1 как text/plain, чтобы `curl | bash` работал
+# корректно и ничего не решало на уровне MIME.
+# ------------------------------------------------------------
+
+RewriteEngine On
+
+# --- Принудительный HTTPS -----------------------------------
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# --- Корень и /bash  → install.sh ---------------------------
+# Пользователи запускают: `curl -sSL get.krwnos.com | bash`
+RewriteRule ^$ install.sh [L]
+RewriteRule ^bash/?$ install.sh [L]
+
+# --- /ps1 или /windows → install.ps1 ------------------------
+RewriteRule ^ps1/?$ install.ps1 [L]
+RewriteRule ^windows/?$ install.ps1 [L]
+
+# --- MIME-типы для скриптов ---------------------------------
+<IfModule mod_mime.c>
+  AddType text/plain .sh
+  AddType text/plain .ps1
+</IfModule>
+
+# --- Защита от сниффинга + HSTS -----------------------------
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Cache-Control "public, max-age=300"
+</IfModule>

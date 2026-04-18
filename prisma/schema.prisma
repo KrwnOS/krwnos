@@ -1,0 +1,287 @@
+// ------------------------------------------------------------
+// KrwnOS — Prisma schema
+// Domain: State (Государство), VerticalNode (Узел власти),
+//         Membership (принадлежность к узлу), Module (плагин),
+//         User (Суверен / Гражданин).
+// Notes:
+//   * VerticalNode is self-referential: a node has ONE parent
+//     and MANY children (графовая вертикаль власти).
+//   * Permissions are stored as string[] and validated at
+//     runtime through the Permissions Engine.
+//   * Core is agnostic to any plugin — modules are loaded
+//     dynamically through the Registry and referenced by slug.
+// ------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------- Core identity ----------------
+
+model User {
+  id            String            @id @default(cuid())
+  email         String?           @unique
+  handle        String            @unique
+  displayName   String?
+  avatarUrl     String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  ownedStates   State[]           @relation("StateOwner")
+  memberships   Membership[]
+  credentials   AuthCredential[]
+  cliTokens     CliToken[]
+  invitesSent   Invitation[]      @relation("InvitationCreator")
+
+  @@index([handle])
+}
+
+// Passkey / Web3 wallet / OAuth credentials for passwordless auth.
+enum AuthCredentialKind {
+  passkey
+  wallet_ethereum
+  wallet_solana
+  oauth_github
+  oauth_google
+  magic_email
+}
+
+model AuthCredential {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind        AuthCredentialKind
+  // Passkey: credentialId (base64url). Wallet: address. OAuth: provider sub.
+  identifier  String
+  // Passkey COSE public key, or JSON metadata for other kinds.
+  publicKey   Bytes?
+  metadata    Json                @default("{}")
+
+  label       String?
+  lastUsedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  revokedAt   DateTime?
+
+  @@unique([kind, identifier])
+  @@index([userId])
+}
+
+// ---------------- State (Государство) ----------------
+
+model State {
+  id               String          @id @default(cuid())
+  slug             String          @unique
+  name             String
+  description      String?
+  ownerId          String
+  owner            User            @relation("StateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // JSONB config: theme, installedModules[], flags, etc.
+  config           Json            @default("{}")
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  verticalNodes    VerticalNode[]
+  installedModules InstalledModule[]
+  invitations      Invitation[]
+  backups          BackupManifest[]
+  cliTokens        CliToken[]
+  tunnel           Tunnel?
+
+  @@index([ownerId])
+}
+
+// ---------------- Vertical Node (Узел власти) ----------------
+
+enum VerticalNodeType {
+  position    // конкретная должность (Минфин, Генерал)
+  department  // отдел / министерство
+  rank        // ранг / класс (Гражданин, Дворянин)
+}
+
+model VerticalNode {
+  id           String            @id @default(cuid())
+  stateId      String
+  state        State             @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  parentId     String?
+  parent       VerticalNode?     @relation("NodeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     VerticalNode[]    @relation("NodeHierarchy")
+
+  title        String
+  type         VerticalNodeType  @default(position)
+
+  // Canonical permission keys e.g. ["finance.read", "members.kick"]
+  permissions  String[]          @default([])
+
+  // Optional ordering for drag-and-drop UI
+  order        Int               @default(0)
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  memberships  Membership[]
+
+  @@index([stateId])
+  @@index([parentId])
+  @@index([stateId, parentId])
+}
+
+// ---------------- Membership (User <-> Node) ----------------
+
+model Membership {
+  id        String        @id @default(cuid())
+  userId    String
+  nodeId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  node      VerticalNode  @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  title     String?       // optional personal title inside the node
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, nodeId])
+  @@index([nodeId])
+  @@index([userId])
+}
+
+// ---------------- Modules (плагины) ----------------
+
+model InstalledModule {
+  id        String   @id @default(cuid())
+  stateId   String
+  state     State    @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Registry slug, e.g. "core.chat", "treasury.v1"
+  slug      String
+  version   String   @default("0.0.0")
+  enabled   Boolean  @default(true)
+  // Per-state configuration of the plugin
+  config    Json     @default("{}")
+
+  // Dedicated Postgres schema for this module's private tables.
+  // Used by the isolation layer (см. docs/ISOLATION.md).
+  dbSchema  String?
+
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([stateId, slug])
+  @@index([slug])
+}
+
+// ---------------- Invitations (magic links / QR passports) ----------------
+
+enum InvitationStatus {
+  active
+  consumed
+  revoked
+  expired
+}
+
+model Invitation {
+  id            String            @id @default(cuid())
+  stateId       String
+  state         State             @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Target node the invitee will be placed into on acceptance.
+  targetNodeId  String?
+  createdById   String
+  createdBy     User              @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // SHA-256 hash of the opaque token. The raw token is shown once.
+  tokenHash     String            @unique
+  // Short human-readable code embedded in QR (e.g. "KRWN-7HX2-9KQ4").
+  code          String            @unique
+
+  label         String?
+  maxUses       Int               @default(1)
+  usesCount     Int               @default(0)
+  expiresAt     DateTime?
+  status        InvitationStatus  @default(active)
+
+  createdAt     DateTime          @default(now())
+  consumedAt    DateTime?
+
+  @@index([stateId])
+  @@index([status])
+}
+
+// ---------------- CLI tokens ----------------
+
+model CliToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A token is scoped to ONE State (principle of least privilege).
+  stateId    String?
+  state      State?    @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // SHA-256(raw token).
+  tokenHash  String    @unique
+  label      String
+  // PermissionKey scopes, or ["*"] for full Sovereign.
+  scopes     String[]  @default([])
+
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@index([stateId])
+}
+
+// ---------------- Backups ----------------
+
+model BackupManifest {
+  id          String    @id @default(cuid())
+  stateId     String
+  state       State     @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Opaque URI: file://, s3://, r2://, etc.
+  storageUri  String
+  schemaRev   Int
+  // Bytes of the archive, as reported by the backup engine.
+  sizeBytes   BigInt    @default(0)
+  // sha256 of the final archive, hex-encoded.
+  checksum    String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([stateId])
+}
+
+// ---------------- Tunnel (built-in public-reachability) ----------------
+
+enum TunnelProvider {
+  cloudflared
+  frp
+  ngrok
+  tailscale_funnel
+  none
+}
+
+model Tunnel {
+  id          String          @id @default(cuid())
+  stateId     String          @unique
+  state       State           @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  provider    TunnelProvider  @default(none)
+  // Public hostname assigned to the State, e.g. "myclan.krwnos.app".
+  hostname    String?
+  // Encrypted provider credentials / config blob.
+  config      Json            @default("{}")
+
+  status      String          @default("idle")
+  lastSeenAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}

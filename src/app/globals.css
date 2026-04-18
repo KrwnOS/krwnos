@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 8% 96%;
+    --foreground: 240 10% 8%;
+    --muted: 240 5% 90%;
+    --accent: 43 74% 52%;
+    --border: 240 6% 85%;
+  }
+
+  .dark {
+    --background: 240 10% 5%;
+    --foreground: 40 25% 96%;
+    --muted: 240 6% 14%;
+    --accent: 43 74% 52%;
+    --border: 240 6% 18%;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+}
