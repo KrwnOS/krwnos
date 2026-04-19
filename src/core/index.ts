@@ -79,6 +79,15 @@ export {
 } from "./backup";
 
 export {
+  createS3BackupStorage,
+  createS3ClientFromBackupEnv,
+  deleteS3BackupObject,
+  parseS3Uri,
+  readS3BackupEnv,
+  type ReadS3BackupEnvResult,
+} from "./backup-s3-storage";
+
+export {
   CredentialsRegistry,
   credentialsRegistry,
   type CredentialProvider,
