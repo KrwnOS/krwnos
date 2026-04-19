@@ -1,33 +1,17 @@
 /**
  * Presence registry (кто сейчас онлайн).
  * ------------------------------------------------------------
- * В KrwnOS нет отдельного presence-сервиса (Matrix / XMPP / …)
- * — мы используем простой in-memory словарь `userId → lastSeen`,
- * который обновляется двумя триггерами:
+ * По умолчанию — in-memory `userId → lastSeen` (малые single-node деплои).
+ * При наличии `REDIS_URL` и если не выставлено `KRWN_PRESENCE_REDIS=0`,
+ * дополнительно пишем ключи `krwn:presence:{userId}` с TTL — чтобы
+ * несколько инстансов Next.js / WS-gateway видели одних и тех же
+ * «онлайн»-меток.
  *
- *   1. Клиент держит SSE-коннект к `/api/activity/stream`. Пока
- *      коннект жив, SSE-роут зовёт `presence.touch(userId)`
- *      на каждом heartbeat (раз в 25 с).
- *   2. Любой аутентифицированный HTTP-запрос может вручную
- *      вызвать `touch(userId)` — например, пулинг `/api/state/pulse`
- *      из сайдбара дашборда.
- *
- * Пользователь считается онлайн, если его `lastSeen` не старше
- * `DEFAULT_WINDOW_MS` (60 секунд — чуть больше интервала SSE-
- * heartbeat, чтобы случайная потеря одного пинга не гасила метку).
- *
- * Почему НЕ Redis и не БД:
- *   * KrwnOS разворачивается на маленьких сингл-нод-хостингах (20i
- *     и т.п.), где нет гарантированного Redis. Для presence нам
- *     достаточно «в рамках одного процесса» — кросс-инстансный
- *     online-статус — это задача следующего релиза.
- *   * БД писать 1..N раз в минуту на каждого онлайнового
- *     гражданина — заметная нагрузка, а ценность presence-истории
- *     невысока (сохранять её смысла нет).
- *
- * HMR-safety: ссылка живёт в `globalThis.__krwnPresence`, чтобы
- * горячая перезагрузка Next-а в dev-режиме не обнуляла состояние.
+ * `snapshot()` стал async: объединяет память процесса и (опционально)
+ * Redis `MGET` по переданному списку user ids.
  */
+
+import { getRedis } from "@/lib/redis";
 
 export interface PresenceSnapshot {
   /** Все пользователи, известные регистру (онлайн + недавно офлайн). */
@@ -38,10 +22,10 @@ export interface PresenceSnapshot {
 }
 
 const DEFAULT_WINDOW_MS = 60_000;
-// Очистка старых меток — чтобы Map не тёк при большом перекуре
-// граждан, которые давно ушли.
 const GC_EVERY_MS = 5 * 60_000;
 const GC_OLDER_THAN_MS = 30 * 60_000;
+const REDIS_PREFIX = "krwn:presence:";
+const REDIS_TTL_SEC = 120;
 
 interface PresenceStore {
   lastSeen: Map<string, number>;
@@ -51,6 +35,10 @@ interface PresenceStore {
 const globalForPresence = globalThis as unknown as {
   __krwnPresence?: PresenceStore;
 };
+
+function isRedisPresenceEnabled(): boolean {
+  return !!(process.env.REDIS_URL?.trim() && process.env.KRWN_PRESENCE_REDIS !== "0");
+}
 
 function store(): PresenceStore {
   if (!globalForPresence.__krwnPresence) {
@@ -71,23 +59,34 @@ function gc(now: number): void {
   }
 }
 
+function redisTouch(userId: string, at: number): void {
+  if (!isRedisPresenceEnabled()) return;
+  void getRedis()
+    .set(`${REDIS_PREFIX}${userId}`, String(at), "EX", REDIS_TTL_SEC)
+    .catch(() => {});
+}
+
+function redisLeave(userId: string): void {
+  if (!isRedisPresenceEnabled()) return;
+  void getRedis().del(`${REDIS_PREFIX}${userId}`).catch(() => {});
+}
+
 /** Освежить метку «был онлайн» для пользователя. */
 export function touch(userId: string, at: number = Date.now()): void {
   if (!userId) return;
   store().lastSeen.set(userId, at);
   gc(at);
+  redisTouch(userId, at);
 }
 
-/** Немедленно убрать пользователя из онлайна (SSE-коннект закрыт). */
+/** Немедленно убрать пользователя из онлайна (SSE/WS-коннект закрыт). */
 export function leave(userId: string): void {
   if (!userId) return;
-  // Ставим метку на "позавчера" — тот же эффект, но сохраняем
-  // единую логику DEFAULT_WINDOW_MS; удаление приведёт к тому же,
-  // но в будущем может понадобиться «был видел 5 минут назад».
   store().lastSeen.set(userId, Date.now() - GC_OLDER_THAN_MS - 1);
+  redisLeave(userId);
 }
 
-/** Онлайн ли конкретный пользователь (в пределах окна). */
+/** Онлайн ли конкретный пользователь (в пределах окна), только по памяти процесса. */
 export function isOnline(
   userId: string,
   windowMs: number = DEFAULT_WINDOW_MS,
@@ -99,25 +98,51 @@ export function isOnline(
 }
 
 /**
- * Срез presence на данный момент. Если передан `userIds` — фильтрует
- * только по ним (удобно, когда UI получил список граждан из Prisma
- * и хочет обогатить его флагом `online`).
+ * Срез presence. При Redis и непустом `userIds` подмешивает `MGET`.
  */
-export function snapshot(
+export async function snapshot(
   userIds?: Iterable<string>,
   windowMs: number = DEFAULT_WINDOW_MS,
   now: number = Date.now(),
-): PresenceSnapshot {
-  const s = store();
-  const online = new Set<string>();
-  const entries: Array<{ userId: string; lastSeen: number }> = [];
-
+): Promise<PresenceSnapshot> {
   const filter = userIds ? new Set(userIds) : null;
+  const merged = new Map<string, number>();
 
+  const s = store();
+  gc(now);
   for (const [userId, ts] of s.lastSeen) {
     if (filter && !filter.has(userId)) continue;
-    entries.push({ userId, lastSeen: ts });
-    if (now - ts <= windowMs) online.add(userId);
+    merged.set(userId, ts);
+  }
+
+  if (isRedisPresenceEnabled() && filter && filter.size > 0) {
+    try {
+      const r = getRedis();
+      const ids = [...filter];
+      const keys = ids.map((id) => `${REDIS_PREFIX}${id}`);
+      if (keys.length > 0) {
+        const vals = await r.mget(...keys);
+        for (let i = 0; i < ids.length; i++) {
+          const id = ids[i];
+          if (!id) continue;
+          const v = vals[i];
+          if (v == null) continue;
+          const ts = Number(v);
+          if (!Number.isFinite(ts)) continue;
+          const prev = merged.get(id);
+          merged.set(id, prev == null ? ts : Math.max(prev, ts));
+        }
+      }
+    } catch {
+      /* fail soft */
+    }
+  }
+
+  const entries: Array<{ userId: string; lastSeen: number }> = [];
+  const online = new Set<string>();
+  for (const [userId, lastSeen] of merged) {
+    entries.push({ userId, lastSeen });
+    if (now - lastSeen <= windowMs) online.add(userId);
   }
 
   return { entries, online, generatedAt: now };

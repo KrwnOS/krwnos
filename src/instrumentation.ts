@@ -8,4 +8,9 @@ export async function register(): Promise<void> {
   }
   const { startNodeOtel } = await import("@/lib/otel/start-node-sdk");
   startNodeOtel();
+
+  const { configureRedisEventBusIfAvailable } = await import(
+    "@/lib/redis-event-bootstrap"
+  );
+  await configureRedisEventBusIfAvailable();
 }

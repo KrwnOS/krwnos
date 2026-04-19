@@ -10,7 +10,8 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  // WebSocket gateway may run on another port / host (`NEXT_PUBLIC_KRWN_WS_URL`).
+  `connect-src 'self' ws: wss:`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -33,6 +34,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     instrumentationHook: true,
+    // `instrumentation.ts` imports ioredis; keep it external so webpack does not
+    // try to bundle Node core modules for non-Node compilation graphs.
+    serverComponentsExternalPackages: ["ioredis"],
   },
   // typedRoutes включим позже, когда стабилизируется карта роутов.
   // Сейчас некоторые Link ведут на ещё не созданные страницы (ROADMAP,

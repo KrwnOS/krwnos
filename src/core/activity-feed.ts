@@ -27,6 +27,7 @@
 
 import type { ModuleEventBus } from "@/types/kernel";
 import { Decimal } from "@prisma/client/runtime/library";
+import { ACTIVITY_EVENTS } from "./activity-events";
 import { KernelEvents } from "./event-bus";
 
 // ------------------------------------------------------------
@@ -151,15 +152,6 @@ export interface ActivityFeedServiceDeps {
   bus?: ModuleEventBus;
 }
 
-export const ACTIVITY_EVENTS = {
-  /**
-   * Каноническое имя события, которое сервис публикует ПОСЛЕ
-   * успешной записи строки в БД. SSE-роут `/api/activity/stream`
-   * слушает его и толкает новые строки открытым сессиям.
-   */
-  Recorded: "core.activity.recorded",
-} as const;
-
 export interface ActivityRecordedEvent {
   entry: ActivityLog;
 }
@@ -260,6 +252,17 @@ function clampLimit(raw: number): number {
  *                  предков.
  *   * sovereign:   только owner state (проверено выше).
  */
+/**
+ * Same rules as `ActivityFeedService.isVisibleTo` — exported for WebSocket
+ * gateway and other transports that cannot import the service singleton.
+ */
+export function isActivityEntryVisibleToViewer(
+  entry: ActivityLog,
+  viewer: ActivityViewerContext,
+): boolean {
+  return isVisibleTo(entry, viewer);
+}
+
 function isVisibleTo(
   entry: ActivityLog,
   viewer: ActivityViewerContext,

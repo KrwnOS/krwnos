@@ -114,6 +114,8 @@ export interface ChatDirectiveAckedEvent {
   channelId: string;
   messageId: string;
   ack: ChatDirectiveAck;
+  /** Same semantics as `ChatMessageCreatedEvent.recipientUserIds` — realtime filter. */
+  recipientUserIds: string[];
 }
 
 export const CHAT_EVENTS = {
@@ -374,12 +376,14 @@ export class ChatService {
     }
     const channel = await this.repo.findChannel(message.channelId);
     if (channel) {
+      const recipientUserIds = await this.collectRecipients(channel);
       void this.bus
         .emit<ChatDirectiveAckedEvent>(CHAT_EVENTS.DirectiveAcknowledged, {
           stateId: channel.stateId,
           channelId: channel.id,
           messageId: message.id,
           ack,
+          recipientUserIds,
         })
         .catch(() => {});
     }

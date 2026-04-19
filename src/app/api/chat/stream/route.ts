@@ -15,6 +15,7 @@ import type { NextRequest } from "next/server";
 import { eventBus } from "@/core";
 import {
   CHAT_EVENTS,
+  type ChatDirectiveAckedEvent,
   type ChatMessageCreatedEvent,
 } from "@/modules/chat";
 import { loadChatContext, chatErrorResponse } from "../_context";
@@ -31,10 +32,11 @@ export async function GET(req: NextRequest) {
     return chatErrorResponse(err);
   }
 
-  const { access } = ctx;
+  const { access, stateId } = ctx;
 
   const encoder = new TextEncoder();
   let offMessage: (() => void) | null = null;
+  let offDirective: (() => void) | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let closed = false;
 
@@ -61,6 +63,24 @@ export async function GET(req: NextRequest) {
         },
       );
 
+      offDirective = eventBus.on<ChatDirectiveAckedEvent>(
+        CHAT_EVENTS.DirectiveAcknowledged,
+        (evt) => {
+          if (!evt || evt.stateId !== stateId) return;
+          if (access.isOwner) {
+            send("directive-ack", evt);
+            return;
+          }
+          if (evt.ack.userId === access.userId) {
+            send("directive-ack", evt);
+            return;
+          }
+          if (evt.recipientUserIds.includes(access.userId)) {
+            send("directive-ack", evt);
+          }
+        },
+      );
+
       // SSE proxies (nginx, Cloudflare) drop idle connections; ping keeps it warm.
       heartbeat = setInterval(() => {
         if (closed) return;
@@ -78,6 +98,7 @@ export async function GET(req: NextRequest) {
         closed = true;
         if (heartbeat) clearInterval(heartbeat);
         if (offMessage) offMessage();
+        if (offDirective) offDirective();
         try {
           controller.close();
         } catch {
@@ -89,6 +110,7 @@ export async function GET(req: NextRequest) {
       closed = true;
       if (heartbeat) clearInterval(heartbeat);
       if (offMessage) offMessage();
+      if (offDirective) offDirective();
     },
   });
 

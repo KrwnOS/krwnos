@@ -1,11 +1,15 @@
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base";
+import {
+  BatchSpanProcessor,
+  ConsoleSpanExporter,
+} from "@opentelemetry/sdk-trace-base";
 import type { SpanExporter } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
-let sdk: NodeSDK | null = null;
+let provider: NodeTracerProvider | null = null;
 
 function isOtelDisabled(): boolean {
   return (
@@ -35,9 +39,12 @@ function pickTraceExporter(): SpanExporter | null {
  * Starts Node tracing for the Next.js server process (see `src/instrumentation.ts`).
  * Dev: console spans unless an OTLP endpoint is set.
  * Prod: OTLP only when `OTEL_EXPORTER_OTLP_*` is configured (no hardcoded secrets).
+ *
+ * Uses `NodeTracerProvider` + HTTP trace exporter only (no `@opentelemetry/sdk-node`,
+ * which pulls gRPC metrics/logs stacks that break Next.js webpack).
  */
 export function startNodeOtel(): void {
-  if (sdk) {
+  if (provider) {
     return;
   }
   if (isOtelDisabled()) {
@@ -51,11 +58,15 @@ export function startNodeOtel(): void {
 
   const serviceName = process.env.OTEL_SERVICE_NAME?.trim() || "krwnos";
 
-  sdk = new NodeSDK({
+  provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
       "service.name": serviceName,
     }),
-    traceExporter,
+    spanProcessors: [new BatchSpanProcessor(traceExporter)],
+  });
+  provider.register();
+
+  registerInstrumentations({
     instrumentations: [
       new HttpInstrumentation({
         ignoreIncomingRequestHook: (req) => {
@@ -71,11 +82,9 @@ export function startNodeOtel(): void {
     ],
   });
 
-  sdk.start();
-
   const shutdown = () => {
-    const current = sdk;
-    sdk = null;
+    const current = provider;
+    provider = null;
     void current?.shutdown().catch(() => undefined);
   };
   process.once("SIGTERM", shutdown);

@@ -32,6 +32,7 @@
     "setup": "tsx src/core/setup-state.ts",
     "watcher:treasury": "tsx scripts/treasury-watcher.ts",
     "worker:jobs": "tsx scripts/job-worker.ts",
+    "ws:gateway": "tsx scripts/ws-gateway.ts",
     "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "compose:logs": "docker compose -f deploy/docker-compose.yml logs -f app"
@@ -40,9 +41,11 @@
     "@aws-sdk/client-s3": "^3.1032.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.215.0",
+    "@opentelemetry/instrumentation": "^0.215.0",
     "@opentelemetry/instrumentation-http": "^0.215.0",
     "@opentelemetry/resources": "^2.0.0",
-    "@opentelemetry/sdk-node": "^0.215.0",
+    "@opentelemetry/sdk-trace-base": "^2.7.0",
+    "@opentelemetry/sdk-trace-node": "^2.7.0",
     "@opentelemetry/semantic-conventions": "^1.37.0",
     "@prisma/client": "^5.22.0",
     "bullmq": "^5.74.1",
@@ -56,6 +59,7 @@
     "reactflow": "^11.11.4",
     "tailwind-merge": "^2.5.4",
     "viem": "^2.21.0",
+    "ws": "^8.20.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -64,6 +68,7 @@
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",

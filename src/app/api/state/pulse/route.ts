@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
     // ~15с, это ещё один keep-alive на случай, если SSE-коннект упал.
     presence.touch(me.id);
     const allUserIds = new Set<string>(memberships.map((m) => m.userId));
-    const pres = presence.snapshot(allUserIds);
+    const pres = await presence.snapshot(allUserIds);
 
     // --- Build tree DTO: member + online counts per node ---
     const memberByNode = new Map<string, typeof memberships>();

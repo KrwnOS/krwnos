@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-19
+**Обновлено:** 2026-04-19 — Realtime (WS gateway, Redis bus, presence)
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -71,9 +71,16 @@
 - [x] 2026-04-19 `core/setup-state` — идемпотентность, транзакционный bootstrap,
       unit + optional Postgres integration: `src/core/__tests__/setup-state.test.ts`,
       `src/core/__tests__/setup-state.integration.test.ts` (`TEST_DATABASE_URL`).
-- [ ] `core/backup` — round-trip snapshot → restore в чистую БД.
+- [x] 2026-04-19 `core/backup` — round-trip: `BackupService` +
+      `restoreBackupPayload` + `src/core/backup-prisma.ts`; проверки в
+      `src/core/__tests__/setup-state.integration.test.ts` при
+      `TEST_DATABASE_URL` (см. §9).
 - [x] `modules/governance` — покрытие через
       `src/modules/governance/__tests__/service.test.ts`.
+- [x] 2026-04-19 `modules/wallet` — налог в Казну, гонки, ON_CHAIN intent (mock):
+      `wallet.service.test.ts`, `wallet.integration.test.ts` (+ CI при
+      `TEST_DATABASE_URL`).
+- [x] 2026-04-19 E2E Playwright: `e2e/smoke.spec.ts` (+ шаг в CI после `next build`).
 
 ### Денежный контур
 
@@ -82,11 +89,19 @@
 - [x] 2026-04-19 Hot-path: `WalletService.transfer`, `repo.executeTransfer`,
       Krwn Exchange adapter, citizenship fee, pulse/nexus aggregates,
       Treasury Watcher dust — на `Prisma.Decimal` / `ledgerDecimal`.
+- [x] 2026-04-19 Расширенные тесты округления / конкурентных transfer — см.
+      `wallet.integration.test.ts` и §9.
 
 ### Security и observability
 
-- [ ] Тест AEAD-шифрования модульных секретов (подмена
-      `AUTH_SECRET` → падение).
+- [x] 2026-04-19 Audit CSRF + same-origin guard на публичных `POST` —
+      `docs/ARCHITECTURE.md` §7, `src/lib/same-origin-mutation.ts`, тесты
+      `src/lib/__tests__/same-origin-mutation.test.ts`.
+- [x] 2026-04-19 AEAD модульных секретов — `src/core/module-secret-vault.ts`,
+      тесты `src/core/__tests__/module-secret-vault.test.ts`.
+- [x] 2026-04-19 OpenTelemetry — `src/instrumentation.ts`,
+      `src/lib/otel/start-node-sdk.ts`, env в `docs/DEPLOYMENT.md`.
+
 ### Гигиена репо
 
 - [x] 2026-04-19 — `.next/`: не в индексе/истории; игнор в `.gitignore`
@@ -104,16 +119,29 @@
 
 ### Job runner
 
+- [x] 2026-04-19 (#—) База BullMQ + `treasury-tick` / `proposal-expirer` /
+      `invitation-reaper` (см. §9 Done).
+- [x] 2026-04-19 (#—) Cron `auto-promotion` — `src/core/auto-promotion.ts`,
+      `src/jobs/auto-promotion.ts`.
+- [x] 2026-04-19 (#—) Cron `role-tax-monthly` — `src/modules/wallet/role-tax-tick.ts`.
+- [x] 2026-04-19 (#—) SMTP `magic_email` — `src/core/magic-email-smtp.ts`.
 - [x] 2026-04-19 (#—) Автобэкап: ежедневный snapshot в S3/R2 + ретенция
-      (`BackupService`, BullMQ `backup-daily`, `BackupManifest`, ретенция).
+      (`BackupService`, BullMQ `backup-daily`, `BackupManifest`).
 
 ### Realtime
 
-- [ ] WebSocket gateway (отдельный воркер) с подпиской на
-      `RedisEventBus`.
-- [ ] Переключить `core.chat` и Pulse на WS; SSE оставить как
-      fallback.
-- [ ] Presence (`src/server/presence.ts`) — вынести на Redis.
+- [x] 2026-04-19 — WebSocket gateway `npm run ws:gateway`
+      (`scripts/ws-gateway.ts`): `PSUBSCRIBE krwn:events:*`, фильтрация
+      `core.chat.*` / `core.activity.recorded` как в SSE-роутах.
+- [x] 2026-04-19 — Клиенты: `useChat` и `/dashboard` — WS при
+      `NEXT_PUBLIC_KRWN_WS_URL`, иначе SSE; CSP `connect-src` допускает
+      `ws:`/`wss:`.
+- [x] 2026-04-19 — `RedisEventBus` при старте Next.js
+      (`src/lib/redis-event-bootstrap.ts` + `instrumentation.ts`), если
+      задан `REDIS_URL` и не `KRWN_REDIS_EVENT_BUS=0`.
+- [x] 2026-04-19 — Presence: опциональный Redis (`krwn:presence:*`,
+      TTL) при `REDIS_URL` и не `KRWN_PRESENCE_REDIS=0`;
+      `snapshot()` async + `GET /api/state/pulse`.
 
 ### UX админки
 

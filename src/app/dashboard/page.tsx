@@ -43,6 +43,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { ACTIVITY_EVENTS } from "@/core/activity-events";
 import { formatAmount, KRONA_SYMBOL } from "@/components/wallet";
 
 // ------------------------------------------------------------
@@ -236,43 +237,107 @@ export default function DashboardPage() {
     }
   }, [token, nextBefore, filter]);
 
-  // -------- Feed: live SSE --------
+  // -------- Feed: WebSocket gateway → SSE fallback --------
   const esRef = useRef<EventSource | null>(null);
   useEffect(() => {
     if (!token) return;
-    const es = new EventSource(
-      `/api/activity/stream?token=${encodeURIComponent(token)}`,
-    );
-    esRef.current = es;
+
+    const ingestEntry = (entry: ActivityEntry) => {
+      setEntries((prev) => {
+        if (prev.some((e) => e.id === entry.id)) return prev;
+        if (filter !== "all" && entry.category !== filter) return prev;
+        return [entry, ...prev];
+      });
+      if (isHighPriorityEntry(entry)) {
+        pushToast(setToasts, entry);
+        tryWebNotify(entry);
+      }
+    };
 
     const onReady = () => setLiveConnected(true);
     const onActivity = (ev: MessageEvent<string>) => {
       try {
-        const entry = JSON.parse(ev.data) as ActivityEntry;
-        setEntries((prev) => {
-          if (prev.some((e) => e.id === entry.id)) return prev;
-          if (filter !== "all" && entry.category !== filter) return prev;
-          return [entry, ...prev];
-        });
-        // High-priority → toast + native notification.
-        if (isHighPriorityEntry(entry)) {
-          pushToast(setToasts, entry);
-          tryWebNotify(entry);
-        }
+        ingestEntry(JSON.parse(ev.data) as ActivityEntry);
       } catch {
         /* ignore malformed frame */
       }
     };
     const onError = () => setLiveConnected(false);
 
-    es.addEventListener("ready", onReady);
-    es.addEventListener("activity", onActivity as EventListener);
-    es.onerror = onError;
+    const wsBase = process.env.NEXT_PUBLIC_KRWN_WS_URL?.trim();
+    let cleaned = false;
+    let es: EventSource | null = null;
 
+    const startSse = () => {
+      if (cleaned) return;
+      const source = new EventSource(
+        `/api/activity/stream?token=${encodeURIComponent(token)}`,
+      );
+      es = source;
+      esRef.current = source;
+      source.addEventListener("ready", onReady);
+      source.addEventListener("activity", onActivity as EventListener);
+      source.onerror = onError;
+    };
+
+    if (wsBase) {
+      const u = `${wsBase.replace(/\/$/, "")}/?token=${encodeURIComponent(token)}`;
+      const ws = new WebSocket(u);
+      esRef.current = null;
+      let fellBack = false;
+
+      ws.onopen = () => setLiveConnected(true);
+      ws.onmessage = (me) => {
+        try {
+          const msg = JSON.parse(me.data as string) as {
+            event: string;
+            data: unknown;
+          };
+          if (msg.event === "__ready__") {
+            setLiveConnected(true);
+            return;
+          }
+          if (msg.event === ACTIVITY_EVENTS.Recorded) {
+            const entry = (msg.data as { entry: ActivityEntry }).entry;
+            if (entry) ingestEntry(entry);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      ws.onerror = () => {
+        setLiveConnected(false);
+        if (cleaned || fellBack) return;
+        fellBack = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        startSse();
+      };
+
+      return () => {
+        cleaned = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        es?.removeEventListener("ready", onReady);
+        es?.removeEventListener("activity", onActivity as EventListener);
+        es?.close();
+        esRef.current = null;
+        setLiveConnected(false);
+      };
+    }
+
+    startSse();
     return () => {
-      es.removeEventListener("ready", onReady);
-      es.removeEventListener("activity", onActivity as EventListener);
-      es.close();
+      cleaned = true;
+      es?.removeEventListener("ready", onReady);
+      es?.removeEventListener("activity", onActivity as EventListener);
+      es?.close();
       esRef.current = null;
       setLiveConnected(false);
     };

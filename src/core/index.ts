@@ -154,11 +154,12 @@ export {
 export { createPrismaStateConfigRepository } from "./state-config-prisma";
 
 // --- State Pulse (Пульс Государства / Activity Feed) ---
+export { ACTIVITY_EVENTS } from "./activity-events";
 export {
   ActivityFeedService,
-  ACTIVITY_EVENTS,
   ACTIVITY_SUBSCRIBED_EVENTS,
   subscribeActivityFeed,
+  isActivityEntryVisibleToViewer,
   type ActivityCategory,
   type ActivityLog,
   type ActivityRecordedEvent,

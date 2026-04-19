@@ -29,6 +29,7 @@ import type {
   ChatMessageCreatedEvent,
   PendingDirective,
 } from "../service";
+import { CHAT_EVENTS } from "../service";
 
 const TOKEN_STORAGE_KEY = "krwn.token";
 
@@ -179,60 +180,127 @@ export function useChat(): UseChatReturn {
     void loadMessages(activeChannelId).catch((err) => setError(asApiError(err)));
   }, [activeChannelId, loadMessages, messagesByChannel]);
 
-  // ----- Realtime (SSE) -----------------------------------
+  // ----- Realtime (WebSocket gateway → SSE fallback) -----
   const esRef = useRef<EventSource | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    const url = `/api/chat/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(url);
-    esRef.current = es;
 
-    es.addEventListener("message", (ev) => {
-      try {
-        const evt = JSON.parse(ev.data) as ChatMessageCreatedEvent;
-        setMessages((prev) => {
-          const list = prev[evt.channelId] ?? [];
-          if (list.some((m) => m.id === evt.message.id)) return prev;
-          return { ...prev, [evt.channelId]: [...list, evt.message] };
-        });
-        if (evt.directiveAcks.length) {
-          setAcks((prev) => ({
-            ...prev,
-            [evt.message.id]: evt.directiveAcks,
-          }));
-          // Proactively refresh the pending list for this user.
-          void loadPending().catch(() => {});
-        }
-      } catch {
-        // swallow malformed frames
+    const applyMessageEvent = (evt: ChatMessageCreatedEvent) => {
+      setMessages((prev) => {
+        const list = prev[evt.channelId] ?? [];
+        if (list.some((m) => m.id === evt.message.id)) return prev;
+        return { ...prev, [evt.channelId]: [...list, evt.message] };
+      });
+      if (evt.directiveAcks.length) {
+        setAcks((prev) => ({
+          ...prev,
+          [evt.message.id]: evt.directiveAcks,
+        }));
+        void loadPending().catch(() => {});
       }
-    });
-
-    es.addEventListener("directive-ack", (ev) => {
-      try {
-        const evt = JSON.parse(
-          (ev as MessageEvent).data,
-        ) as ChatDirectiveAckedEvent;
-        setAcks((prev) => {
-          const list = prev[evt.messageId] ?? [];
-          const next = list.map((a) =>
-            a.userId === evt.ack.userId ? evt.ack : a,
-          );
-          return { ...prev, [evt.messageId]: next };
-        });
-      } catch {
-        /* ignore */
-      }
-    });
-
-    es.onerror = () => {
-      // EventSource reconnects automatically — nothing to do here.
     };
 
+    const applyDirectiveAck = (evt: ChatDirectiveAckedEvent) => {
+      setAcks((prev) => {
+        const list = prev[evt.messageId] ?? [];
+        const next = list.map((a) =>
+          a.userId === evt.ack.userId ? evt.ack : a,
+        );
+        return { ...prev, [evt.messageId]: next };
+      });
+    };
+
+    const wsBase = process.env.NEXT_PUBLIC_KRWN_WS_URL?.trim();
+    let cleaned = false;
+    let es: EventSource | null = null;
+
+    const startSse = () => {
+      if (cleaned) return;
+      const url = `/api/chat/stream?token=${encodeURIComponent(token)}`;
+      const source = new EventSource(url);
+      es = source;
+      esRef.current = source;
+      wsRef.current = null;
+
+      source.addEventListener("message", (ev) => {
+        try {
+          applyMessageEvent(JSON.parse(ev.data) as ChatMessageCreatedEvent);
+        } catch {
+          /* swallow */
+        }
+      });
+
+      source.addEventListener("directive-ack", (ev) => {
+        try {
+          applyDirectiveAck(
+            JSON.parse((ev as MessageEvent).data) as ChatDirectiveAckedEvent,
+          );
+        } catch {
+          /* ignore */
+        }
+      });
+
+      source.onerror = () => {
+        /* EventSource reconnects automatically */
+      };
+    };
+
+    if (wsBase) {
+      const u = `${wsBase.replace(/\/$/, "")}/?token=${encodeURIComponent(token)}`;
+      const ws = new WebSocket(u);
+      wsRef.current = ws;
+      esRef.current = null;
+      let fellBack = false;
+
+      ws.onmessage = (me) => {
+        try {
+          const msg = JSON.parse(me.data as string) as {
+            event: string;
+            data: unknown;
+          };
+          if (msg.event === "__ready__") return;
+          if (msg.event === CHAT_EVENTS.MessageCreated) {
+            applyMessageEvent(msg.data as ChatMessageCreatedEvent);
+          } else if (msg.event === CHAT_EVENTS.DirectiveAcknowledged) {
+            applyDirectiveAck(msg.data as ChatDirectiveAckedEvent);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+
+      ws.onerror = () => {
+        if (cleaned || fellBack) return;
+        fellBack = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        wsRef.current = null;
+        startSse();
+      };
+
+      return () => {
+        cleaned = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        es?.close();
+        wsRef.current = null;
+        esRef.current = null;
+      };
+    }
+
+    startSse();
     return () => {
-      es.close();
-      if (esRef.current === es) esRef.current = null;
+      cleaned = true;
+      es?.close();
+      esRef.current = null;
     };
   }, [token, loadPending]);
 

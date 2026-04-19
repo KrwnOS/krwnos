@@ -53,6 +53,30 @@ endpoint OTLP (например локальный коллектор), испо
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 ```
 
+### Realtime: Redis Event Bus + WebSocket gateway
+
+Когда задан `REDIS_URL`, при старте Next.js (`instrumentation.ts`) ядро
+переключает `eventBus` на `RedisEventBus` — события чата и Пульса
+доступны всем воркерам и отдельным процессам.
+
+Дополнительно можно поднять **WebSocket-шлюз** (тот же Redis pub/sub):
+
+```bash
+npm run ws:gateway
+```
+
+| Env | Зачем |
+|-----|--------|
+| `NEXT_PUBLIC_KRWN_WS_URL` | Базовый URL для браузера, например `wss://state.example.com/ws` или `ws://127.0.0.1:3010`. Если не задан — UI остаётся на **SSE** (`/api/chat/stream`, `/api/activity/stream`). |
+| `KRWN_WS_PORT` | Порт процесса `ws:gateway` (по умолчанию `3010`). |
+| `KRWN_WS_HOST` | Адрес bind (по умолчанию `0.0.0.0`). |
+| `KRWN_REDIS_EVENT_BUS` | `0` — не переключать ядро на Redis (только in-memory bus). |
+| `KRWN_PRESENCE_REDIS` | `0` — не писать presence в Redis (только память процесса). |
+
+За прокси (nginx / Caddy) пробросьте WebSocket на тот же хост, что и
+Next.js, и выставьте `NEXT_PUBLIC_KRWN_WS_URL` на публичный `wss://…`,
+чтобы CSP `connect-src` оставался предсказуемым.
+
 ---
 
 ## Tier 2 — Pro (свой VPS / домашний сервер)

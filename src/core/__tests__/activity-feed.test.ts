@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { ACTIVITY_EVENTS } from "../activity-events";
 import {
-  ACTIVITY_EVENTS,
   ACTIVITY_SUBSCRIBED_EVENTS,
   ActivityFeedService,
   subscribeActivityFeed,
