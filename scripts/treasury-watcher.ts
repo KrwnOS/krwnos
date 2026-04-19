@@ -19,9 +19,36 @@ import { prisma } from "@/lib/prisma";
 import { createPrismaWatcherPersistence } from "@/modules/wallet/repo";
 import { TreasuryWatcher } from "@/modules/wallet/watcher";
 import { InMemoryEventBus } from "@/core/event-bus";
+import { runTreasuryWatchTick } from "@/jobs/tasks";
 
 async function main() {
   const flags = parseArgs(process.argv.slice(2));
+
+  if (flags.once) {
+    try {
+      const report = await runTreasuryWatchTick({
+        stateId: flags.stateId,
+        intervalMs: flags.interval ?? numberEnv("KRWN_WATCHER_INTERVAL_MS", 30_000),
+        dustThreshold: numberEnv("KRWN_WATCHER_DUST_THRESHOLD", 0),
+      });
+      const errs = report.errors.length
+        ? ` errors=${report.errors.length}`
+        : "";
+      log(
+        `tick checked=${report.checkedWallets} updated=${report.updatedWallets} reconciled=${report.reconciledTransactions}${errs}`,
+      );
+      for (const e of report.errors) {
+        log(
+          `  ! ${e.walletId ? `wallet=${e.walletId}` : ""}${
+            e.transactionId ? `tx=${e.transactionId}` : ""
+          }: ${e.message}`,
+        );
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+    return;
+  }
 
   const persistence = createPrismaWatcherPersistence(prisma);
   const bus = new InMemoryEventBus();
@@ -48,15 +75,6 @@ async function main() {
       }
     },
   });
-
-  if (flags.once) {
-    try {
-      await watcher.tick();
-    } finally {
-      await prisma.$disconnect();
-    }
-    return;
-  }
 
   log(
     `started — interval=${flags.interval ?? 30_000}ms${

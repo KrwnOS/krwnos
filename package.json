@@ -29,12 +29,14 @@
     "cli": "node cli/bin/krwn.mjs",
     "setup": "tsx src/core/setup-state.ts",
     "watcher:treasury": "tsx scripts/treasury-watcher.ts",
+    "worker:jobs": "tsx scripts/job-worker.ts",
     "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "compose:logs": "docker compose -f deploy/docker-compose.yml logs -f app"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "bullmq": "^5.74.1",
     "clsx": "^2.1.1",
     "ioredis": "^5.4.1",
     "next": "14.2.15",

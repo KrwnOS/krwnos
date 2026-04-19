@@ -27,6 +27,11 @@
 6. Дата «Обновлено» в шапке файла обновляется вместе с любой правкой.
 7. Если пункт уехал с горизонта на квартал вперёд — переносим явно,
    не оставляем молча.
+8. **Merge train (несколько агентов):** если несколько агентов
+   закрывают пункты одного спринта — **следующий агент открывает PR
+   только после merge PR предыдущего** в основную ветку. Иначе
+   неизбежны конфликты в `package-lock.json`, `schema.prisma`,
+   `next.config.mjs`. Текущий порядок — см. §7 «Sprint 1».
 
 > ⚠️ Cursor-агенты обязаны следовать `.cursor/rules/roadmap.mdc`
 > и самостоятельно обновлять этот файл при любых изменениях scope.
@@ -106,15 +111,9 @@
 
 ### Job runner
 
-- [ ] Подключить BullMQ (Redis уже есть).
-- [ ] Перенести `TreasuryWatcher` (`scripts/treasury-watcher.ts`) в
-      персистентного воркера.
 - [ ] Cron: `autoPromotion` (гражданин → выше по `minBalance`/
       `minDays`).
 - [ ] Cron: `roleTaxRate` ежемесячный тиккер.
-- [ ] Cron: отзыв просроченных `Invitation.expiresAt`.
-- [ ] Cron: закрытие `Proposal.expiresAt` + автоисполнение в
-      `auto_dao`.
 - [ ] SMTP-транспорт для `magic_email` provider.
 - [ ] Автобэкап: ежедневный snapshot в S3/R2 + ретенция.
 
@@ -212,17 +211,34 @@
 
 ---
 
-## 7. Текущий спринт (Sprint 1) — рекомендация
+## 7. Текущий спринт (Sprint 1)
 
-Пять задач с максимальным ROI:
+### Порядок агентов (merge train)
 
-1. [ ] CI на GitHub Actions + coverage `core/*` ≥ 70 %.
-2. [ ] BullMQ + перевод `TreasuryWatcher` / `proposal-expirer` /
-       `invitation-reaper` на него.
-3. [ ] Миграция `Float → Decimal` для денег.
-4. [ ] Security middleware: rate-limit, CSP, `/api/ready`, pino.
-5. [ ] Vertical Editor до состояния «можно мышью строить
-       министерства» — ключевое демо-wow.
+Четыре агента идут **строго по очереди мержа**: Агент 2 не открывает
+свой PR, пока PR Агента 1 не влит в `main`; Агент 3 — после Агента 2;
+и так далее. Цель — не «пудрить» общий контекст и не ловить бесконечные
+ребейзы на одних и тех же файлах.
+
+| Шаг | Агент | Задача | Где в Roadmap |
+|-----|-------|--------|---------------|
+| 1 | **Первый** | CI на GitHub Actions + coverage `core/*` ≥ 70 % | §2 «Тесты и CI» |
+| 2 | **Второй** | BullMQ + перевод `TreasuryWatcher` / `proposal-expirer` / `invitation-reaper` на воркер | §3 «Job runner» |
+| 3 | **Третий** | Миграция `Float → Decimal` для денег + hot-path сервисов | §2 «Денежный контур» |
+| 4 | **Четвёртый** | Security middleware: rate-limit, CSP, `/api/ready`, pino (+ request-id) | §2 «Security и observability» |
+
+После мержа четырёх PR — **пятая** задача спринта (отдельный заход):
+
+5. [ ] Vertical Editor до состояния «можно мышью строить министерства»
+       — ключевое демо-wow (§3 «UX админки»).
+
+Чеклист статуса (обновлять в том же PR, что закрывает шаг):
+
+- [ ] Шаг 1 — Первый агент (CI + coverage)
+- [x] Шаг 2 — Второй агент (BullMQ + reapers)
+- [ ] Шаг 3 — Третий агент (Decimal)
+- [ ] Шаг 4 — Четвёртый агент (security)
+- [ ] Шаг 5 — Vertical Editor (после шага 4)
 
 ---
 
@@ -238,6 +254,16 @@
 ## 9. Done
 
 Закрытые пункты остаются здесь как changelog проекта.
+
+### 2026-04 — Horizon 1 · Job runner (BullMQ)
+- [x] 2026-04-19 — BullMQ + Redis: очередь `krwn-jobs`, воркер
+      `npm run worker:jobs` (`scripts/job-worker.ts`, `src/jobs/*`).
+      Планировщики: `treasury-tick` (`TreasuryWatcher.tick`),
+      `proposal-expirer` (`GovernanceService.tickDueProposals`, в т.ч.
+      `auto_dao`), `invitation-reaper` (просроченные `Invitation` →
+      `expired`). Лидер регистрации cron через `KRWN_JOB_LEADER`
+      (см. заголовок `scripts/job-worker.ts`). CLI `watcher:treasury`
+      остаётся для ручного/демон-режима без Redis.
 
 ### 2026-04 — Phase 4.5 · Economy + Governance v0.1
 - [x] Currency Factory (INTERNAL / ON_CHAIN / HYBRID).
