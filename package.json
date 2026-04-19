@@ -22,6 +22,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -35,11 +37,18 @@
     "compose:logs": "docker compose -f deploy/docker-compose.yml logs -f app"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.215.0",
+    "@opentelemetry/instrumentation-http": "^0.215.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-node": "^0.215.0",
+    "@opentelemetry/semantic-conventions": "^1.37.0",
     "@prisma/client": "^5.22.0",
     "bullmq": "^5.74.1",
     "clsx": "^2.1.1",
     "ioredis": "^5.4.1",
     "next": "14.2.15",
+    "nodemailer": "^8.0.5",
     "pino": "^10.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -49,7 +58,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@types/node": "^20.16.11",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@vitest/coverage-v8": "^2.1.9",

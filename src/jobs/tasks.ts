@@ -49,6 +49,8 @@ export async function runProposalExpirer(): Promise<{ closed: number }> {
   return { closed: closed.length };
 }
 
+export { runAutoPromotionTick } from "./auto-promotion";
+
 /** Marks expired but still `active` invitations as `expired`. */
 export async function runInvitationReaper(): Promise<{ expired: number }> {
   const now = new Date();

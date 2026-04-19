@@ -330,6 +330,13 @@ export const ru: Dict = {
   "verticalEditor.token.desc.middle":
     ". Используйте CLI-токен, выданный командой",
   "verticalEditor.token.desc.after": ".",
+  "verticalEditor.structure.save": "Сохранить структуру",
+  "verticalEditor.structure.discard": "Сбросить",
+  "verticalEditor.conflict.cycle":
+    "Такое подчинение создаст цикл в дереве.",
+  "verticalEditor.conflict.lobby":
+    "Узел прихожей нельзя переносить под другой узел.",
+  "verticalEditor.conflict.generic": "Этот перенос недопустим.",
 
   // ------------------------------------------------------------
   // Admin / Economy (/admin/economy)

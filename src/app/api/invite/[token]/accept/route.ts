@@ -26,6 +26,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
+import { rejectIfCrossSiteMutation } from "@/lib/same-origin-mutation";
 import {
   InvitationsService,
   type InvitationsRepository,
@@ -280,6 +281,9 @@ export async function POST(
 ) {
   const limited = await rateLimitedResponse(req, "api_invite_accept");
   if (limited) return limited;
+
+  const csrf = rejectIfCrossSiteMutation(req);
+  if (csrf) return csrf;
 
   try {
     const user = await getAuth().requireUser();

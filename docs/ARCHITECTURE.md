@@ -137,3 +137,66 @@ can(user, permission):
 - Экономика внутри ядра — только через модуль `treasury`.
 - Кастомные роли вне Vertical — не поддерживаются by design. Вся власть
   идёт через узлы.
+
+---
+
+## 7. CSRF и non-idempotent App Router API
+
+Классический CSRF актуален там, где браузер **сам** прикрепляет сессию
+(cookie) к запросу без явного секрета в теле. У KrwnOS почти все
+изменяющие маршруты аутентифицируются через **`Authorization: Bearer`**
+(CLI-токен в `authenticateCli` / `loadWalletContext` и т.д.). Такой
+заголовок сторонний сайт подставить не может (в отличие от cookies), поэтому
+**double-submit cookie и отдельный CSRF-токен для Bearer-маршрутов не
+требуются**.
+
+Исключения — **публичные** `POST` без Bearer (`/api/register`, первичный
+`POST /api/setup`, `POST /api/invite/:token/accept` с сессией через
+`getAuth()`). Для них применяется **`rejectIfCrossSiteMutation`** в
+`src/lib/same-origin-mutation.ts`: сверка `Origin` / `Referer` с
+`req.nextUrl.origin`, плюс эвристика по `Sec-Fetch-Site`; при
+`Authorization: Bearer` проверка пропускается (CLI/скрипты задают Origin
+явно или используют Bearer). См. unit-тесты в
+`src/lib/__tests__/same-origin-mutation.test.ts`.
+
+### Инвентаризация `POST` / `PATCH` / `DELETE` (`src/app/api/**`)
+
+| Метод | Путь | Защита CSRF (кратко) |
+|-------|------|----------------------|
+| POST | `activity/broadcast` | Bearer CLI — см. §7 |
+| POST | `admin/vertical` | Bearer CLI |
+| PATCH | `admin/vertical/[nodeId]` | Bearer CLI |
+| DELETE | `admin/vertical/[nodeId]` | Bearer CLI |
+| POST | `chat/channels` | Bearer CLI |
+| POST | `chat/channels/[channelId]/messages` | Bearer CLI |
+| POST | `chat/channels/[channelId]/directives` | Bearer CLI |
+| POST | `chat/messages/[messageId]/ack` | Bearer CLI |
+| GET | `chat/stream` | Идемпотентно; токен в query (см. `cli/auth.ts`) |
+| POST | `cli/backup` | Bearer CLI |
+| POST | `cli/invite` | Bearer CLI |
+| POST | `cli/modules` | Bearer CLI |
+| POST | `cli/tokens/rotate` | Bearer CLI |
+| POST | `cli/vertical` | Bearer CLI |
+| POST | `governance/proposals` | Bearer CLI |
+| GET | `governance/proposals/[proposalId]` | Идемпотентно |
+| DELETE | `governance/proposals/[proposalId]` | Bearer CLI |
+| POST | `governance/proposals/[proposalId]/execute` | Bearer CLI |
+| POST | `governance/proposals/[proposalId]/vote` | Bearer CLI |
+| POST | `governance/proposals/[proposalId]/veto` | Bearer CLI |
+| POST | `invite/[token]/accept` | Same-origin helper + rate limit |
+| POST | `register` | Same-origin helper + rate limit |
+| POST | `register/admit` | Bearer CLI |
+| POST | `setup` | Same-origin helper + rate limit |
+| PATCH | `state/constitution` | Bearer CLI |
+| PATCH | `state/theme` | Bearer CLI |
+| POST | `wallet/assets` | Bearer CLI |
+| GET | `wallet/assets/[assetId]` | Идемпотентно |
+| PATCH | `wallet/assets/[assetId]` | Bearer CLI |
+| DELETE | `wallet/assets/[assetId]` | Bearer CLI |
+| POST | `wallet/assets/[assetId]/primary` | Bearer CLI |
+| POST | `wallet/mint` | Bearer CLI |
+| POST | `wallet/treasuries` | Bearer CLI |
+| GET | `wallet/treasuries/[nodeId]` | Идемпотентно |
+| POST | `wallet/transfer` | Bearer CLI |
+| POST | `wallet/transfer/confirm` | Bearer CLI |
+| POST | `wallet/transfer/intent` | Bearer CLI |

@@ -1,0 +1,87 @@
+# KrwnOS — continuous integration (Horizon 0 · Sprint 1 · шаг 1).
+# Postgres нужен для `prisma migrate deploy` и чистого `next build`
+# (SSG дергает Prisma на части страниц). Redis — для rate limit / готовности;
+# после `next build` — E2E (Playwright) против `next start`.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: krwn
+          POSTGRES_PASSWORD: krwn
+          POSTGRES_DB: krwn_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U krwn -d krwn_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://krwn:krwn@localhost:5432/krwn_ci
+      TEST_DATABASE_URL: postgresql://krwn:krwn@localhost:5432/krwn_ci
+      AUTH_SECRET: ci-auth-secret-must-be-at-least-32-chars-long
+      REDIS_URL: redis://127.0.0.1:6379
+      LOG_LEVEL: error
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma validate
+        run: npx prisma validate
+
+      - name: Prisma migrate (CI database)
+        run: npx prisma migrate deploy
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests + kernel coverage (≥70 % gates in vitest.config.mts)
+        run: npm run test -- --coverage
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke (Playwright)
+        run: npm run test:e2e
+        env:
+          CI: "true"

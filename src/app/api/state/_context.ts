@@ -13,7 +13,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { eventBus, permissionsEngine } from "@/core";
+import {
+  eventBus,
+  permissionsEngine,
+  type PermissionCheckInput,
+} from "@/core";
 import {
   StateConfigError,
   StateConfigService,
@@ -55,6 +59,8 @@ export interface StateRouteContext {
   stateId: string;
   service: StateConfigService;
   access: StateConfigAccessContext;
+  /** Vertical snapshot for `permissionsEngine.can()` / audits. */
+  snapshot: VerticalSnapshot;
 }
 
 export function buildStateConfigService(): StateConfigService {
@@ -138,7 +144,28 @@ export async function loadStateContext(
     permissions: held,
   };
 
-  return { cli, stateId, service: buildStateConfigService(), access };
+  return {
+    cli,
+    stateId,
+    service: buildStateConfigService(),
+    access,
+    snapshot,
+  };
+}
+
+/** Admin Vertical UI: Sovereign or effective `system.admin` via PermissionsEngine. */
+export function canAccessVerticalAdmin(
+  stateId: string,
+  access: StateConfigAccessContext,
+  snapshot: VerticalSnapshot,
+): boolean {
+  const input: PermissionCheckInput = {
+    stateId,
+    userId: access.userId,
+    isOwner: access.isOwner,
+    snapshot,
+  };
+  return permissionsEngine.can(input, "system.admin");
 }
 
 export function stateErrorResponse(err: unknown): NextResponse {

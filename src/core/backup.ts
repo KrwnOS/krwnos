@@ -50,7 +50,11 @@ export interface BackupPayload {
     schemaRev: number;
     checksumAlgo: "sha256";
   };
-  state: Omit<State, "ownerId"> & { ownerHandle: string };
+  state: Omit<State, "ownerId"> & {
+    ownerHandle: string;
+    /** Mirrors `State.themeConfig` (Theme Engine). Omitted in older snapshots. */
+    themeConfig?: Record<string, unknown>;
+  };
   vertical: VerticalNode[];
   memberships: BackupMembershipRow[];
   modules: BackupModuleRow[];

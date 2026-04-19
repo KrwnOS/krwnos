@@ -25,10 +25,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import type { PermissionKey } from "@/types/kernel";
-import { loadStateContext, stateErrorResponse } from "../../state/_context";
-
-const ADMIN_PERMISSION: PermissionKey = "system.admin";
+import {
+  canAccessVerticalAdmin,
+  loadStateContext,
+  stateErrorResponse,
+} from "../../state/_context";
 
 const createSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -52,8 +53,8 @@ export interface VerticalNodeDto {
 
 export async function GET(req: NextRequest) {
   try {
-    const { stateId, access } = await loadStateContext(req);
-    if (!canManageVertical(access.isOwner, access.permissions)) {
+    const { stateId, access, snapshot } = await loadStateContext(req);
+    if (!canAccessVerticalAdmin(stateId, access, snapshot)) {
       return forbidden();
     }
 
@@ -85,8 +86,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { stateId, access } = await loadStateContext(req);
-    if (!canManageVertical(access.isOwner, access.permissions)) {
+    const { stateId, access, snapshot } = await loadStateContext(req);
+    if (!canAccessVerticalAdmin(stateId, access, snapshot)) {
       return forbidden();
     }
 
@@ -128,17 +129,6 @@ export async function POST(req: NextRequest) {
 // ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
-
-function canManageVertical(
-  isOwner: boolean,
-  held: ReadonlySet<PermissionKey>,
-): boolean {
-  if (isOwner) return true;
-  if (held.has("*")) return true;
-  if (held.has(ADMIN_PERMISSION)) return true;
-  if (held.has("system.*" as PermissionKey)) return true;
-  return false;
-}
 
 function forbidden() {
   return NextResponse.json(

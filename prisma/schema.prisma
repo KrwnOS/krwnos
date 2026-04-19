@@ -47,6 +47,9 @@ model User {
   // Transactions initiated (kicked off) by this user.
   transactionsInitiated Transaction[] @relation("TxInitiator")
 
+  // --- Role tax (ежемесячные списания по StateSettings.roleTaxRate) ---
+  roleTaxPeriodCharges RoleTaxPeriodCharge[]
+
   // --- Core Governance (Парламент) ---
   proposalsCreated Proposal[] @relation("ProposalCreator")
   votesCast        Vote[]     @relation("VoteAuthor")
@@ -191,6 +194,9 @@ model State {
   // --- State Pulse (Пульс Государства / Activity Feed) ---
   activityLog ActivityLog[]
 
+  // --- Role tax (ежемесячный налог на статус) ---
+  roleTaxPeriodCharges RoleTaxPeriodCharge[]
+
   @@index([ownerId])
 }
 
@@ -234,9 +240,10 @@ model StateSettings {
   // `incomeTaxRate`      — фракция, удерживаемая из выплат из Казны
   //   на личный кошелёк (treasury_allocation → PERSONAL). Имитирует
   //   подоходный налог: «министр платит сотруднику — часть возвращается».
-  // `roleTaxRate`        — ежемесячная подписка на статус. Не взимается
-  //   автоматически (cron-слой будет добавлен позже), но хранится
-  //   здесь, чтобы единый источник правды был доступен всем модулям.
+  // `roleTaxRate`        — доля [0..1] от баланса личного кошелька
+  //   (первичный актив) с **active** Membership; списывается ежемесячно
+  //   воркером BullMQ (`role-tax-monthly`), идемпотентность по паре
+  //   (гражданин, YYYY-MM UTC) в `RoleTaxPeriodCharge`.
   // `currencyDisplayName`— опциональная «парадная» витрина названия
   //   валюты (влияет только на UI; единицей учёта остаётся
   //   `StateAsset.symbol` первичного актива).
@@ -918,6 +925,27 @@ model Transaction {
   @@index([kind])
   @@index([assetId])
   @@index([externalTxHash])
+
+  roleTaxPeriodCharge RoleTaxPeriodCharge?
+}
+
+/// Идемпотентное начисление ежемесячного «налога на роль» (StateSettings.roleTaxRate).
+model RoleTaxPeriodCharge {
+  id            String @id @default(cuid())
+  stateId       String
+  userId        String
+  /// Календарный месяц UTC в формате YYYY-MM.
+  periodKey     String
+  amount        Decimal @db.Decimal(38, 18)
+  transactionId String? @unique
+  createdAt     DateTime @default(now())
+
+  state       State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([stateId, userId, periodKey])
+  @@index([stateId, periodKey])
 }
 
 // ---------------- Krwn Exchange Engine (Inter-State Swap) ----------------

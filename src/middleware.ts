@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Propagates `x-request-id` for correlation (pino child loggers in Route Handlers).
  * CSP and other security headers are set in `next.config.mjs`.
+ * CSRF / cross-site POST policy for public routes: `src/lib/same-origin-mutation.ts`
+ * (see `docs/ARCHITECTURE.md` §7).
  */
 export function middleware(request: NextRequest) {
   const existing =

@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
+import { rejectIfCrossSiteMutation } from "@/lib/same-origin-mutation";
 import { setupState, AlreadyInitialisedError } from "@/core/setup-state";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const limited = await rateLimitedResponse(req, "api_setup_post");
   if (limited) return limited;
+
+  const csrf = rejectIfCrossSiteMutation(req);
+  if (csrf) return csrf;
 
   try {
     const parsed = body.parse(await req.json());

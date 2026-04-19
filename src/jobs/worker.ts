@@ -5,6 +5,7 @@
  *   - treasury-tick
  *   - proposal-expirer
  *   - invitation-reaper
+ *   - auto-promotion
  */
 import { Queue, Worker } from "bullmq";
 import type { Job } from "bullmq";
@@ -12,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { createRedisForBullmq } from "./redis-connection";
 import { KRWN_JOB_QUEUE } from "./queue-name";
 import {
+  runAutoPromotionTick,
   runInvitationReaper,
   runProposalExpirer,
   runTreasuryWatchTick,
@@ -21,6 +23,7 @@ export const JOB_NAMES = {
   treasuryTick: "treasury-tick",
   proposalExpirer: "proposal-expirer",
   invitationReaper: "invitation-reaper",
+  autoPromotion: "auto-promotion",
 } as const;
 
 export interface KrwnJobPayload {
@@ -43,6 +46,10 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
   const treasuryEvery = numberEnv("KRWN_JOB_TREASURY_EVERY_MS", 30_000);
   const proposalEvery = numberEnv("KRWN_JOB_PROPOSAL_EVERY_MS", 60_000);
   const invitationEvery = numberEnv("KRWN_JOB_INVITATION_EVERY_MS", 60_000);
+  const autoPromotionEvery = numberEnv(
+    "KRWN_JOB_AUTO_PROMOTION_EVERY_MS",
+    300_000,
+  );
 
   await queue.upsertJobScheduler(
     "krwn-sched:treasury-tick",
@@ -68,6 +75,14 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
       data: {} satisfies KrwnJobPayload,
     },
   );
+  await queue.upsertJobScheduler(
+    "krwn-sched:auto-promotion",
+    { every: autoPromotionEvery },
+    {
+      name: JOB_NAMES.autoPromotion,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
 }
 
 async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
@@ -78,6 +93,8 @@ async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
       return runProposalExpirer();
     case JOB_NAMES.invitationReaper:
       return runInvitationReaper();
+    case JOB_NAMES.autoPromotion:
+      return runAutoPromotionTick();
     default:
       throw new Error(`Unknown job name: ${job.name}`);
   }

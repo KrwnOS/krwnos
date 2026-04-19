@@ -86,6 +86,16 @@ export {
 } from "./auth-credentials";
 
 export {
+  readSmtpEnv,
+  createSmtpTransport,
+  createSmtpTransportFromEnv,
+  sendMagicEmail,
+  type SmtpEnvConfig,
+  type MagicEmailMessage,
+  type SendMagicEmailContext,
+} from "./magic-email-smtp";
+
+export {
   TunnelManager,
   TunnelEvents,
   type TunnelAdapter,
@@ -193,3 +203,9 @@ export {
   type GovernanceRules,
   type WeightStrategy,
 } from "./governance-rules";
+
+// --- Auto-promotion (vertical cron; pure rules + job in `src/jobs`) ---
+export {
+  fullDaysBetween,
+  shouldPromoteMembershipForAutoPromotion,
+} from "./auto-promotion";

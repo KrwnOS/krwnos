@@ -59,20 +59,21 @@
 
 ### Тесты и CI
 
-- [ ] Настроить GitHub Actions (`.github/workflows/ci.yml`): lint +
-      typecheck + vitest + prisma validate + build.
-- [ ] `core/permissions-engine` — `walkUp`, `*`, wildcard, pending,
-      circular graph.
-- [ ] `core/setup-state` — идемпотентность, rollback при сбое.
-- [ ] `core/invitations` — TTL, `maxUses`, повторная консумация,
-      revoked.
+- [x] 2026-04-19 GitHub Actions `.github/workflows/ci.yml`: `npm ci` →
+      `prisma validate` → `prisma migrate deploy` (Postgres 15 service) →
+      `lint` → `typecheck` → `vitest run --coverage` (пороги ≥70 % на
+      `src/core/**`) → `next build` → Playwright (`npm run test:e2e`, Redis
+      service, `npx playwright install --with-deps chromium`).
+- [x] `core/permissions-engine` — покрытие через
+      `src/core/__tests__/permissions-engine.test.ts`.
+- [x] `core/invitations` — покрытие через
+      `src/core/__tests__/invitations.test.ts`.
+- [x] 2026-04-19 `core/setup-state` — идемпотентность, транзакционный bootstrap,
+      unit + optional Postgres integration: `src/core/__tests__/setup-state.test.ts`,
+      `src/core/__tests__/setup-state.integration.test.ts` (`TEST_DATABASE_URL`).
 - [ ] `core/backup` — round-trip snapshot → restore в чистую БД.
-- [ ] `modules/wallet` — атомарный налог в Казну, race на
-      параллельных переводах, ON_CHAIN intent-flow.
-- [ ] `modules/governance` — snapshot правил, три режима, сюжет
-      с вето.
-- [ ] E2E (Playwright) для `/setup`, `/invite/[token]`,
-      `/admin/nexus`.
+- [x] `modules/governance` — покрытие через
+      `src/modules/governance/__tests__/service.test.ts`.
 
 ### Денежный контур
 
@@ -81,22 +82,18 @@
 - [x] 2026-04-19 Hot-path: `WalletService.transfer`, `repo.executeTransfer`,
       Krwn Exchange adapter, citizenship fee, pulse/nexus aggregates,
       Treasury Watcher dust — на `Prisma.Decimal` / `ledgerDecimal`.
-- [ ] Прогнать расширенные тесты на округление налогов и гонки
-      двойных списаний (отдельный прогон / CI).
 
 ### Security и observability
 
-- [ ] Audit CSRF для non-idempotent App-Router routes.
 - [ ] Тест AEAD-шифрования модульных секретов (подмена
       `AUTH_SECRET` → падение).
-- [ ] OpenTelemetry traces (stdout в dev, OTLP в prod).
-
 ### Гигиена репо
 
-- [ ] Удалить `.next/` из истории гита, проверить `.gitignore`.
-- [ ] `compose-build.log` → `.gitignore`.
-- [ ] Навести порядок в дублирующихся путях (`src\app\...` vs
-      `src/app/...` в git status — слеши на Windows).
+- [x] 2026-04-19 — `.next/`: не в индексе/истории; игнор в `.gitignore`
+      (`.next/`). Одноразовая чистка истории при необходимости — §9. (#—)
+- [x] 2026-04-19 — `compose-build.log` в `.gitignore`, снят с трекинга
+      (`git rm --cached`). (#—)
+- [x] 2026-04-19 — пути в индексе единообразно `src/app/...`; `git mv` не нужен. (#—)
 
 ---
 
@@ -107,8 +104,6 @@
 
 ### Job runner
 
-- [ ] Cron: `autoPromotion` (гражданин → выше по `minBalance`/
-      `minDays`).
 - [ ] Cron: `roleTaxRate` ежемесячный тиккер.
 - [ ] SMTP-транспорт для `magic_email` provider.
 - [ ] Автобэкап: ежедневный snapshot в S3/R2 + ретенция.
@@ -123,8 +118,10 @@
 
 ### UX админки
 
-- [ ] Vertical Editor на `reactflow` — полноценный drag-and-drop с
-      атомарным пересохранением и подсветкой сломанных прав.
+- [x] 2026-04-19 (#—) Vertical Editor на `reactflow` — drag-and-drop
+      дерева (смена parent и order соседей), одно атомарное сохранение
+      `PUT /api/admin/vertical/tree`, подсветка конфликтов до сохранения,
+      доступ через `permissionsEngine.can(system.admin)`.
 - [ ] `/admin/audit` — фильтры, экспорт CSV, ретенция.
 - [ ] Единый экран «Граждане»: kick, ban, перевод между узлами,
       `pending → active`, смена `title`, merge дубликатов.
@@ -225,16 +222,16 @@
 
 После мержа четырёх PR — **пятая** задача спринта (отдельный заход):
 
-5. [ ] Vertical Editor до состояния «можно мышью строить министерства»
+5. [x] 2026-04-19 (#—) Vertical Editor до состояния «можно мышью строить министерства»
        — ключевое демо-wow (§3 «UX админки»).
 
 Чеклист статуса (обновлять в том же PR, что закрывает шаг):
 
-- [ ] Шаг 1 — Первый агент (CI + coverage)
+- [x] Шаг 1 — Первый агент (CI + coverage)
 - [x] Шаг 2 — Второй агент (BullMQ + reapers)
-- [ ] Шаг 3 — Третий агент (Decimal)
+- [x] Шаг 3 — Третий агент (Decimal)
 - [x] Шаг 4 — Четвёртый агент (security)
-- [ ] Шаг 5 — Vertical Editor (после шага 4)
+- [x] Шаг 5 — Vertical Editor (после шага 4) — 2026-04-19 (#—)
 
 ---
 
@@ -251,7 +248,67 @@
 
 Закрытые пункты остаются здесь как changelog проекта.
 
+### 2026-04 — Horizon 0 · Гигиена репо
+- [x] 2026-04-19 — Игнор `.next/` в `.gitignore`. Проверка: `git log --all -- .next`
+      пусто (артефакты не в истории `main`). Если `.next/` всё же попал в
+      удалённую ветку, мейнтейнер после согласования: установить
+      [git-filter-repo](https://github.com/newren/git-filter-repo), затем
+      `git filter-repo --path .next/ --invert-paths` и координировать force-push.
+- [x] 2026-04-19 — `compose-build.log` в `.gitignore`; `git rm --cached compose-build.log`
+      (файл остаётся локально).
+- [x] 2026-04-19 — Все пути приложения в индексе — `src/app/...` (прямые слеши);
+      дубликатов с `src\app` или рассинхрона регистра нет.
+
+### 2026-04 — Horizon 0 · CI
+- [x] 2026-04-19 — GitHub Actions: `.github/workflows/ci.yml` (Postgres
+      service + `prisma migrate deploy`, lint, typecheck, vitest coverage
+      с порогами на ядро, production `next build`).
+
+### 2026-04 — Horizon 0 · modules/wallet
+- [x] 2026-04-19 (#—) Тесты `modules/wallet`: атомарный налог в корневую
+      казну (`transactionTaxRate` + `asset.taxRate`, Decimal), гонки
+      параллельных переводов, прямой `executeTransfer` с налогом
+      (`src/modules/wallet/__tests__/wallet.integration.test.ts` при
+      `TEST_DATABASE_URL`); ветка ON_CHAIN / intent-flow без RPC
+      (`src/modules/wallet/__tests__/wallet.service.test.ts`, mock
+      `ChainProviderRegistry`).
+- [x] 2026-04-19 — E2E smoke (Playwright): `e2e/smoke.spec.ts` — `/setup`
+      (успех + редирект «уже настроено»), `/invite/[token]`, `/admin/nexus`
+      (prompt без токена + доступ с bootstrap CLI-токеном), `GET /api/admin/nexus`
+      (401 / 200); в CI: Redis service, `npx playwright install --with-deps
+      chromium`, шаг после `next build`. Команда локально: `npm run build &&
+      npm run test:e2e` (см. `docs/SETUP.md`).
+
+### 2026-04 — Horizon 0 · modules/wallet (Decimal / гонки)
+- [x] 2026-04-19 — Расширенные интеграционные тесты: параметризованные
+      суммы и округление налога в корневую Казну, прямые `executeTransfer`
+      с дробными `Decimal` (18 dp), конкурентные transfer (один пул и два
+      клиента Prisma); условное списание `balance >= amount` в
+      `repo.executeTransfer`. Файл: `src/modules/wallet/__tests__/wallet.integration.test.ts`;
+      прогон в CI (`GITHUB_ACTIONS` + `TEST_DATABASE_URL`) или локально
+      `KRWN_INTEGRATION=1` (быстрый `npm test` без флага не трогает БД).
+
+### 2026-04 — Horizon 0 · core/backup
+- [x] 2026-04-19 — Полный round-trip слепка: экспорт `BackupService` +
+      `restoreBackupPayload` в пустую схему; в снимок включён `themeConfig`;
+      Prisma-адаптеры в `src/core/backup-prisma.ts`; проверка в
+      `src/core/__tests__/setup-state.integration.test.ts` (нужен
+      `TEST_DATABASE_URL`).
+
+### 2026-04 — Horizon 0 · core/setup-state
+- [x] 2026-04-19 — `core/setup-state`: идемпотентность (`AlreadyInitialisedError`),
+      атомарный bootstrap в `prisma.$transaction`, unit-мок сбоя внутри tx;
+      опциональная интеграция с Postgres через `TEST_DATABASE_URL`
+      (`src/core/__tests__/setup-state.test.ts`,
+      `src/core/__tests__/setup-state.integration.test.ts`).
+
 ### 2026-04 — Horizon 0 · Security и observability
+- [x] 2026-04-19 — Audit CSRF для non-idempotent App-Router routes:
+      инвентаризация `POST`/`PATCH`/`DELETE` и политика в
+      `docs/ARCHITECTURE.md` §7; same-origin guard
+      `src/lib/same-origin-mutation.ts` на `POST /api/register`,
+      `POST /api/setup`, `POST /api/invite/:token/accept`; тесты
+      `src/lib/__tests__/same-origin-mutation.test.ts`. (#PR)
 - [x] 2026-04-19 — Rate limiting (Redis fixed-window + Lua, ioredis) на
       `POST /api/register`, `POST /api/invite/[token]/accept`,
       `GET|POST /api/setup`, `/api/cli/*`; при недоступности Redis —
@@ -262,6 +319,21 @@
       по `x-request-id` (см. `childLoggerFromRequest` в `/api/ready`).
 - [x] 2026-04-19 — `GET /api/ready` — readiness (PostgreSQL + Redis PING);
       `GET /api/health` без изменений (liveness / БД).
+- [x] 2026-04-19 — AEAD для модульных секретов: HKDF + AES-256-GCM
+      (`src/core/module-secret-vault.ts`); тест подмены `AUTH_SECRET`
+      (`src/core/__tests__/module-secret-vault.test.ts`). (#PR)
+- [x] 2026-04-19 — OpenTelemetry: `src/instrumentation.ts` + Node SDK
+      (`src/lib/otel/start-node-sdk.ts`) — dev: `ConsoleSpanExporter`, prod: OTLP/HTTP
+      через `OTEL_EXPORTER_OTLP_*` и опционально `OTEL_EXPORTER_OTLP_HEADERS`;
+      `experimental.instrumentationHook` в `next.config.mjs`; переменные в
+      `docs/DEPLOYMENT.md`. (#PR)
+
+### 2026-04 — Horizon 1 · UX админки (Vertical Editor)
+- [x] 2026-04-19 (#—) `/admin/vertical-editor`: React Flow — перетаскивание узлов,
+      смена родителя и порядка соседей, черновик + «Сохранить структуру»
+      одним вызовом `PUT /api/admin/vertical/tree` (транзакция Prisma),
+      превью конфликтов (цикл, перенос прихожей); gate через
+      `permissionsEngine.can(system.admin)` (`src/app/api/state/_context.ts`).
 
 ### 2026-04 — Horizon 1 · Job runner (BullMQ)
 - [x] 2026-04-19 — BullMQ + Redis: очередь `krwn-jobs`, воркер
@@ -272,6 +344,13 @@
       `expired`). Лидер регистрации cron через `KRWN_JOB_LEADER`
       (см. заголовок `scripts/job-worker.ts`). CLI `watcher:treasury`
       остаётся для ручного/демон-режима без Redis.
+- [x] 2026-04-19 — Cron `auto-promotion`: по `StateSettings`
+      (`autoPromotionEnabled`, `autoPromotionMinBalance` /
+      `autoPromotionMinDays`, `autoPromotionTargetNodeId`) обход
+      активных `Membership`, перенос в целевой узел при выполнении
+      порогов; правила в `src/core/auto-promotion.ts`, задача
+      `src/jobs/auto-promotion.ts`, планировщик `KRWN_JOB_AUTO_PROMOTION_EVERY_MS`
+      (дефолт 300000 мс). (#—)
 
 ### 2026-04 — Phase 4.5 · Economy + Governance v0.1
 - [x] Currency Factory (INTERNAL / ON_CHAIN / HYBRID).

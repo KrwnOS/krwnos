@@ -5,6 +5,7 @@
  *   - treasury-tick       — on-chain treasury sync (`TreasuryWatcher.tick`)
  *   - proposal-expirer      — `GovernanceService.tickDueProposals`
  *   - invitation-reaper     — `Invitation` rows past `expiresAt` → `expired`
+ *   - auto-promotion        — `StateSettings` thresholds → `Membership.nodeId`
  *
  * Usage:
  *   npm run worker:jobs
@@ -15,6 +16,7 @@
  *   KRWN_JOB_TREASURY_EVERY_MS   treasury repeat interval (default 30000)
  *   KRWN_JOB_PROPOSAL_EVERY_MS   proposal expirer (default 60000)
  *   KRWN_JOB_INVITATION_EVERY_MS invitation reaper (default 60000)
+ *   KRWN_JOB_AUTO_PROMOTION_EVERY_MS auto-promotion (default 300000)
  *
  * The process handles SIGINT / SIGTERM and closes the worker cleanly.
  */

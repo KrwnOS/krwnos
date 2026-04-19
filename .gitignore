@@ -5,9 +5,12 @@ node_modules/
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/blob-report/
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -52,3 +55,6 @@ next-env.d.ts
 # prisma
 /prisma/dev.db
 /prisma/migrations/dev*/
+
+# local build logs
+compose-build.log

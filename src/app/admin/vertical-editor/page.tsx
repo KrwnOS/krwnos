@@ -18,7 +18,8 @@
  * Transport: the page is a client component that talks to
  *   GET    /api/admin/vertical               — load the tree
  *   POST   /api/admin/vertical               — create a child
- *   PATCH  /api/admin/vertical/:id           — edit / re-parent
+ *   PATCH  /api/admin/vertical/:id           — edit single node
+ *   PUT    /api/admin/vertical/tree          — atomic parent/order save
  *   DELETE /api/admin/vertical/:id           — detach descendants
  *
  * Auth: bearer CLI-token from `localStorage["krwn.token"]` — same
@@ -34,7 +35,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import Link from "next/link";
@@ -47,6 +47,7 @@ import ReactFlow, {
   MiniMap,
   Position,
   ReactFlowProvider,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeChange,
@@ -59,6 +60,12 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import {
+  reparentNode,
+  reorderSiblingRelative,
+  type VerticalTreeNodeShape,
+  type VerticalTreeValidationError,
+} from "@/lib/vertical-tree";
 
 // ------------------------------------------------------------
 // Types
@@ -89,6 +96,7 @@ interface VerticalFlowNodeData {
   members: number;
   onAddChild: (parentId: string) => void;
   selected: boolean;
+  dropMark: "ok" | "blocked" | null;
 }
 
 const TOKEN_STORAGE_KEY = "krwn.token";
@@ -98,6 +106,51 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 112;
 const H_GAP = 48;
 const V_GAP = 72;
+
+function structureSignature(nodes: readonly VerticalNodeDto[]): string {
+  return [...nodes]
+    .map((n) => `${n.id}\n${n.parentId ?? ""}\n${n.order}`)
+    .sort()
+    .join("|");
+}
+
+function toVerticalShapes(
+  nodes: readonly VerticalNodeDto[],
+): VerticalTreeNodeShape[] {
+  return nodes.map((n) => ({
+    id: n.id,
+    parentId: n.parentId,
+    order: n.order,
+    isLobby: n.isLobby,
+    createdAt: n.createdAt,
+  }));
+}
+
+function mergeShapesIntoNodes(
+  base: readonly VerticalNodeDto[],
+  shapes: VerticalTreeNodeShape[],
+): VerticalNodeDto[] {
+  const byId = new Map(base.map((n) => [n.id, n]));
+  return shapes.map((s) => {
+    const row = byId.get(s.id);
+    if (!row) throw new Error("mergeShapesIntoNodes: missing id");
+    return { ...row, parentId: s.parentId, order: s.order };
+  });
+}
+
+function verticalTreeErrorMessage(
+  err: VerticalTreeValidationError,
+  t: (key: string) => string,
+): string {
+  switch (err.code) {
+    case "cycle":
+      return t("verticalEditor.conflict.cycle");
+    case "lobby_reparent":
+      return t("verticalEditor.conflict.lobby");
+    default:
+      return t("verticalEditor.conflict.generic");
+  }
+}
 
 // ------------------------------------------------------------
 // Page
@@ -120,6 +173,10 @@ function VerticalEditorInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [structureDraft, setStructureDraft] = useState<
+    VerticalNodeDto[] | null
+  >(null);
+  const [structureError, setStructureError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -153,6 +210,11 @@ function VerticalEditorInner() {
       setLoading(false);
     }
   }, [token, router]);
+
+  useEffect(() => {
+    setStructureDraft(null);
+    setStructureError(null);
+  }, [data]);
 
   useEffect(() => {
     void reload();
@@ -210,6 +272,53 @@ function VerticalEditorInner() {
     [token, reload],
   );
 
+  const effectiveNodes = useMemo(
+    () => structureDraft ?? data?.nodes ?? [],
+    [structureDraft, data?.nodes],
+  );
+
+  const isStructureDirty = useMemo(() => {
+    if (!data?.nodes.length || structureDraft === null) return false;
+    return (
+      structureSignature(structureDraft) !== structureSignature(data.nodes)
+    );
+  }, [data?.nodes, structureDraft]);
+
+  const saveStructure = useCallback(async () => {
+    if (!token || !structureDraft || !data) return;
+    setStructureError(null);
+    try {
+      const res = await fetch("/api/admin/vertical/tree", {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nodes: structureDraft.map((n) => ({
+            id: n.id,
+            parentId: n.parentId,
+            order: n.order,
+          })),
+        }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error ?? `HTTP ${res.status}`);
+      }
+      await reload();
+    } catch (e) {
+      setStructureError(e instanceof Error ? e.message : "unknown error");
+    }
+  }, [token, structureDraft, data, reload]);
+
+  const discardStructure = useCallback(() => {
+    setStructureDraft(null);
+    setStructureError(null);
+  }, []);
+
   const deleteNode = useCallback(
     async (nodeId: string) => {
       if (!token) return;
@@ -264,8 +373,8 @@ function VerticalEditorInner() {
   }
 
   const selected =
-    selectedId && data
-      ? data.nodes.find((n) => n.id === selectedId) ?? null
+    selectedId && effectiveNodes.length
+      ? effectiveNodes.find((n) => n.id === selectedId) ?? null
       : null;
 
   return (
@@ -295,6 +404,24 @@ function VerticalEditorInner() {
           >
             + {t("verticalEditor.addRoot")}
           </Button>
+          {isStructureDirty && (
+            <>
+              <Button
+                variant="crown"
+                size="sm"
+                onClick={() => void saveStructure()}
+              >
+                {t("verticalEditor.structure.save")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={discardStructure}
+              >
+                {t("verticalEditor.structure.discard")}
+              </Button>
+            </>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -317,9 +444,11 @@ function VerticalEditorInner() {
         </div>
       </header>
 
-      {error && (
+      {(error ?? structureError) && (
         <Card className="mx-6 mb-3 border-destructive/40 bg-destructive/5 text-sm text-destructive">
-          {t("common.errorWith", { message: error })}
+          {t("common.errorWith", {
+            message: [error, structureError].filter(Boolean).join(" · "),
+          })}
         </Card>
       )}
 
@@ -330,15 +459,16 @@ function VerticalEditorInner() {
           )}
           {data && data.nodes.length > 0 && (
             <Canvas
-              data={data}
+              tree={effectiveNodes}
+              memberCounts={data.memberCounts}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onAddChild={(parentId) => void handleAddChild(parentId)}
-              onReparent={(childId, newParentId) =>
-                void patchNode(childId, { parentId: newParentId }).catch((e) =>
-                  setError(e instanceof Error ? e.message : "unknown error"),
-                )
-              }
+              onCommitStructure={(next) => {
+                setStructureDraft(next);
+                setStructureError(null);
+              }}
+              onStructurePreviewError={(msg) => setStructureError(msg)}
             />
           )}
         </div>
@@ -410,42 +540,57 @@ const nodeTypes = {
 };
 
 interface CanvasProps {
-  data: TreeResponse;
+  tree: VerticalNodeDto[];
+  memberCounts: Record<string, number>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onAddChild: (parentId: string) => void;
-  onReparent: (childId: string, newParentId: string | null) => void;
+  onCommitStructure: (next: VerticalNodeDto[]) => void;
+  onStructurePreviewError: (message: string | null) => void;
 }
 
 function Canvas({
-  data,
+  tree,
+  memberCounts,
   selectedId,
   onSelect,
   onAddChild,
-  onReparent,
+  onCommitStructure,
+  onStructurePreviewError,
 }: CanvasProps) {
-  const positions = useMemo(() => layoutTree(data.nodes), [data.nodes]);
-  const overlayParentRef = useRef<string | null>(null);
+  const { t } = useI18n();
+  const { getNodes } = useReactFlow();
+  const positions = useMemo(() => layoutTree(tree), [tree]);
+  const [hoverDrop, setHoverDrop] = useState<{
+    targetId: string;
+    invalid: boolean;
+  } | null>(null);
 
   const nodes = useMemo<Node<VerticalFlowNodeData>[]>(() => {
-    return data.nodes.map((n) => ({
+    return tree.map((n) => ({
       id: n.id,
       type: "verticalNode",
       position: positions.get(n.id) ?? { x: 0, y: 0 },
       data: {
         node: n,
-        members: data.memberCounts[n.id] ?? 0,
+        members: memberCounts[n.id] ?? 0,
         onAddChild,
         selected: selectedId === n.id,
+        dropMark:
+          hoverDrop?.targetId === n.id
+            ? hoverDrop.invalid
+              ? "blocked"
+              : "ok"
+            : null,
       },
       draggable: true,
       selectable: true,
     }));
-  }, [data.nodes, data.memberCounts, positions, selectedId, onAddChild]);
+  }, [tree, memberCounts, positions, selectedId, onAddChild, hoverDrop]);
 
   const edges = useMemo<Edge[]>(
     () =>
-      data.nodes
+      tree
         .filter((n) => n.parentId)
         .map((n) => ({
           id: `${n.parentId}->${n.id}`,
@@ -455,35 +600,134 @@ function Canvas({
           markerEnd: { type: MarkerType.ArrowClosed },
           style: { stroke: "hsl(var(--border))", strokeWidth: 1.5 },
         })),
-    [data.nodes],
+    [tree],
+  );
+
+  const dryRunDrop = useCallback(
+    (
+      draggedId: string,
+      targetId: string,
+      draggedPos: { x: number; y: number },
+      targetPos: { x: number; y: number },
+    ) => {
+      const shapes = toVerticalShapes(tree);
+      const dragged = shapes.find((s) => s.id === draggedId);
+      const target = shapes.find((s) => s.id === targetId);
+      if (!dragged || !target) return true;
+
+      if (dragged.id === target.id) return false;
+
+      const placeAfter =
+        draggedPos.y + NODE_HEIGHT / 2 > targetPos.y + NODE_HEIGHT / 2;
+
+      if (dragged.parentId === target.parentId) {
+        const { error } = reorderSiblingRelative(
+          shapes,
+          draggedId,
+          targetId,
+          placeAfter,
+        );
+        return !!error;
+      }
+      const { error } = reparentNode(shapes, draggedId, targetId);
+      return !!error;
+    },
+    [tree],
   );
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
       for (const change of changes) {
-        if (change.type === "position" && change.dragging) {
-          overlayParentRef.current = findOverlappingNode(
-            change.id,
-            change.position ?? null,
-            nodes,
-          );
+        if (change.type !== "position") continue;
+
+        if (change.dragging === false) {
+          setHoverDrop(null);
+          continue;
         }
+
+        if (!change.dragging || !change.position) continue;
+
+        const draggedId = change.id;
+        const draggedPos = change.position;
+        const live = getNodes().map((n) =>
+          n.id === draggedId ? { ...n, position: draggedPos } : n,
+        );
+        const targetId = findOverlappingNode(draggedId, draggedPos, live);
+        if (!targetId || targetId === draggedId) {
+          setHoverDrop(null);
+          continue;
+        }
+        const targetNode = live.find((n) => n.id === targetId);
+        if (!targetNode) {
+          setHoverDrop(null);
+          continue;
+        }
+        const invalid = dryRunDrop(
+          draggedId,
+          targetId,
+          draggedPos,
+          targetNode.position,
+        );
+        setHoverDrop({ targetId, invalid });
       }
     },
-    [nodes],
+    [getNodes, dryRunDrop],
   );
 
   const handleNodeDragStop = useCallback<NodeDragHandler>(
     (_event, draggedNode) => {
-      const targetParent = overlayParentRef.current;
-      overlayParentRef.current = null;
-      if (!targetParent || targetParent === draggedNode.id) return;
-      const dragged = data.nodes.find((n) => n.id === draggedNode.id);
-      if (!dragged) return;
-      if (dragged.parentId === targetParent) return;
-      onReparent(draggedNode.id, targetParent);
+      setHoverDrop(null);
+      const base = tree;
+      const shapes = toVerticalShapes(base);
+      const draggedId = draggedNode.id;
+      const live = getNodes().map((n) =>
+        n.id === draggedId ? { ...n, position: draggedNode.position } : n,
+      );
+      const targetId = findOverlappingNode(
+        draggedId,
+        draggedNode.position,
+        live,
+      );
+      if (!targetId || targetId === draggedId) return;
+
+      const targetNode = live.find((n) => n.id === targetId);
+      if (!targetNode) return;
+
+      const placeAfter =
+        draggedNode.position.y + NODE_HEIGHT / 2 >
+        targetNode.position.y + NODE_HEIGHT / 2;
+
+      const dragged = shapes.find((s) => s.id === draggedId);
+      const target = shapes.find((s) => s.id === targetId);
+      if (!dragged || !target) return;
+
+      if (dragged.id === target.id) return;
+
+      if (dragged.parentId === target.parentId) {
+        const { nodes: next, error } = reorderSiblingRelative(
+          shapes,
+          draggedId,
+          targetId,
+          placeAfter,
+        );
+        if (error) {
+          onStructurePreviewError(verticalTreeErrorMessage(error, t));
+          return;
+        }
+        onCommitStructure(mergeShapesIntoNodes(base, next));
+        onStructurePreviewError(null);
+        return;
+      }
+
+      const { nodes: next, error } = reparentNode(shapes, draggedId, targetId);
+      if (error) {
+        onStructurePreviewError(verticalTreeErrorMessage(error, t));
+        return;
+      }
+      onCommitStructure(mergeShapesIntoNodes(base, next));
+      onStructurePreviewError(null);
     },
-    [data.nodes, onReparent],
+    [tree, getNodes, onCommitStructure, onStructurePreviewError, t],
   );
 
   const handleNodeClick = useCallback<NodeMouseHandler>(
@@ -526,7 +770,7 @@ function Canvas({
 
 function VerticalFlowNode({ data }: NodeProps<VerticalFlowNodeData>) {
   const { t, tp } = useI18n();
-  const { node, members, selected, onAddChild } = data;
+  const { node, members, selected, onAddChild, dropMark } = data;
   return (
     <div
       className={cn(
@@ -535,6 +779,10 @@ function VerticalFlowNode({ data }: NodeProps<VerticalFlowNodeData>) {
           ? "border-crown/70 shadow-[0_0_24px_-8px_rgba(212,175,55,0.8)]"
           : "border-border/80 hover:border-crown/40",
         node.isLobby && "ring-1 ring-inset ring-crown/40",
+        dropMark === "blocked" &&
+          "border-destructive/80 ring-1 ring-destructive/40 shadow-[0_0_12px_-4px_rgba(220,38,38,0.5)]",
+        dropMark === "ok" &&
+          "border-emerald-600/70 ring-1 ring-emerald-500/30 shadow-[0_0_12px_-4px_rgba(16,185,129,0.35)]",
       )}
     >
       <Handle

@@ -32,6 +32,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
+import { rejectIfCrossSiteMutation } from "@/lib/same-origin-mutation";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,9 @@ const body = z.object({
 export async function POST(req: NextRequest) {
   const limited = await rateLimitedResponse(req, "api_register");
   if (limited) return limited;
+
+  const csrf = rejectIfCrossSiteMutation(req);
+  if (csrf) return csrf;
 
   try {
     const parsed = body.parse(await req.json());

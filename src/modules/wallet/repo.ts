@@ -373,20 +373,32 @@ function mapAssetSummary(row: PrismaStateAssetRow): WalletAssetSummary {
 // Transfer primitive
 // ------------------------------------------------------------
 
-async function executeTransferTx(
-  prisma: PrismaClient,
-  input: {
-    stateId: string;
-    fromWalletId: string | null;
-    toWalletId: string | null;
-    amount: Decimal;
-    currency: string;
-    kind: TransactionKind;
-    initiatedById: string;
-    metadata: Record<string, unknown>;
-    tax?: { toWalletId: string; amount: Decimal };
-  },
-): Promise<WalletTransaction & { tax?: WalletTransaction }> {
+/** Prisma interactive transaction client (or full client) for ledger writes only. */
+export type WalletLedgerTx = Pick<PrismaClient, "wallet" | "transaction">;
+
+export type LedgerTransferInput = {
+  stateId: string;
+  fromWalletId: string | null;
+  toWalletId: string | null;
+  amount: Decimal;
+  currency: string;
+  kind: TransactionKind;
+  initiatedById: string;
+  metadata: Record<string, unknown>;
+  tax?: { toWalletId: string; amount: Decimal };
+};
+
+/**
+ * Double-entry transfer inside an existing Prisma transaction (no nested `$transaction`).
+ */
+export async function runLedgerTransferInTx(
+  tx: WalletLedgerTx,
+  input: LedgerTransferInput,
+): Promise<{
+  main: PrismaTransactionRow;
+  tax: PrismaTransactionRow | null;
+  resolvedAssetId: string | null;
+}> {
   const {
     stateId,
     fromWalletId,
@@ -397,9 +409,6 @@ async function executeTransferTx(
     initiatedById,
   } = input;
 
-  // Tax is only meaningful on regular outbound transfers. Reject
-  // obviously bogus combinations up front so we don't leak half
-  // state to the DB.
   const tax = input.tax ?? null;
   if (tax) {
     if (!fromWalletId) {
@@ -415,113 +424,140 @@ async function executeTransferTx(
       throw new Error("tax_exceeds_amount");
     }
     if (tax.toWalletId === fromWalletId || tax.toWalletId === toWalletId) {
-      // Self-taxing makes no accounting sense.
       throw new Error("tax_wallet_collision");
     }
   }
 
   let resolvedAssetId: string | null = null;
+
+  if (fromWalletId) {
+    const src = await tx.wallet.findUnique({
+      where: { id: fromWalletId },
+      select: { balance: true, currency: true, assetId: true },
+    });
+    if (!src) throw new Error("source_not_found");
+    if (src.currency !== currency) throw new Error("currency_mismatch");
+    if (ledgerDecimal(src.balance).lt(amount)) {
+      throw new Error("insufficient_funds");
+    }
+    resolvedAssetId = src.assetId ?? null;
+    const debited = await tx.wallet.updateMany({
+      where: {
+        id: fromWalletId,
+        currency,
+        balance: { gte: amount },
+      },
+      data: { balance: { decrement: amount } },
+    });
+    if (debited.count !== 1) {
+      throw new Error("insufficient_funds");
+    }
+  }
+
+  const netToDest = tax ? amount.minus(tax.amount) : amount;
+
+  if (toWalletId) {
+    const dst = await tx.wallet.findUnique({
+      where: { id: toWalletId },
+      select: { currency: true, assetId: true },
+    });
+    if (!dst) throw new Error("destination_not_found");
+    if (dst.currency !== currency) throw new Error("currency_mismatch");
+    resolvedAssetId = resolvedAssetId ?? dst.assetId ?? null;
+    if (netToDest.gt(0)) {
+      await tx.wallet.update({
+        where: { id: toWalletId },
+        data: { balance: { increment: netToDest } },
+      });
+    }
+  }
+
+  let taxCredit = null as { id: string } | null;
+  if (tax) {
+    const taxWallet = await tx.wallet.findUnique({
+      where: { id: tax.toWalletId },
+      select: { currency: true, assetId: true, type: true },
+    });
+    if (!taxWallet) throw new Error("tax_destination_not_found");
+    if (taxWallet.currency !== currency) throw new Error("currency_mismatch");
+    if (taxWallet.type !== "TREASURY") throw new Error("tax_not_treasury");
+    if (tax.amount.gt(0)) {
+      await tx.wallet.update({
+        where: { id: tax.toWalletId },
+        data: { balance: { increment: tax.amount } },
+      });
+    }
+    taxCredit = { id: tax.toWalletId };
+  }
+
+  const mainRow = await tx.transaction.create({
+    data: {
+      stateId,
+      fromWalletId,
+      toWalletId,
+      amount: netToDest,
+      currency,
+      assetId: resolvedAssetId,
+      kind,
+      status: "completed",
+      initiatedById,
+      metadata: {
+        ...(input.metadata ?? {}),
+        ...(tax
+          ? {
+              grossAmount: amount,
+              taxAmount: tax.amount,
+              taxWalletId: tax.toWalletId,
+            }
+          : {}),
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  let taxRow: PrismaTransactionRow | null = null;
+  if (tax && taxCredit) {
+    taxRow = await tx.transaction.create({
+      data: {
+        stateId,
+        fromWalletId,
+        toWalletId: taxCredit.id,
+        amount: tax.amount,
+        currency,
+        assetId: resolvedAssetId,
+        kind: "treasury_allocation",
+        status: "completed",
+        initiatedById,
+        metadata: {
+          taxOf: mainRow.id,
+          reason: "state_tax",
+        } as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  return { main: mainRow, tax: taxRow, resolvedAssetId };
+}
+
+async function executeTransferTx(
+  prisma: PrismaClient,
+  input: LedgerTransferInput,
+): Promise<WalletTransaction & { tax?: WalletTransaction }> {
+  const {
+    stateId,
+    fromWalletId,
+    toWalletId,
+    amount,
+    currency,
+    kind,
+    initiatedById,
+  } = input;
+
+  let resolvedAssetId: string | null = null;
   try {
     const result = await prisma.$transaction(async (tx) => {
-      if (fromWalletId) {
-        const src = await tx.wallet.findUnique({
-          where: { id: fromWalletId },
-          select: { balance: true, currency: true, assetId: true },
-        });
-        if (!src) throw new Error("source_not_found");
-        if (src.currency !== currency) throw new Error("currency_mismatch");
-        if (ledgerDecimal(src.balance).lt(amount)) {
-          throw new Error("insufficient_funds");
-        }
-        resolvedAssetId = src.assetId ?? null;
-        await tx.wallet.update({
-          where: { id: fromWalletId },
-          data: { balance: { decrement: amount } },
-        });
-      }
-
-      const netToDest = tax ? amount.minus(tax.amount) : amount;
-
-      if (toWalletId) {
-        const dst = await tx.wallet.findUnique({
-          where: { id: toWalletId },
-          select: { currency: true, assetId: true },
-        });
-        if (!dst) throw new Error("destination_not_found");
-        if (dst.currency !== currency) throw new Error("currency_mismatch");
-        resolvedAssetId = resolvedAssetId ?? dst.assetId ?? null;
-        if (netToDest.gt(0)) {
-          await tx.wallet.update({
-            where: { id: toWalletId },
-            data: { balance: { increment: netToDest } },
-          });
-        }
-      }
-
-      let taxCredit = null as { id: string } | null;
-      if (tax) {
-        const taxWallet = await tx.wallet.findUnique({
-          where: { id: tax.toWalletId },
-          select: { currency: true, assetId: true, type: true },
-        });
-        if (!taxWallet) throw new Error("tax_destination_not_found");
-        if (taxWallet.currency !== currency) throw new Error("currency_mismatch");
-        if (taxWallet.type !== "TREASURY") throw new Error("tax_not_treasury");
-        if (tax.amount.gt(0)) {
-          await tx.wallet.update({
-            where: { id: tax.toWalletId },
-            data: { balance: { increment: tax.amount } },
-          });
-        }
-        taxCredit = { id: tax.toWalletId };
-      }
-
-      const mainRow = await tx.transaction.create({
-        data: {
-          stateId,
-          fromWalletId,
-          toWalletId,
-          amount: netToDest,
-          currency,
-          assetId: resolvedAssetId,
-          kind,
-          status: "completed",
-          initiatedById,
-          metadata: {
-            ...(input.metadata ?? {}),
-            ...(tax
-              ? {
-                  grossAmount: amount,
-                  taxAmount: tax.amount,
-                  taxWalletId: tax.toWalletId,
-                }
-              : {}),
-          } as Prisma.InputJsonValue,
-        },
-      });
-
-      let taxRow: PrismaTransactionRow | null = null;
-      if (tax && taxCredit) {
-        taxRow = await tx.transaction.create({
-          data: {
-            stateId,
-            fromWalletId,
-            toWalletId: taxCredit.id,
-            amount: tax.amount,
-            currency,
-            assetId: resolvedAssetId,
-            kind: "treasury_allocation",
-            status: "completed",
-            initiatedById,
-            metadata: {
-              taxOf: mainRow.id,
-              reason: "state_tax",
-            } as Prisma.InputJsonValue,
-          },
-        });
-      }
-
-      return { main: mainRow, tax: taxRow };
+      const r = await runLedgerTransferInTx(tx, input);
+      resolvedAssetId = r.resolvedAssetId;
+      return r;
     });
     const mapped = mapTransaction(result.main);
     return result.tax

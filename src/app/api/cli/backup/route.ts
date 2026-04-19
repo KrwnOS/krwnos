@@ -11,99 +11,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
 import { BackupService, BACKUP_SCHEMA_REV } from "@/core/backup";
-import type {
-  BackupPayload,
-  BackupSource,
-  BackupStorage,
-  BackupSink,
-} from "@/core/backup";
+import {
+  backupDataUriStorage,
+  createPrismaBackupSink,
+  createPrismaBackupSource,
+} from "@/core/backup-prisma";
 import { authenticateCli, requireScope, CliAuthError } from "../auth";
 
-const source: BackupSource = {
-  collectState: async (stateId) => {
-    const s = await prisma.state.findUniqueOrThrow({
-      where: { id: stateId },
-      include: { owner: { select: { handle: true } } },
-    });
-    return {
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      description: s.description,
-      config: s.config as unknown as BackupPayload["state"]["config"],
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      ownerHandle: s.owner.handle,
-    };
-  },
-  collectVertical: async (stateId) =>
-    prisma.verticalNode.findMany({
-      where: { stateId },
-      orderBy: [{ parentId: "asc" }, { order: "asc" }],
-    }) as unknown as BackupPayload["vertical"],
-  collectMemberships: async (stateId) => {
-    const rows = await prisma.membership.findMany({
-      where: { node: { stateId } },
-      include: { user: { select: { handle: true } } },
-    });
-    return rows.map((m) => ({
-      userHandle: m.user.handle,
-      nodeId: m.nodeId,
-      title: m.title,
-    }));
-  },
-  collectModules: async (stateId) => {
-    const rows = await prisma.installedModule.findMany({ where: { stateId } });
-    return rows.map((m) => ({
-      slug: m.slug,
-      version: m.version,
-      enabled: m.enabled,
-      config: m.config as Record<string, unknown>,
-    }));
-  },
-  collectInvitations: async (stateId) => {
-    const rows = await prisma.invitation.findMany({
-      where: { stateId, status: "active" },
-    });
-    return rows.map((i) => ({
-      code: i.code,
-      label: i.label,
-      targetNodeId: i.targetNodeId,
-      maxUses: i.maxUses,
-      expiresAt: i.expiresAt?.toISOString() ?? null,
-    }));
-  },
-};
-
-/** In-memory storage — returns a data: URI. Replace for prod. */
-const storage: BackupStorage = {
-  write: async (filename, bytes) => ({
-    uri: `data:application/json;name=${encodeURIComponent(filename)};base64,${Buffer.from(bytes).toString("base64")}`,
-    sizeBytes: bytes.byteLength,
-  }),
-  read: async (uri) => {
-    const match = /^data:[^;]+;(?:name=[^;]+;)?base64,(.+)$/.exec(uri);
-    if (!match) throw new Error("unsupported storage uri");
-    return new Uint8Array(Buffer.from(match[1]!, "base64"));
-  },
-};
-
-const sink: BackupSink = {
-  recordManifest: async (params) => {
-    await prisma.backupManifest.create({
-      data: {
-        stateId: params.stateId,
-        storageUri: params.storageUri,
-        schemaRev: params.schemaRev,
-        sizeBytes: BigInt(params.sizeBytes),
-        checksum: params.checksum,
-      },
-    });
-  },
-  restore: async () => {
-    throw new Error("Restore must be invoked from a dedicated endpoint.");
-  },
-};
+const source = createPrismaBackupSource(prisma);
+const sink = createPrismaBackupSink(prisma);
+const storage = backupDataUriStorage;
 
 const service = new BackupService(source, sink, storage);
 

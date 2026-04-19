@@ -881,6 +881,8 @@ function stringOrUndef(v: unknown): string | undefined {
 // Detect direct invocation (works for both tsx and compiled node runs).
 const invokedDirectly = (() => {
   try {
+    // Vitest (and other test runners) import this module; do not spawn CLI.
+    if (process.env.VITEST) return false;
     const entry = process.argv[1];
     if (!entry) return false;
     const thisUrl = import.meta.url;

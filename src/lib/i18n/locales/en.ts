@@ -301,6 +301,12 @@ export const en: Dict = {
   "verticalEditor.token.desc.middle":
     ". Use a CLI token issued via",
   "verticalEditor.token.desc.after": ".",
+  "verticalEditor.structure.save": "Save structure",
+  "verticalEditor.structure.discard": "Discard",
+  "verticalEditor.conflict.cycle": "That attachment would create a cycle in the hierarchy.",
+  "verticalEditor.conflict.lobby":
+    "The Lobby node cannot be moved under another node.",
+  "verticalEditor.conflict.generic": "This move is not allowed.",
 
   "economy.eyebrow": "Currency Factory",
   "economy.title": "State economy",
