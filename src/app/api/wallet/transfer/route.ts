@@ -9,7 +9,7 @@
  *   to:   { kind: "user",     userId: string }
  *       | { kind: "treasury", nodeId: string }
  *       | { kind: "walletId", walletId: string };
- *   amount: number;   // schema stores `Float`
+ *   amount: number;   // persisted as `Decimal(38,18)`
  *   currency?: string; // defaults to source wallet's currency
  *   memo?: string;
  *   metadata?: Record<string, unknown>;

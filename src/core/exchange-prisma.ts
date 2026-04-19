@@ -16,6 +16,8 @@
  */
 
 import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Decimal } from "@prisma/client/runtime/library";
+import { ledgerDecimal } from "@/modules/wallet/money";
 import type {
   CrossStateTransaction,
   ExchangeAssetRef,
@@ -52,7 +54,7 @@ export function createPrismaExchangeRepository(
     wallet: LooseDelegate & {
       update: (args: unknown) => Promise<{
         id: string;
-        balance: number;
+        balance: Decimal;
       }>;
     };
     transaction: LooseDelegate;
@@ -176,7 +178,7 @@ export function createPrismaExchangeRepository(
         const journal = await loose.$transaction(async (tx) => {
           const scoped = tx as unknown as {
             wallet: LooseDelegate & {
-              update: (args: unknown) => Promise<{ id: string; balance: number }>;
+              update: (args: unknown) => Promise<{ id: string; balance: Decimal }>;
               findUnique: (args: unknown) => Promise<unknown>;
             };
             transaction: LooseDelegate;
@@ -189,12 +191,12 @@ export function createPrismaExchangeRepository(
           const src = (await scoped.wallet.findUnique({
             where: { id: input.fromWallet.id },
             select: { balance: true, currency: true },
-          })) as { balance: number; currency: string } | null;
+          })) as { balance: Decimal; currency: string } | null;
           if (!src) throw new Error("source_not_found");
           if (src.currency !== input.fromAsset.symbol) {
             throw new Error("currency_mismatch_source");
           }
-          if (src.balance < input.fromAmount) {
+          if (ledgerDecimal(src.balance).lt(ledgerDecimal(input.fromAmount))) {
             throw new Error("insufficient_funds");
           }
           await scoped.wallet.update({
@@ -407,7 +409,7 @@ type PrismaWalletRow = {
   userId: string | null;
   nodeId: string | null;
   type: "PERSONAL" | "TREASURY";
-  balance: number;
+  balance: Decimal;
   currency: string;
 };
 

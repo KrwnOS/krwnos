@@ -30,6 +30,7 @@ import {
   type InvitationsRepository,
 } from "@/core/invitations";
 import { getAuth, UnauthorizedError } from "@/core";
+import { ledgerDecimal, moneyToNumber } from "@/modules/wallet/money";
 
 class InsufficientCitizenshipFeeError extends Error {
   constructor(
@@ -181,8 +182,12 @@ const repo: InvitationsRepository = {
         // Freshly-hydrated balance — `walletRow.balance` came from
         // the same transaction, so it reflects any concurrent
         // writes that already committed before tx started.
-        if (walletRow.balance < fee) {
-          throw new InsufficientCitizenshipFeeError(fee, walletRow.balance);
+        const bal = ledgerDecimal(walletRow.balance);
+        if (bal.lt(fee)) {
+          throw new InsufficientCitizenshipFeeError(
+            fee,
+            moneyToNumber(bal),
+          );
         }
 
         // Root treasury wallet for the state's primary asset.
@@ -234,7 +239,10 @@ const repo: InvitationsRepository = {
           data: { balance: { decrement: fee } },
         });
         if (debit.count !== 1) {
-          throw new InsufficientCitizenshipFeeError(fee, walletRow.balance);
+          throw new InsufficientCitizenshipFeeError(
+            fee,
+            moneyToNumber(ledgerDecimal(walletRow.balance)),
+          );
         }
         await tx.wallet.update({
           where: { id: treasury.id },

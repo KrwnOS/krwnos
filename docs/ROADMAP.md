@@ -76,11 +76,13 @@
 
 ### Денежный контур
 
-- [ ] Миграция `Float` → `Decimal` для `Wallet.balance` и
-      `Transaction.amount` (см. комментарий в `schema.prisma`).
-- [ ] Обновить `WalletService.transfer` и все hot-path места на
-      `Prisma.Decimal`.
-- [ ] Прогнать тесты на округление и двойные списания.
+- [x] 2026-04-19 Миграция `Float` → `Decimal` для `Wallet.balance` и
+      `Transaction.amount` (`prisma/migrations/20260422100000_wallet_ledger_decimal`).
+- [x] 2026-04-19 Hot-path: `WalletService.transfer`, `repo.executeTransfer`,
+      Krwn Exchange adapter, citizenship fee, pulse/nexus aggregates,
+      Treasury Watcher dust — на `Prisma.Decimal` / `ledgerDecimal`.
+- [ ] Прогнать расширенные тесты на округление налогов и гонки
+      двойных списаний (отдельный прогон / CI).
 
 ### Security и observability
 

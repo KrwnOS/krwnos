@@ -1,7 +1,6 @@
 /**
- * Wire-format DTOs shared between wallet UI components. Balances
- * and amounts are plain JS numbers (schema stores them as `Float`).
- * The helpers in `./format.ts` normalise them for display.
+ * Wire-format DTOs shared between wallet UI components. JSON payloads
+ * use JS numbers; Postgres ledger columns are `Decimal`.
  */
 
 export type WalletKind = "PERSONAL" | "TREASURY";

@@ -43,6 +43,7 @@ import type {
   PermissionKey,
   VerticalSnapshot,
 } from "@/types/kernel";
+import { Decimal } from "@prisma/client/runtime/library";
 import { eventBus } from "./event-bus";
 import { permissionsEngine, type PermissionsEngine } from "./permissions-engine";
 
@@ -136,7 +137,7 @@ export interface ExchangeWalletRef {
   userId: string | null;
   nodeId: string | null;
   type: "PERSONAL" | "TREASURY";
-  balance: number;
+  balance: Decimal;
   currency: string;
 }
 
@@ -649,7 +650,7 @@ export class ExchangeService {
       );
     }
 
-    if (fromWallet.balance < input.amount) {
+    if (ledgerAmount(fromWallet.balance).lt(ledgerAmount(input.amount))) {
       throw new ExchangeError(
         "Insufficient funds in the source wallet.",
         "insufficient_funds",
@@ -806,6 +807,10 @@ export class ExchangeService {
 // ============================================================
 // 6. Helpers
 // ============================================================
+
+function ledgerAmount(n: number | Decimal): Decimal {
+  return Decimal.isDecimal(n) ? n : new Decimal(n);
+}
 
 function hasPerm(
   held: ReadonlySet<PermissionKey>,

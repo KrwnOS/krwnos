@@ -29,6 +29,8 @@ import type {
   ChainProviderRegistry,
 } from "./providers";
 import { ChainProviderError, chainProviders } from "./providers";
+import type { Decimal } from "@prisma/client/runtime/library";
+import { ledgerDecimal } from "./money";
 import type {
   Wallet,
   WalletAssetSummary,
@@ -54,7 +56,11 @@ export interface WatcherPersistence {
   /** Persist a new balance + sync cursor atomically. */
   updateWalletSyncedBalance(
     walletId: string,
-    args: { balance: number; lastSyncedAt: Date; lastSyncedBlock: bigint | null },
+    args: {
+      balance: number | Decimal;
+      lastSyncedAt: Date;
+      lastSyncedBlock: bigint | null;
+    },
   ): Promise<Wallet>;
 
   /** Pending on-chain transactions — queried by the reconcile pass. */
@@ -194,7 +200,12 @@ export class TreasuryWatcher {
         });
 
         // Skip dust / no-op diffs to avoid emitting noisy events.
-        if (Math.abs(read.formatted - wallet.balance) <= this.dustThreshold) {
+        if (
+          ledgerDecimal(read.formatted)
+            .minus(wallet.balance)
+            .abs()
+            .lte(this.dustThreshold)
+        ) {
           continue;
         }
 

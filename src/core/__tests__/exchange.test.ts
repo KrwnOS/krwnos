@@ -13,6 +13,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { Decimal } from "@prisma/client/runtime/library";
 import {
   ExchangeError,
   ExchangePermissions,
@@ -173,7 +174,7 @@ class InMemoryRepo implements ExchangeRepository {
     const src = this.wallets.get(input.fromWallet.id);
     const dst = this.wallets.get(input.toWallet.id);
     if (!src || !dst) throw new Error("wallet_not_found");
-    if (src.balance < input.fromAmount) {
+    if (new Decimal(src.balance).lt(input.fromAmount)) {
       const failed: CrossStateTransaction = {
         id: `cst_${++this.txIdSeq}`,
         pairId: input.pair.id,
@@ -199,8 +200,14 @@ class InMemoryRepo implements ExchangeRepository {
         transaction: failed,
       });
     }
-    this.wallets.set(src.id, { ...src, balance: src.balance - input.fromAmount });
-    this.wallets.set(dst.id, { ...dst, balance: dst.balance + input.toAmount });
+    this.wallets.set(src.id, {
+      ...src,
+      balance: new Decimal(src.balance).minus(input.fromAmount),
+    });
+    this.wallets.set(dst.id, {
+      ...dst,
+      balance: new Decimal(dst.balance).plus(input.toAmount),
+    });
     const row: CrossStateTransaction = {
       id: `cst_${++this.txIdSeq}`,
       pairId: input.pair.id,
@@ -280,7 +287,7 @@ function seedFixture() {
     userId: ALICE,
     nodeId: null,
     type: "PERSONAL",
-    balance: 1000,
+    balance: new Decimal(1000),
     currency: "GOLD",
   };
   const aliceBeta: ExchangeWalletRef = {
@@ -290,7 +297,7 @@ function seedFixture() {
     userId: ALICE,
     nodeId: null,
     type: "PERSONAL",
-    balance: 0,
+    balance: new Decimal(0),
     currency: "DEV",
   };
   repo.wallets.set(aliceAlpha.id, aliceAlpha);
@@ -304,7 +311,7 @@ function seedFixture() {
     userId: CIVILIAN,
     nodeId: null,
     type: "PERSONAL",
-    balance: 5,
+    balance: new Decimal(5),
     currency: "GOLD",
   };
   repo.wallets.set(civilianAlpha.id, civilianAlpha);
@@ -523,8 +530,12 @@ describe("ExchangeService.crossStateTransfer", () => {
     expect(journal.toAmount).toBeCloseTo(70, 5);
     expect(journal.rate).toBe(10);
 
-    expect(f.repo.wallets.get(f.wallets.aliceAlpha.id)?.balance).toBe(993);
-    expect(f.repo.wallets.get(f.wallets.aliceBeta.id)?.balance).toBeCloseTo(70, 5);
+    expect(f.repo.wallets.get(f.wallets.aliceAlpha.id)?.balance.toNumber()).toBe(
+      993,
+    );
+    expect(
+      f.repo.wallets.get(f.wallets.aliceBeta.id)?.balance.toNumber(),
+    ).toBeCloseTo(70, 5);
 
     const swapEvent = f.bus.events.find(
       (e) => e.event === "core.exchange.swap.completed",
@@ -581,7 +592,9 @@ describe("ExchangeService.crossStateTransfer", () => {
     expect((err as ExchangeError).code).toBe("insufficient_funds");
     // Source balance untouched and no journal row written (service
     // short-circuits before repo.executeCrossStateTransfer is called).
-    expect(f.repo.wallets.get(f.wallets.civilianAlpha.id)?.balance).toBe(5);
+    expect(f.repo.wallets.get(f.wallets.civilianAlpha.id)?.balance.toNumber()).toBe(
+      5,
+    );
     expect(f.repo.crossTxs).toHaveLength(0);
   });
 
@@ -602,7 +615,7 @@ describe("ExchangeService.crossStateTransfer", () => {
       userId: f.ids.ALICE,
       nodeId: null,
       type: "PERSONAL",
-      balance: 0,
+      balance: new Decimal(0),
       currency: "SIL",
     };
     f.repo.wallets.set(aliceAlphaSilver.id, aliceAlphaSilver);

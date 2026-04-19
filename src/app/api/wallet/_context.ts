@@ -24,6 +24,7 @@ import {
   CliAuthError,
   type CliAuthContext,
 } from "../cli/auth";
+import { Decimal } from "@prisma/client/runtime/library";
 // Side-effect import: ensures the Activity Feed subscriber is wired to the
 // Event Bus before any wallet event is emitted in this process.
 import "@/server/activity-boot";
@@ -168,14 +169,14 @@ export function walletErrorResponse(err: unknown): NextResponse {
 }
 
 /**
- * JSON-safe serialiser: `Date` → ISO string. Balances/amounts are
- * plain `Float`s so they need no special handling. Kept as a single
- * funnel so future types (e.g. `Decimal`) can be massaged here.
+ * JSON-safe serialiser: `Date` → ISO string; `Decimal` → number at
+ * the API boundary (full precision is preserved in Postgres).
  */
 export function serialiseForWire<T>(value: T): unknown {
   return JSON.parse(
     JSON.stringify(value, (_k, v) => {
       if (typeof v === "bigint") return Number(v);
+      if (Decimal.isDecimal(v)) return v.toNumber();
       return v;
     }),
   );

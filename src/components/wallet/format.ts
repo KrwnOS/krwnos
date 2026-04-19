@@ -1,17 +1,18 @@
 /**
  * Formatting helpers for wallet UI.
  * ------------------------------------------------------------
- * Balances and transaction amounts are plain floats (schema =
- * `Float`). Renderers format with the Krona symbol (⚜) by default
- * but accept arbitrary currency codes ("USD", "EUR", etc.) for the
- * future multi-currency story.
+ * Balances and transaction amounts are `Decimal` on the server;
+ * wire JSON uses numbers. Renderers accept `Decimal` instances too.
  */
+
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const KRONA_SYMBOL = "⚜";
 export const DEFAULT_CURRENCY = "KRN";
 
-/** Loose parser — accepts number | string | bigint. */
-export function toNumber(value: number | string | bigint): number {
+/** Loose parser — accepts number | string | bigint | Decimal. */
+export function toNumber(value: number | string | bigint | Decimal): number {
+  if (Decimal.isDecimal(value)) return value.toNumber();
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
   const n = Number(value);
@@ -28,7 +29,7 @@ export function toNumber(value: number | string | bigint): number {
  *   formatAmount(1, { withSymbol: false }) -> "1.00"
  */
 export function formatAmount(
-  value: number | string | bigint,
+  value: number | string | bigint | Decimal,
   currencyOrOpts:
     | string
     | { currency?: string; withSymbol?: boolean; fractionDigits?: number } = {},
@@ -56,7 +57,7 @@ export function formatAmount(
 
 /** Back-compat alias — many call sites use `formatKrona(...)`. */
 export function formatKrona(
-  value: number | string | bigint,
+  value: number | string | bigint | Decimal,
   opts: { withSymbol?: boolean } = {},
 ): string {
   return formatAmount(value, { currency: DEFAULT_CURRENCY, ...opts });

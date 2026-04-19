@@ -15,6 +15,7 @@
 
 import { randomBytes } from "node:crypto";
 import type { PrismaClient, Prisma } from "@prisma/client";
+import type { Decimal } from "@prisma/client/runtime/library";
 import type {
   Wallet,
   WalletAssetSummary,
@@ -23,6 +24,7 @@ import type {
   TransactionKind,
   TransactionStatus,
 } from "./service";
+import { ledgerDecimal } from "./money";
 import { DEFAULT_CURRENCY } from "./service";
 import type {
   CurrencyFactoryRepository,
@@ -377,12 +379,12 @@ async function executeTransferTx(
     stateId: string;
     fromWalletId: string | null;
     toWalletId: string | null;
-    amount: number;
+    amount: Decimal;
     currency: string;
     kind: TransactionKind;
     initiatedById: string;
     metadata: Record<string, unknown>;
-    tax?: { toWalletId: string; amount: number };
+    tax?: { toWalletId: string; amount: Decimal };
   },
 ): Promise<WalletTransaction & { tax?: WalletTransaction }> {
   const {
@@ -406,10 +408,10 @@ async function executeTransferTx(
     if (!toWalletId) {
       throw new Error("tax_requires_destination_wallet");
     }
-    if (tax.amount < 0 || !Number.isFinite(tax.amount)) {
+    if (tax.amount.isNeg() || !tax.amount.isFinite()) {
       throw new Error("tax_amount_invalid");
     }
-    if (tax.amount > amount) {
+    if (tax.amount.gt(amount)) {
       throw new Error("tax_exceeds_amount");
     }
     if (tax.toWalletId === fromWalletId || tax.toWalletId === toWalletId) {
@@ -428,7 +430,7 @@ async function executeTransferTx(
         });
         if (!src) throw new Error("source_not_found");
         if (src.currency !== currency) throw new Error("currency_mismatch");
-        if (src.balance < amount) {
+        if (ledgerDecimal(src.balance).lt(amount)) {
           throw new Error("insufficient_funds");
         }
         resolvedAssetId = src.assetId ?? null;
@@ -438,7 +440,7 @@ async function executeTransferTx(
         });
       }
 
-      const netToDest = tax ? amount - tax.amount : amount;
+      const netToDest = tax ? amount.minus(tax.amount) : amount;
 
       if (toWalletId) {
         const dst = await tx.wallet.findUnique({
@@ -448,7 +450,7 @@ async function executeTransferTx(
         if (!dst) throw new Error("destination_not_found");
         if (dst.currency !== currency) throw new Error("currency_mismatch");
         resolvedAssetId = resolvedAssetId ?? dst.assetId ?? null;
-        if (netToDest > 0) {
+        if (netToDest.gt(0)) {
           await tx.wallet.update({
             where: { id: toWalletId },
             data: { balance: { increment: netToDest } },
@@ -465,7 +467,7 @@ async function executeTransferTx(
         if (!taxWallet) throw new Error("tax_destination_not_found");
         if (taxWallet.currency !== currency) throw new Error("currency_mismatch");
         if (taxWallet.type !== "TREASURY") throw new Error("tax_not_treasury");
-        if (tax.amount > 0) {
+        if (tax.amount.gt(0)) {
           await tx.wallet.update({
             where: { id: tax.toWalletId },
             data: { balance: { increment: tax.amount } },
@@ -576,7 +578,7 @@ type PrismaWalletRow = {
   externalAddress: string | null;
   lastSyncedAt: Date | null;
   lastSyncedBlock: bigint | null;
-  balance: number;
+  balance: Decimal;
   currency: string;
   metadata: unknown;
   createdAt: Date;
@@ -590,7 +592,7 @@ type PrismaTransactionRow = {
   toWalletId: string | null;
   kind: "transfer" | "treasury_allocation" | "mint" | "burn";
   status: "pending" | "completed" | "failed" | "reversed";
-  amount: number;
+  amount: Decimal;
   assetId: string | null;
   currency: string;
   externalTxHash: string | null;
@@ -851,13 +853,13 @@ export function createPrismaCurrencyFactoryRepository(
     },
 
     async sumAssetSupply(stateId, assetId) {
-      // Prisma's `aggregate` returns `{ _sum: { balance: number | null } }`.
+      // Prisma's `aggregate` returns `{ _sum: { balance: Decimal | null } }`.
       // Older generated clients haven't typed this for our schema yet, so
       // we reach through a narrow cast; the runtime shape is stable.
       const aggClient = prisma as unknown as {
         wallet: {
           aggregate: (args: unknown) => Promise<{
-            _sum: { balance: number | null };
+            _sum: { balance: Decimal | null };
           }>;
         };
       };
@@ -865,7 +867,7 @@ export function createPrismaCurrencyFactoryRepository(
         where: { stateId, assetId, balance: { gt: 0 } },
         _sum: { balance: true },
       });
-      return Number(agg._sum.balance ?? 0);
+      return ledgerDecimal(agg._sum.balance ?? 0).toNumber();
     },
   };
 }

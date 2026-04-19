@@ -30,6 +30,7 @@ import type {
   VerticalSnapshot,
 } from "@/types/kernel";
 
+import { moneyToNumber } from "./money";
 import { createPrismaWalletRepository } from "./repo";
 import {
   DEFAULT_CURRENCY,
@@ -531,7 +532,7 @@ function toBalanceReadout(w: Wallet): BalanceReadout {
     walletId: w.id,
     address: w.address,
     type: w.type,
-    balance: w.balance,
+    balance: moneyToNumber(w.balance),
     currency: w.currency,
     ownerRef:
       w.type === "PERSONAL"

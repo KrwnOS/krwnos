@@ -12,6 +12,8 @@
  */
 
 import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Decimal } from "@prisma/client/runtime/library";
+import { ledgerDecimal } from "@/modules/wallet/money";
 import type {
   CreateProposalRow,
   GovernanceRepository,
@@ -261,10 +263,10 @@ export function createPrismaGovernanceRepository(
           assetId: balanceAssetId,
         },
         select: { balance: true },
-      })) as Array<{ balance: number }>;
-      let sum = 0;
-      for (const w of wallets) sum += Number(w.balance ?? 0);
-      return sum;
+      })) as Array<{ balance: Decimal }>;
+      let sum = ledgerDecimal(0);
+      for (const w of wallets) sum = sum.plus(w.balance ?? 0);
+      return sum.toNumber();
     },
 
     async balanceOf(stateId, userId, balanceAssetId): Promise<number> {
@@ -283,8 +285,8 @@ export function createPrismaGovernanceRepository(
         where: { stateId, userId, assetId, type: "PERSONAL" },
         select: { balance: true },
         take: 1,
-      })) as Array<{ balance: number }>;
-      return Number(wallet[0]?.balance ?? 0);
+      })) as Array<{ balance: Decimal }>;
+      return ledgerDecimal(wallet[0]?.balance ?? 0).toNumber();
     },
 
     async primaryAssetId(stateId): Promise<string | null> {

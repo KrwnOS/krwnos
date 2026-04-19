@@ -25,6 +25,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ledgerDecimal } from "@/modules/wallet/money";
 import type { PermissionKey } from "@/types/kernel";
 import { getActivityFeed } from "@/server/activity-boot";
 import { loadStateContext, stateErrorResponse } from "../../state/_context";
@@ -251,7 +252,7 @@ async function computeTotalSupply(
     where: { stateId, assetId, balance: { gt: 0 } },
     _sum: { balance: true },
   });
-  return aggregate._sum.balance ?? 0;
+  return ledgerDecimal(aggregate._sum.balance ?? 0).toNumber();
 }
 
 /**

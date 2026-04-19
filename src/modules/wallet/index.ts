@@ -86,6 +86,8 @@ export {
   type TransferInput,
 } from "./service";
 
+export { Decimal, ledgerDecimal, moneyToNumber, roundLedgerAmount } from "./money";
+
 export { WalletPermissions, WALLET_MODULE_SLUG } from "./permissions";
 export {
   createPrismaWalletRepository,

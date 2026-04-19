@@ -761,14 +761,12 @@ model StateAsset {
 // being a member of the node or any of its ancestors PLUS the
 // `wallet.view_treasury` / `wallet.admin_mint` permissions.
 //
-// NOTE on `Float` money:
-//   Per the current spec, `balance` / `amount` are stored as `Float`.
-//   For production-grade accounting consider switching to `Decimal`
-//   (Prisma supports it) or an integer-minor-units schema to avoid
-//   IEEE-754 rounding drift. Every transfer goes through a single DB
-//   transaction in `modules/wallet/repo.ts` so concurrent updates
-//   remain correct, but floats still accumulate rounding error at
-//   scale. The default currency is "KRN" (Krona, ⚜).
+// NOTE on ledger money:
+//   `Wallet.balance` and `Transaction.amount` use `Decimal(38,18)` —
+//   see migration `20260422100000_wallet_ledger_decimal`. Hot paths
+//   use `Prisma.Decimal` (`@prisma/client/runtime/library`). Rates
+//   and Палата Указов knobs may still be `Float` until a follow-up.
+//   Default currency is "KRN" (Krona, ⚜).
 
 enum WalletType {
   PERSONAL // belongs to a User inside a State
@@ -821,7 +819,7 @@ model Wallet {
   lastSyncedBlock BigInt?
 
   // Ledger balance (internal minor units / pegged display units).
-  balance Float @default(0)
+  balance Decimal @default(0) @db.Decimal(38, 18)
   // Denormalised asset symbol, kept in sync with `asset.symbol` by
   // the service layer. Convenient for queries / UI without a join.
   currency String @default("KRN")
@@ -880,7 +878,7 @@ model Transaction {
   status TransactionStatus @default(completed)
 
   // Always positive; direction is encoded in from/to.
-  amount Float
+  amount Decimal @db.Decimal(38, 18)
 
   // Canonical pointer to the asset being moved. Nullable for
   // legacy rows — every new transaction inherits `assetId` from

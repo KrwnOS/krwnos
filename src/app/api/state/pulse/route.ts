@@ -33,6 +33,7 @@ import {
   createPrismaWalletRepository,
   WalletAccessError,
 } from "@/modules/wallet";
+import { moneyToNumber } from "@/modules/wallet/money";
 import { eventBus } from "@/core";
 import * as presence from "@/server/presence";
 
@@ -274,7 +275,7 @@ export async function GET(req: NextRequest) {
       const w = await walletService.ensurePersonalWallet(stateId, me.id);
       wallet = {
         address: w.address,
-        balance: w.balance,
+        balance: moneyToNumber(w.balance),
         currency: w.currency,
       };
     } catch (err) {

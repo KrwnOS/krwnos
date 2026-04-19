@@ -26,6 +26,7 @@
  */
 
 import type { ModuleEventBus } from "@/types/kernel";
+import { Decimal } from "@prisma/client/runtime/library";
 import { KernelEvents } from "./event-bus";
 
 // ------------------------------------------------------------
@@ -415,7 +416,7 @@ export function subscribeActivityFeed(
         category,
         titleKey,
         titleParams: {
-          amount: tx.amount,
+          amount: Decimal.isDecimal(tx.amount) ? tx.amount.toNumber() : tx.amount,
           currency: tx.currency,
           kind: tx.kind,
         },

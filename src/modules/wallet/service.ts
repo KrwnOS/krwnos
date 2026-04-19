@@ -8,10 +8,10 @@
  *   * `PermissionsEngine`   — vertical-aware access checks.
  *
  * Monetary model:
- *   * The internal currency is the "Krona" (⚜, code "KRN"). Balances
- *     and transaction amounts are `Float` (per schema). For
- *     production-grade ledgers prefer `Decimal` — see note in
- *     `prisma/schema.prisma`.
+ *   * The internal currency is the "Krona" (⚜, code "KRN"). Ledger
+ *     balances and transaction amounts are `Decimal` in Postgres;
+ *     the domain uses `Prisma.Decimal` on hot paths (HTTP bodies
+ *     still parse as `number` and convert at the service boundary).
  *   * Every operation is double-entry: exactly one wallet is debited
  *     and one is credited (except system-level mint / burn).
  *   * A transfer is atomic at the repository level — the repo is
@@ -24,12 +24,14 @@
  *     "core.wallet.wallet.created"
  */
 
+import { Decimal } from "@prisma/client/runtime/library";
 import { permissionsEngine, type PermissionsEngine } from "@/core/permissions-engine";
 import type {
   ModuleEventBus,
   PermissionKey,
   VerticalSnapshot,
 } from "@/types/kernel";
+import { ledgerDecimal, moneyToNumber, roundLedgerAmount } from "./money";
 import { WalletPermissions } from "./permissions";
 import {
   chainProviders,
@@ -62,7 +64,7 @@ export interface Wallet {
   lastSyncedAt: Date | null;
   /** Block height observed at last sync. */
   lastSyncedBlock: bigint | null;
-  balance: number;
+  balance: Decimal;
   currency: string;
   metadata: Record<string, unknown>;
   createdAt: Date;
@@ -84,7 +86,7 @@ export interface WalletTransaction {
   toWalletId: string | null;
   kind: TransactionKind;
   status: TransactionStatus;
-  amount: number;
+  amount: Decimal;
   assetId: string | null;
   currency: string;
   /** Broadcasted chain tx hash (null until the client confirms). */
@@ -140,8 +142,8 @@ export interface OnChainSettledEvent {
 export interface BalanceSyncedEvent {
   stateId: string;
   walletId: string;
-  balanceBefore: number;
-  balanceAfter: number;
+  balanceBefore: Decimal;
+  balanceAfter: Decimal;
   blockNumber: bigint | null;
   recipientUserIds: string[];
 }
@@ -227,7 +229,7 @@ export interface WalletRepository {
   updateWalletSyncedBalance(
     walletId: string,
     args: {
-      balance: number;
+      balance: number | Decimal;
       lastSyncedAt: Date;
       lastSyncedBlock: bigint | null;
     },
@@ -245,7 +247,7 @@ export interface WalletRepository {
     stateId: string;
     fromWalletId: string | null;
     toWalletId: string | null;
-    amount: number;
+    amount: Decimal;
     assetId: string;
     currency: string;
     initiatedById: string;
@@ -293,14 +295,14 @@ export interface WalletRepository {
     stateId: string;
     fromWalletId: string | null;
     toWalletId: string | null;
-    amount: number;
+    amount: Decimal;
     currency: string;
     kind: TransactionKind;
     initiatedById: string;
     metadata: Record<string, unknown>;
     tax?: {
       toWalletId: string;
-      amount: number;
+      amount: Decimal;
     };
   }): Promise<WalletTransaction & { tax?: WalletTransaction }>;
 
@@ -589,6 +591,7 @@ export class WalletService {
         "invalid_input",
       );
     }
+    const amountDec = ledgerDecimal(input.amount);
 
     const fromWallet = await this.resolveSpendableWallet(stateId, ctx, input.from);
     const toWallet = await this.resolveDestinationWallet(stateId, ctx, input.to);
@@ -621,7 +624,7 @@ export class WalletService {
       );
     }
 
-    if (fromWallet.balance < input.amount) {
+    if (fromWallet.balance.lt(amountDec)) {
       throw new WalletAccessError(
         "Insufficient funds in the source wallet.",
         "insufficient_funds",
@@ -655,7 +658,7 @@ export class WalletService {
     // Все три слоя уходят в корневую Казну одной операцией внутри
     // единой SQL-транзакции. Treasury → treasury-переводы не
     // облагаются (см. комментарий о рефлексивной бухгалтерии).
-    let taxSplit: { toWalletId: string; amount: number } | undefined;
+    let taxSplit: { toWalletId: string; amount: Decimal } | undefined;
     const fiscal =
       this.repo.findStateFiscalPolicy
         ? await this.repo.findStateFiscalPolicy(stateId)
@@ -684,11 +687,11 @@ export class WalletService {
         assetId: fromWallet.assetId ?? undefined,
       });
       if (rootTreasury && rootTreasury.id !== toWallet.id) {
-        const taxAmount = roundToDecimals(
-          input.amount * effectiveTaxRate,
+        const taxAmount = roundLedgerAmount(
+          amountDec.times(effectiveTaxRate),
           asset?.decimals ?? 18,
         );
-        if (taxAmount > 0 && taxAmount < input.amount) {
+        if (taxAmount.gt(0) && taxAmount.lt(amountDec)) {
           taxSplit = { toWalletId: rootTreasury.id, amount: taxAmount };
           metadata.stateTax = {
             rate: effectiveTaxRate,
@@ -707,7 +710,7 @@ export class WalletService {
       stateId,
       fromWalletId: fromWallet.id,
       toWalletId: toWallet.id,
-      amount: input.amount,
+      amount: amountDec,
       currency,
       kind,
       initiatedById: ctx.userId,
@@ -815,7 +818,7 @@ export class WalletService {
       stateId,
       fromWalletId: fromWallet.id,
       toWalletId: toWallet.id,
-      amount: input.amount,
+      amount: ledgerDecimal(input.amount),
       assetId: asset.id,
       currency: asset.symbol,
       initiatedById: ctx.userId,
@@ -952,7 +955,7 @@ export class WalletService {
       stateId,
       fromWalletId: null,
       toWalletId: toWallet.id,
-      amount: input.amount,
+      amount: ledgerDecimal(input.amount),
       currency,
       kind: "mint",
       initiatedById: ctx.userId,
