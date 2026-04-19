@@ -249,8 +249,10 @@ describe("InvitationsService.consume", () => {
       ttlMs: 1,
     });
     // Force expiry in repo row.
+    const current = repo.rows.get(invitation.id);
+    if (!current) throw new Error("expected invitation row");
     repo.rows.set(invitation.id, {
-      ...invitation,
+      ...current,
       expiresAt: new Date(Date.now() - 1000),
     });
     await expect(svc.consume({ token, user: bob })).rejects.toMatchObject({

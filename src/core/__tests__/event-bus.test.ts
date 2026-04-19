@@ -187,7 +187,9 @@ describe("RedisEventBus", () => {
     const fake = makeFakeRedis();
     const bus = new RedisEventBus(fake.pub, fake.sub);
     const seen: unknown[] = [];
-    bus.on<unknown>("e", (p) => seen.push(p));
+    bus.on<unknown>("e", (p) => {
+      seen.push(p);
+    });
     fake.messageHandler("krwn:events:e", "not-json");
     await Promise.resolve();
     await Promise.resolve();
@@ -209,7 +211,9 @@ describe("RedisEventBus", () => {
     const fake = makeFakeRedis();
     const bus = new RedisEventBus(fake.pub, fake.sub, { keyPrefix: "krwn:events" });
     const seen: unknown[] = [];
-    bus.on("e", (p) => seen.push(p));
+    bus.on("e", (p) => {
+      seen.push(p);
+    });
     fake.messageHandler("other:e", JSON.stringify({ n: 1 }));
     await Promise.resolve();
     expect(seen).toEqual([]);
@@ -232,7 +236,9 @@ describe("eventBus singleton", () => {
     const initial = getEventBus();
     const custom = new InMemoryEventBus();
     const seen: string[] = [];
-    custom.on<string>("custom", (p) => seen.push(p));
+    custom.on<string>("custom", (p) => {
+      seen.push(p);
+    });
     setEventBus(custom);
     try {
       expect(getEventBus()).toBe(custom);

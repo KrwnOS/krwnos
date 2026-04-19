@@ -125,7 +125,7 @@ describe("ActivityFeedService.record", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(seen).toHaveLength(1);
-    expect(seen[0].entry.stateId).toBe("state_alpha");
+    expect(seen[0]!.entry.stateId).toBe("state_alpha");
   });
 
   it("returns null when the repo throws (best-effort semantics)", async () => {

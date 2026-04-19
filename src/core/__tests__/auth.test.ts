@@ -111,8 +111,8 @@ describe("CredentialsRegistry", () => {
   it("registers providers and exposes enabledKinds", () => {
     const reg = new CredentialsRegistry();
     reg.register(makeProvider("passkey"));
-    reg.register(makeProvider("web3"));
-    expect(reg.enabledKinds()).toEqual(["passkey", "web3"]);
+    reg.register(makeProvider("wallet_ethereum"));
+    expect(reg.enabledKinds()).toEqual(["passkey", "wallet_ethereum"]);
   });
 
   it("throws on duplicate registration", () => {

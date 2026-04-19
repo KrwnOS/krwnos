@@ -76,6 +76,7 @@ function perm(
   return {
     key: key as PermissionKey,
     owner,
+    label: key,
     description,
   };
 }

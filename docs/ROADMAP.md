@@ -105,8 +105,8 @@
 ### Job runner
 
 - [ ] Cron: `roleTaxRate` ежемесячный тиккер.
-- [ ] SMTP-транспорт для `magic_email` provider.
-- [ ] Автобэкап: ежедневный snapshot в S3/R2 + ретенция.
+- [x] 2026-04-19 (#—) Автобэкап: ежедневный snapshot в S3/R2 + ретенция
+      (`BackupService`, BullMQ `backup-daily`, `BackupManifest`, ретенция).
 
 ### Realtime
 
@@ -335,13 +335,24 @@
       превью конфликтов (цикл, перенос прихожей); gate через
       `permissionsEngine.can(system.admin)` (`src/app/api/state/_context.ts`).
 
+### 2026-04 — Horizon 1 · Magic email (SMTP)
+- [x] 2026-04-19 — SMTP-транспорт для `magic_email`: `SMTP_HOST`, `SMTP_PORT`,
+      `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (только из env);
+      `src/core/magic-email-smtp.ts` (`readSmtpEnv`, `createSmtpTransport`,
+      `sendMagicEmail`); unit-тест с mock `Transporter`. (#—)
+
 ### 2026-04 — Horizon 1 · Job runner (BullMQ)
+- [x] 2026-04-19 (#—) Автобэкап: cron `backup-daily` (дефолт `0 3 * * *` UTC),
+      `BackupService` + S3-совместимое хранилище (`@aws-sdk/client-s3`), запись
+      `BackupManifest`, ретенция по `KRWN_BACKUP_RETENTION_COUNT` (удаление
+      старых объектов и строк). Без `KRWN_BACKUP_S3_BUCKET` + ключей — no-op.
 - [x] 2026-04-19 — BullMQ + Redis: очередь `krwn-jobs`, воркер
       `npm run worker:jobs` (`scripts/job-worker.ts`, `src/jobs/*`).
       Планировщики: `treasury-tick` (`TreasuryWatcher.tick`),
       `proposal-expirer` (`GovernanceService.tickDueProposals`, в т.ч.
       `auto_dao`), `invitation-reaper` (просроченные `Invitation` →
-      `expired`). Лидер регистрации cron через `KRWN_JOB_LEADER`
+      `expired`), `backup-daily` (см. отдельный пункт выше). Лидер
+      регистрации cron через `KRWN_JOB_LEADER`
       (см. заголовок `scripts/job-worker.ts`). CLI `watcher:treasury`
       остаётся для ручного/демон-режима без Redis.
 - [x] 2026-04-19 — Cron `auto-promotion`: по `StateSettings`

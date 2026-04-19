@@ -349,7 +349,7 @@ describe("StateConfigService event bus", () => {
     // micro-task flush: StateConfigService emits inside the same
     // promise chain, but we await `update()` so it has settled.
     expect(bus.events).toHaveLength(1);
-    const ev = bus.events[0];
+    const ev = bus.events[0]!;
     expect(ev.event).toBe(STATE_CONFIG_EVENTS.Updated);
     const payload = ev.payload as {
       stateId: string;

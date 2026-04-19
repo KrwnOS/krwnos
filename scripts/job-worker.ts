@@ -6,6 +6,8 @@
  *   - proposal-expirer      — `GovernanceService.tickDueProposals`
  *   - invitation-reaper     — `Invitation` rows past `expiresAt` → `expired`
  *   - auto-promotion        — `StateSettings` thresholds → `Membership.nodeId`
+ *   - role-tax-monthly      — `StateSettings.roleTaxRate` → root treasury (cron)
+ *   - backup-daily          — `BackupService` snapshot → S3/R2 + manifest retention
  *
  * Usage:
  *   npm run worker:jobs
@@ -17,6 +19,11 @@
  *   KRWN_JOB_PROPOSAL_EVERY_MS   proposal expirer (default 60000)
  *   KRWN_JOB_INVITATION_EVERY_MS invitation reaper (default 60000)
  *   KRWN_JOB_AUTO_PROMOTION_EVERY_MS auto-promotion (default 300000)
+ *   KRWN_JOB_ROLE_TAX_CRON        cron for role tax (default `0 0 1 * *`, 1st 00:00)
+ *   KRWN_JOB_ROLE_TAX_TZ          IANA tz for cron (default UTC)
+ *   KRWN_JOB_BACKUP_CRON          daily backup (default `0 3 * * *`)
+ *   KRWN_JOB_BACKUP_TZ            IANA tz for backup cron (default UTC)
+ *   KRWN_BACKUP_S3_*              bucket, keys, endpoint — see `.env.example`
  *
  * The process handles SIGINT / SIGTERM and closes the worker cleanly.
  */

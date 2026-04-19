@@ -7,6 +7,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
@@ -96,13 +97,13 @@ export async function POST(req: NextRequest) {
         stateId: ctx.stateId,
         slug: body.slug,
         version: body.version ?? mod.version,
-        config: body.config ?? {},
+        config: (body.config ?? {}) as Prisma.InputJsonValue,
         dbSchema: `krwn_${body.slug.replace(/\./g, "_")}_${ctx.stateId.slice(0, 8)}`,
       },
       update: {
         enabled: true,
         version: body.version ?? mod.version,
-        config: body.config ?? {},
+        config: (body.config ?? {}) as Prisma.InputJsonValue,
       },
     });
 

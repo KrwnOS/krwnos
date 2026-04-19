@@ -5,6 +5,7 @@ import { InMemoryEventBus } from "@/core/event-bus";
 import { prisma } from "@/lib/prisma";
 import { createPrismaWatcherPersistence } from "@/modules/wallet/repo";
 import { TreasuryWatcher, type WatcherTickReport } from "@/modules/wallet/watcher";
+import { runRoleTaxMonthlyTick } from "@/modules/wallet/role-tax-tick";
 import { buildGovernanceServiceForJobs } from "./governance-factory";
 
 export interface TreasuryWatchTaskOptions {
@@ -50,6 +51,18 @@ export async function runProposalExpirer(): Promise<{ closed: number }> {
 }
 
 export { runAutoPromotionTick } from "./auto-promotion";
+export { runDailyBackup } from "./backup-daily";
+
+/** Ежемесячный налог на роль (`StateSettings.roleTaxRate`) — см. `runRoleTaxMonthlyTick`. */
+export async function runRoleTaxMonthlyJob(data: {
+  roleTaxPeriodKey?: string;
+  roleTaxNowIso?: string;
+} = {}) {
+  return runRoleTaxMonthlyTick({
+    periodKey: data.roleTaxPeriodKey,
+    now: data.roleTaxNowIso ? new Date(data.roleTaxNowIso) : undefined,
+  });
+}
 
 /** Marks expired but still `active` invitations as `expired`. */
 export async function runInvitationReaper(): Promise<{ expired: number }> {

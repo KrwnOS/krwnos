@@ -6,6 +6,8 @@
  *   - proposal-expirer
  *   - invitation-reaper
  *   - auto-promotion
+ *   - role-tax-monthly
+ *   - backup-daily
  */
 import { Queue, Worker } from "bullmq";
 import type { Job } from "bullmq";
@@ -14,8 +16,10 @@ import { createRedisForBullmq } from "./redis-connection";
 import { KRWN_JOB_QUEUE } from "./queue-name";
 import {
   runAutoPromotionTick,
+  runDailyBackup,
   runInvitationReaper,
   runProposalExpirer,
+  runRoleTaxMonthlyJob,
   runTreasuryWatchTick,
 } from "./tasks";
 
@@ -24,11 +28,17 @@ export const JOB_NAMES = {
   proposalExpirer: "proposal-expirer",
   invitationReaper: "invitation-reaper",
   autoPromotion: "auto-promotion",
+  roleTaxMonthly: "role-tax-monthly",
+  backupDaily: "backup-daily",
 } as const;
 
 export interface KrwnJobPayload {
   /** Optional scope for treasury sync (matches CLI `--state`). */
   stateId?: string;
+  /** Override UTC month key `YYYY-MM` for role tax idempotency (tests / backfill). */
+  roleTaxPeriodKey?: string;
+  /** Anchor instant when deriving default `periodKey` from the calendar month. */
+  roleTaxNowIso?: string;
 }
 
 function numberEnv(name: string, fallback: number): number {
@@ -83,6 +93,28 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
       data: {} satisfies KrwnJobPayload,
     },
   );
+  const roleTaxCron =
+    process.env.KRWN_JOB_ROLE_TAX_CRON?.trim() || "0 0 1 * *";
+  const roleTaxTz = process.env.KRWN_JOB_ROLE_TAX_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:role-tax-monthly",
+    { pattern: roleTaxCron, tz: roleTaxTz },
+    {
+      name: JOB_NAMES.roleTaxMonthly,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
+  const backupCron =
+    process.env.KRWN_JOB_BACKUP_CRON?.trim() || "0 3 * * *";
+  const backupTz = process.env.KRWN_JOB_BACKUP_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:backup-daily",
+    { pattern: backupCron, tz: backupTz },
+    {
+      name: JOB_NAMES.backupDaily,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
 }
 
 async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
@@ -95,6 +127,13 @@ async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
       return runInvitationReaper();
     case JOB_NAMES.autoPromotion:
       return runAutoPromotionTick();
+    case JOB_NAMES.roleTaxMonthly:
+      return runRoleTaxMonthlyJob({
+        roleTaxPeriodKey: job.data?.roleTaxPeriodKey,
+        roleTaxNowIso: job.data?.roleTaxNowIso,
+      });
+    case JOB_NAMES.backupDaily:
+      return runDailyBackup(prisma);
     default:
       throw new Error(`Unknown job name: ${job.name}`);
   }
