@@ -6,6 +6,11 @@
 RewriteEngine On
 
 # --- Принудительный HTTPS -----------------------------------
+# ВАЖНО: на 20i SSL терминируется на фронт-прокси. Внутри
+# Apache %{HTTPS} всегда "off", поэтому наивное условие
+# %{HTTPS}!=on даёт ERR_TOO_MANY_REDIRECTS.
+# Правильный индикатор — заголовок X-Forwarded-Proto от прокси.
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP_HOST} !^localhost$
 RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]

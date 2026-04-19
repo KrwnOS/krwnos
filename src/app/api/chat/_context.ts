@@ -26,6 +26,9 @@ import {
   type CliAuthContext,
 } from "../cli/auth";
 import type { ChatAccessContext } from "@/modules/chat";
+// Side-effect import: ensures the Activity Feed subscriber is wired to the
+// Event Bus before any chat event is emitted in this process.
+import "@/server/activity-boot";
 
 const cliLookup = {
   findByHash: async (tokenHash: string) =>

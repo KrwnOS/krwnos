@@ -31,6 +31,9 @@ import {
   CliAuthError,
   type CliAuthContext,
 } from "../cli/auth";
+// Side-effect import: ensures the Activity Feed subscriber is wired to the
+// Event Bus before any governance event is emitted in this process.
+import "@/server/activity-boot";
 
 const cliLookup = {
   findByHash: async (tokenHash: string) =>

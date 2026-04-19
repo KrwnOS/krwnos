@@ -6,6 +6,12 @@
  * unauthenticated — first-run, by definition, has no accounts yet.
  * A hard DB check (`state.count() > 0`) prevents any post-bootstrap
  * re-invocation.
+ *
+ * Payload mirrors the 4-step Coronation wizard:
+ *   1. State identity (name / slug / description)
+ *   2. National currency (Currency Factory seed)
+ *   3. Sovereign's identity (handle / display / email)
+ *   4. First magic-link invitation ("первый министр")
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -15,6 +21,34 @@ import { setupState, AlreadyInitialisedError } from "@/core/setup-state";
 
 export const dynamic = "force-dynamic";
 
+const currencySchema = z
+  .object({
+    symbol: z
+      .string()
+      .trim()
+      .min(2)
+      .max(12)
+      .regex(/^[A-Za-z0-9]{2,12}$/, "Only letters/digits allowed")
+      .optional(),
+    name: z.string().trim().min(2).max(60).optional(),
+    icon: z.string().max(8).optional(),
+    color: z
+      .string()
+      .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Expected #RRGGBB")
+      .optional(),
+    decimals: z.number().int().min(0).max(36).optional(),
+  })
+  .optional();
+
+const inviteSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    label: z.string().max(120).optional(),
+    ttlDays: z.number().int().min(0).max(365).optional(),
+    maxUses: z.number().int().min(1).max(1000).optional(),
+  })
+  .optional();
+
 const body = z.object({
   stateName: z.string().min(2).max(80),
   stateSlug: z.string().min(2).max(48).optional(),
@@ -22,6 +56,8 @@ const body = z.object({
   ownerHandle: z.string().min(3).max(32),
   ownerDisplayName: z.string().max(80).optional(),
   ownerEmail: z.string().email().optional(),
+  currency: currencySchema,
+  invite: inviteSchema,
 });
 
 export async function GET() {
@@ -32,7 +68,33 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const parsed = body.parse(await req.json());
-    const result = await setupState(parsed);
+
+    // The wizard may disable invite generation altogether (`enabled=false`);
+    // translate that into the null the core contract expects.
+    const firstInvite =
+      parsed.invite && parsed.invite.enabled === false
+        ? null
+        : parsed.invite
+          ? {
+              label: parsed.invite.label,
+              ttlDays: parsed.invite.ttlDays,
+              maxUses: parsed.invite.maxUses,
+              origin: req.nextUrl.origin,
+            }
+          : {
+              origin: req.nextUrl.origin,
+            };
+
+    const result = await setupState({
+      stateName: parsed.stateName,
+      stateSlug: parsed.stateSlug,
+      stateDescription: parsed.stateDescription,
+      ownerHandle: parsed.ownerHandle,
+      ownerDisplayName: parsed.ownerDisplayName,
+      ownerEmail: parsed.ownerEmail,
+      currency: parsed.currency,
+      firstInvite,
+    });
 
     return NextResponse.json(
       {
@@ -42,8 +104,11 @@ export async function POST(req: NextRequest) {
         lobbyNodeId: result.lobbyNodeId,
         walletId: result.walletId,
         userId: result.userId,
+        primaryAssetId: result.primaryAssetId,
+        primaryAssetSymbol: result.primaryAssetSymbol,
         cliToken: result.cliToken,
         cliTokenId: result.cliTokenId,
+        invite: result.invite,
       },
       { status: 201 },
     );

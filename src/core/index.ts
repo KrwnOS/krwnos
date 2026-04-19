@@ -134,6 +134,51 @@ export {
 } from "./state-config";
 export { createPrismaStateConfigRepository } from "./state-config-prisma";
 
+// --- State Pulse (Пульс Государства / Activity Feed) ---
+export {
+  ActivityFeedService,
+  ACTIVITY_EVENTS,
+  ACTIVITY_SUBSCRIBED_EVENTS,
+  subscribeActivityFeed,
+  type ActivityCategory,
+  type ActivityLog,
+  type ActivityRecordedEvent,
+  type ActivityRepository,
+  type ActivityFeedServiceDeps,
+  type ActivityViewerContext,
+  type ActivityVisibility,
+  type ListActivityOptions,
+  type RecordActivityInput,
+} from "./activity-feed";
+export { createPrismaActivityRepository } from "./activity-feed-prisma";
+
+// --- Theme Engine (Движок Тем) ---
+export {
+  DEFAULT_THEME_CONFIG,
+  MINIMAL_HIGHTECH_THEME,
+  TERMINAL_THEME,
+  GLASS_THEME,
+  ROYAL_GOLD_THEME,
+  CYBERPUNK_THEME,
+  THEME_PRESETS,
+  THEME_PRESET_ORDER,
+  ThemeValidationError,
+  cloneTheme,
+  getPreset,
+  hexToHslTriple,
+  isPresetId,
+  normaliseThemeConfig,
+  renderThemeCss,
+  sanitiseCustomCss,
+  validateThemeConfig,
+  type ThemeColors,
+  type ThemeConfig,
+  type ThemeEffects,
+  type ThemeFonts,
+  type ThemePresetId,
+  type ThemeRadius,
+} from "./theme";
+
 // --- Governance rules (shared types for Core Governance module) ---
 export {
   DEFAULT_GOVERNANCE_RULES,

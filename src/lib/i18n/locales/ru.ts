@@ -124,6 +124,40 @@ export const ru: Dict = {
   "setup.form.submit": "Короновать Суверена",
   "setup.form.submitting": "Коронуем…",
 
+  // Multi-step Coronation wizard
+  "setup.nav.back": "← Назад",
+  "setup.nav.next": "Далее →",
+  "setup.step1.nav": "Государство",
+  "setup.step1.title": "Нарекаем государство",
+  "setup.step1.desc":
+    "С этого шага всё и начнётся. Выберите имя, под которым ваше государство будет известно гражданам — например, «Корпорация X» или «Клан Тени».",
+  "setup.step2.nav": "Валюта",
+  "setup.step2.title": "Чеканим первую монету",
+  "setup.step2.desc":
+    "Каждое государство определяет, что считать деньгами. Этот актив (StateAsset) станет национальной валютой по умолчанию — её получает кошелёк каждого нового гражданина.",
+  "setup.step2.presets": "Быстрые заготовки",
+  "setup.step2.symbol": "Тикер",
+  "setup.step2.symbolHint": "2–12 латинских букв/цифр (KRN, GOLD, USD1).",
+  "setup.step2.name": "Название валюты",
+  "setup.step2.icon": "Глиф",
+  "setup.step2.iconHint": "Один-два символа или эмодзи (⚜, ◈, 🪙).",
+  "setup.step2.color": "Цвет (#HEX)",
+  "setup.step2.decimals": "Знаков после запятой",
+  "setup.step2.decimalsHint": "Обычно 18 (ERC-20), 6 (USDC), 9 (Solana).",
+  "setup.step2.preview": "Предпросмотр",
+  "setup.step3.nav": "Суверен",
+  "setup.step3.title": "Венчаем Суверена",
+  "setup.step3.desc":
+    "Первая учётная запись получает права `[*]` — абсолютный контроль над государством. Позже вы сможете делегировать полномочия «министрам» через Вертикаль.",
+
+  // Done-screen: invite block
+  "setup.done.inviteTitle": "Первый magic-link инвайт",
+  "setup.done.inviteDesc":
+    "Передайте эту ссылку своему первому министру. Приняв её, он сразу войдёт в Sovereign node с унаследованными правами.",
+  "setup.done.inviteCode": "Код (QR)",
+  "setup.done.inviteExpires": "Истекает",
+  "setup.done.inviteNever": "никогда",
+
   // ------------------------------------------------------------
   // Invite (/invite/[token])
   // ------------------------------------------------------------
@@ -155,6 +189,19 @@ export const ru: Dict = {
   "nexus.vertical.addNode": "Добавить узел",
   "nexus.vertical.openTree": "Открыть дерево",
   "nexus.vertical.nodes": "{count} узел | {count} узла | {count} узлов",
+  "nexus.vertical.citizens":
+    "{count} гражданин | {count} гражданина | {count} граждан",
+  "nexus.vertical.citizensLabel": "Граждан в системе",
+  "nexus.vertical.nodesLabel": "Узлов власти",
+
+  // Системный хартбит в шапке дашборда.
+  "nexus.status.online": "Online",
+  "nexus.status.offline": "Offline",
+  "nexus.status.synchronized": "Synchronized",
+  "nexus.status.syncing": "Syncing…",
+  "nexus.status.uptime": "Uptime {value}",
+  "nexus.status.lastSync": "Last sync {value}",
+
   "nexus.economy.eyebrow": "Экономика",
   "nexus.economy.noCurrency": "Валюта не определена",
   "nexus.economy.desc":
@@ -166,6 +213,49 @@ export const ru: Dict = {
   "nexus.economy.supply": "Объём в системе",
   "nexus.economy.openFactory": "Настройки валюты",
   "nexus.economy.openConstitution": "Палата Указов",
+  "nexus.economy.mint": "Эмиссия",
+  "nexus.economy.mintHint":
+    "Напечатать новые {symbol} и зачислить в корневую Казну.",
+  "nexus.economy.mintDisabledNoTreasury":
+    "Создайте корневой узел Вертикали, чтобы появилась Казна для эмиссии.",
+  "nexus.economy.mintDisabledNoAsset":
+    "Сначала выпустите первичную валюту в Фабрике Валют.",
+  "nexus.economy.mintDisabledCantMint":
+    "Для этого актива выключено право эмиссии (`canMint = false`).",
+
+  // Модалка эмиссии (glassmorphism).
+  "nexus.mint.title": "Эмиссия {symbol}",
+  "nexus.mint.desc":
+    "Напечатать новые единицы и зачислить их в корневую Казну. Операция записывается в журнал как {kind}.",
+  "nexus.mint.target": "Назначение",
+  "nexus.mint.targetTreasury": "Корневая Казна",
+  "nexus.mint.amount": "Сумма",
+  "nexus.mint.memo": "Памятка (опционально)",
+  "nexus.mint.memoPlaceholder": "за что эмиссия",
+  "nexus.mint.confirm": "Напечатать",
+  "nexus.mint.cancel": "Отмена",
+  "nexus.mint.success": "Эмитировано {amount} {symbol}.",
+  "nexus.mint.errorAmount": "Сумма должна быть положительным числом.",
+  "nexus.mint.errorGeneric": "Не удалось провести эмиссию: {message}",
+
+  // Карточка «Активность».
+  "nexus.activity.eyebrow": "Активность",
+  "nexus.activity.title": "Последние события",
+  "nexus.activity.desc":
+    "Пять последних строк Пульса Государства — транзакции, новые граждане, принятые указы.",
+  "nexus.activity.empty":
+    "Пока тихо — как только модули начнут работать, события прилетят сюда.",
+  "nexus.activity.open": "Весь Пульс",
+  "nexus.activity.openFeed": "Открыть ленту",
+  "nexus.activity.category.wallet": "Казначейство",
+  "nexus.activity.category.chat": "Канцелярия",
+  "nexus.activity.category.governance": "Палата Законов",
+  "nexus.activity.category.state": "Указ",
+  "nexus.activity.category.kernel": "Ядро",
+  "nexus.activity.category.exchange": "Биржа",
+  "nexus.activity.category.other": "Событие",
+
+
   "nexus.governance.eyebrow": "Законы",
   "nexus.governance.title": "Последние предложения",
   "nexus.governance.desc":
@@ -191,6 +281,55 @@ export const ru: Dict = {
     "Nexus открыт только Суверену государства или держателю глобального права",
   "nexus.token.desc.middle": ". Используйте CLI-токен, выданный командой",
   "nexus.token.desc.after": ".",
+
+  // ------------------------------------------------------------
+  // Admin / Vertical Editor (/admin/vertical-editor)
+  // ------------------------------------------------------------
+  "verticalEditor.eyebrow": "Конструктор Вертикали",
+  "verticalEditor.title": "Дерево власти",
+  "verticalEditor.subtitle":
+    "Соберите вертикаль своего государства визуально. Нажмите «+» под узлом, чтобы создать департамент или должность; перетащите узел на другой, чтобы сменить ему подчинение; выделите узел — справа откроется панель редактирования.",
+  "verticalEditor.addRoot": "Корневой узел",
+  "verticalEditor.backToNexus": "Nexus",
+  "verticalEditor.empty.desc":
+    "Вертикаль пуста. Начните с корневого узла — позже от него вырастут министерства и ранги.",
+  "verticalEditor.members":
+    "{count} человек | {count} человека | {count} человек",
+  "verticalEditor.type.position": "Должность",
+  "verticalEditor.type.department": "Отдел",
+  "verticalEditor.type.rank": "Ранг",
+  "verticalEditor.type.lobby": "Прихожая",
+  "verticalEditor.node.addChild": "Добавить дочерний узел",
+  "verticalEditor.node.memberCount": "Активных членов узла",
+  "verticalEditor.node.noPerms": "без явных прав",
+  "verticalEditor.node.permCount":
+    "{count} право | {count} права | {count} прав",
+  "verticalEditor.prompt.childTitle": "Название нового узла",
+  "verticalEditor.defaults.childTitle": "Новый узел",
+  "verticalEditor.panel.eyebrow": "Редактирование узла",
+  "verticalEditor.panel.noneTitle": "Выделите узел",
+  "verticalEditor.panel.noneDesc":
+    "Кликните по узлу в дереве, чтобы изменить его название, тип или права. «+» под узлом создаёт дочерний, а перетаскивание меняет подчинение.",
+  "verticalEditor.panel.title": "Название",
+  "verticalEditor.panel.type": "Тип узла",
+  "verticalEditor.panel.permissions": "Разрешения (Permissions)",
+  "verticalEditor.panel.permsEmpty":
+    "Ещё не выдано ни одного права. Добавьте ключ ниже.",
+  "verticalEditor.panel.permPlaceholder": "finance.read, chat.write, …",
+  "verticalEditor.panel.permHint":
+    "Канонический ключ вида «<модуль>.<действие>». Введите и нажмите Enter, чтобы добавить.",
+  "verticalEditor.panel.permRemove": "Снять право {key}",
+  "verticalEditor.panel.delete": "Удалить узел",
+  "verticalEditor.panel.lobbyLocked":
+    "Прихожую удалять нельзя — сначала назначьте другого ответственного.",
+  "verticalEditor.panel.confirmDelete":
+    "Удалить узел «{title}»? Дочерние узлы станут корневыми.",
+  "verticalEditor.token.title": "Вход в Конструктор Вертикали",
+  "verticalEditor.token.desc.before":
+    "Редактирование вертикали доступно только Суверену или держателю",
+  "verticalEditor.token.desc.middle":
+    ". Используйте CLI-токен, выданный командой",
+  "verticalEditor.token.desc.after": ".",
 
   // ------------------------------------------------------------
   // Admin / Economy (/admin/economy)
@@ -371,6 +510,104 @@ export const ru: Dict = {
   "constitution.keys.autoPromotionMinDays": "Авто-продвижение: стаж",
   "constitution.keys.autoPromotionTargetNodeId": "Авто-продвижение: узел",
   "constitution.keys.treasuryTransparency": "Прозрачность казны",
+
+  // ------------------------------------------------------------
+  // Styling Hub — Визуальный конструктор (/admin/styling)
+  // ------------------------------------------------------------
+  "styling.eyebrow": "Визуальный конструктор",
+  "styling.title": "Облик государства",
+  "styling.subtitle":
+    "Настройте Theme Engine: цвета, шрифты, скругления и эффекты. Любое изменение мгновенно разносится по всей ОС — от кошелька до чата.",
+  "styling.saved": "Тема сохранена и применена ко всему государству.",
+  "styling.dirty": "Есть несохранённые изменения",
+  "styling.clean": "Тема синхронизирована с БД",
+  "styling.save": "Подписать указ о стиле",
+  "styling.saving": "Сохраняю…",
+  "styling.revert": "Отменить правки",
+  "styling.reset": "Сбросить к Minimalist High-Tech",
+  "styling.resetHint":
+    "Мгновенный live-rollback к эталонной теме KrwnOS (живые стили, БД не трогаем).",
+  "styling.errorHint":
+    "Проверьте, что у вашего CLI-токена есть permission «{perm}» или вы — Суверен.",
+  "styling.token.title": "Вход в Визуальный конструктор",
+  "styling.token.desc":
+    "Нужен CLI-токен с permission «{perm}». Его выдаёт Суверен через `krwn token mint`.",
+
+  "styling.presets.eyebrow": "Галерея",
+  "styling.presets.title": "Пресеты темы",
+  "styling.presets.desc":
+    "Выберите отправную точку. Дальше — ручная доводка токенов.",
+  "styling.presets.customNotice":
+    "Вы отредактировали пресет — тема помечена как «custom». Сохранение зафиксирует её в БД под этим именем.",
+  "styling.presets.minimal-hightech.label": "Minimalist High-Tech",
+  "styling.presets.minimal-hightech.desc":
+    "Финтех-строгость: чёрный фон, золотой акцент, Inter.",
+  "styling.presets.terminal.label": "Terminal",
+  "styling.presets.terminal.desc":
+    "Зелёный CRT, моноширинный шрифт, нулевые радиусы.",
+  "styling.presets.glass.label": "Glassmorphism",
+  "styling.presets.glass.desc":
+    "Светлая полупрозрачная эстетика macOS с мягкими радиусами.",
+  "styling.presets.royal-gold.label": "Royal Gold",
+  "styling.presets.royal-gold.desc":
+    "Тёмно-пурпур + золото, парадный Cormorant Garamond.",
+  "styling.presets.cyberpunk.label": "Cyberpunk",
+  "styling.presets.cyberpunk.desc":
+    "Неон-розовый и циан, Orbitron, свечение для игровых кланов.",
+
+  "styling.palette.eyebrow": "Палитра",
+  "styling.palette.title": "Цветовые токены",
+  "styling.palette.desc":
+    "Все переменные `--*` — выдаются как HSL для Tailwind и как hex для прямых CSS-свойств.",
+  "styling.palette.background": "Фон",
+  "styling.palette.foreground": "Текст",
+  "styling.palette.card": "Карточки / панели",
+  "styling.palette.muted": "Подложки",
+  "styling.palette.border": "Границы",
+  "styling.palette.accent": "Акцент",
+  "styling.palette.primary": "Primary",
+  "styling.palette.destructive": "Destructive",
+
+  "styling.typography.eyebrow": "Типографика",
+  "styling.typography.title": "Шрифты интерфейса",
+  "styling.typography.desc":
+    "Сменится во всех модулях одновременно — в чате, кошельке, админке.",
+  "styling.typography.sans": "Основной",
+  "styling.typography.mono": "Моноширинный",
+  "styling.typography.display": "Парадный (display)",
+  "styling.typography.displayHint":
+    "Необязательный — используется для крупных заголовков. Пусто = отключено.",
+
+  "styling.shape.eyebrow": "Форма",
+  "styling.shape.title": "Скругления и эффекты",
+  "styling.shape.desc":
+    "Live-слайдеры: интерфейс перекрашивается прямо в момент перетаскивания.",
+  "styling.shape.radiusSm": "Радиус — малый",
+  "styling.shape.radiusMd": "Радиус — средний",
+  "styling.shape.radiusLg": "Радиус — крупный",
+  "styling.shape.blur": "Размытие (glass)",
+
+  "styling.preview.eyebrow": "Предпросмотр",
+  "styling.preview.title": "Живая витрина",
+  "styling.preview.desc":
+    "Так ваши граждане увидят интерфейс прямо сейчас — без перезагрузки страницы.",
+  "styling.preview.primary": "Подписать",
+  "styling.preview.outline": "Обсудить",
+  "styling.preview.ghost": "Отмена",
+  "styling.preview.badge": "online",
+  "styling.preview.cardTitle": "Карточка модуля",
+  "styling.preview.cardDesc":
+    "Пример текста под новым шрифтом с новыми цветами и радиусами.",
+  "styling.preview.inputPh": "Введите сумму…",
+  "styling.preview.submit": "Отправить",
+  "styling.preview.walletEyebrow": "Личный кошелёк",
+
+  "styling.custom.eyebrow": "Custom CSS",
+  "styling.custom.title": "Раздел для продвинутых",
+  "styling.custom.desc":
+    "Сырой CSS, который будет вставлен после всех токенов в `<style id=\"krwn-theme\">`. Используйте `var(--primary-hex)`, `var(--radius)`, `var(--font-mono)` и т.д.",
+  "styling.custom.hint":
+    "Лимит — 16 КБ. Теги </style> и <script> вырезаются на сервере.",
 
   // ------------------------------------------------------------
   // Governance (/governance)
@@ -572,4 +809,59 @@ export const ru: Dict = {
   "chat.tray.items":
     "У вас {count} {word} без подтверждения.",
   "chat.tray.word": "приказ | приказа | приказов",
+
+  // ------------------------------------------------------------
+  // Dashboard / State Pulse (/dashboard)
+  // ------------------------------------------------------------
+  "pulse.eyebrow": "Пульс Государства",
+  "pulse.title": "Что происходит",
+  "pulse.subtitle":
+    "Агрегированная лента событий всех модулей: законы, указы, бюджеты, приказы.",
+  "pulse.filter.all": "Все",
+  "pulse.filter.wallet": "Казна",
+  "pulse.filter.chat": "Чат",
+  "pulse.filter.governance": "Парламент",
+  "pulse.filter.state": "Указы",
+  "pulse.filter.kernel": "Ядро",
+  "pulse.live.connected": "Онлайн",
+  "pulse.live.offline": "Офлайн",
+  "pulse.empty.title": "В эфире тихо",
+  "pulse.empty.body":
+    "Как только в государстве что-то произойдёт — это появится здесь.",
+  "pulse.loadMore": "Показать ещё",
+  "pulse.noMore": "Это начало истории государства.",
+  "pulse.viewer.citizen": "Гражданин",
+  "pulse.viewer.sovereign": "Суверен",
+  "pulse.token.title": "Войти в Пульс Государства",
+  "pulse.token.desc":
+    "Вставьте CLI-токен, выданный командой `{cmd}`. Токен хранится только в этом браузере.",
+
+  "pulse.event.wallet.transfer":
+    "Перевод {amount} {currency}",
+  "pulse.event.wallet.treasury_allocation":
+    "Казна выплатила {amount} {currency}",
+  "pulse.event.wallet.mint":
+    "Эмиссия: {amount} {currency} вошли в обращение",
+  "pulse.event.wallet.burn":
+    "Сожжено {amount} {currency}",
+  "pulse.event.chat.channel_created": "Создан новый канал",
+  "pulse.event.chat.directive": "Новый приказ: «{body}»",
+  "pulse.event.governance.proposal_created":
+    "Новое предложение: изменить «{key}»",
+  "pulse.event.governance.proposal_passed":
+    "Голосование закрыто: закон принят",
+  "pulse.event.governance.proposal_rejected":
+    "Голосование закрыто: закон отклонён",
+  "pulse.event.governance.proposal_expired":
+    "Голосование истекло без решения",
+  "pulse.event.governance.proposal_executed":
+    "Закон вступил в силу: {key} → {value}",
+  "pulse.event.governance.proposal_vetoed":
+    "Суверен наложил вето",
+  "pulse.event.state.settings_updated":
+    "Конституция государства обновлена",
+  "pulse.event.kernel.state_created":
+    "Государство основано",
+  "pulse.event.kernel.membership_granted":
+    "Новое членство в узле Вертикали",
 };

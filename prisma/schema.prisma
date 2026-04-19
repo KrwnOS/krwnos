@@ -56,6 +56,10 @@ model User {
   exchangePairsCreated ExchangePair[]         @relation("ExchangePairCreator")
   crossTxsInitiated    CrossStateTransaction[] @relation("CrossTxInitiator")
 
+  // --- State Pulse (Пульс Государства / Activity Feed) ---
+  // Activity rows where this user was the actor (initiator).
+  activityEmitted ActivityLog[] @relation("ActivityActor")
+
   @@index([handle])
 }
 
@@ -100,8 +104,45 @@ model State {
   ownerId     String
   owner       User    @relation("StateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  // JSONB config: theme, installedModules[], flags, etc.
+  // JSONB config: installedModules[], flags, etc.
+  // NOTE: visual theming used to be piggy-backed on this blob
+  // (`config.theme`); it has since been promoted to a dedicated
+  // `themeConfig` column (see below) so the Theme Engine can load
+  // it without deserialising the whole mega-blob on every SSR.
   config Json @default("{}")
+
+  // --- Theme Engine (Движок Тем) ---
+  //
+  // Динамические дизайн-токены одного государства. Каждый ключ
+  // превращается в CSS-переменную в `:root` через ThemeProvider:
+  //
+  //   {
+  //     "preset": "minimal-hightech" | "terminal" | "glass" | "royal-gold" | "cyberpunk" | "custom",
+  //     "colors": {
+  //       "background": "#0A0A0A",   // Anthracite — фон страницы
+  //       "foreground": "#E2E2E2",   // White/Silver — основной текст
+  //       "card":       "#1E1E1E",   // Slate Gray — карточки / панели
+  //       "muted":      "#141414",   // тонкий подслой (placeholder'ы)
+  //       "border":     "#2A2A2A",
+  //       "accent":     "#D4AF37",   // Gold — «Корона», активные роли
+  //       "primary":    "#D4AF37",
+  //       "destructive":"#E5484D"
+  //     },
+  //     "fonts": {
+  //       "sans":  "Inter, system-ui, sans-serif",
+  //       "mono":  "'JetBrains Mono', ui-monospace, monospace",
+  //       "display": null
+  //     },
+  //     "radius": { "sm": "0.25rem", "md": "0.5rem", "lg": "0.75rem" },
+  //     "effects": { "blur": "12px", "glow": "0 0 24px -6px rgba(212,175,55,0.45)" },
+  //     "customCss": ""
+  //   }
+  //
+  // Шире и форма, и допустимые значения валидируются в
+  // `src/core/theme.ts` (`validateThemeConfig`). Default — пресет
+  // "Minimalist High-Tech": Anthracite-фон, Gold-акцент, Slate-карточки,
+  // Silver-текст, Inter.
+  themeConfig Json @default("{\"preset\":\"minimal-hightech\",\"colors\":{\"background\":\"#0A0A0A\",\"foreground\":\"#E2E2E2\",\"card\":\"#1E1E1E\",\"muted\":\"#141414\",\"border\":\"#2A2A2A\",\"accent\":\"#D4AF37\",\"primary\":\"#D4AF37\",\"destructive\":\"#E5484D\"},\"fonts\":{\"sans\":\"Inter, system-ui, sans-serif\",\"mono\":\"'JetBrains Mono', ui-monospace, monospace\"},\"radius\":{\"sm\":\"0.25rem\",\"md\":\"0.5rem\",\"lg\":\"0.75rem\"},\"effects\":{\"blur\":\"12px\",\"glow\":\"0 0 24px -6px rgba(212,175,55,0.45)\"},\"customCss\":\"\"}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,6 +184,9 @@ model State {
   // keep the audit trail visible from both sides.
   crossTxsOut CrossStateTransaction[] @relation("CrossStateFrom")
   crossTxsIn  CrossStateTransaction[] @relation("CrossStateTo")
+
+  // --- State Pulse (Пульс Государства / Activity Feed) ---
+  activityLog ActivityLog[]
 
   @@index([ownerId])
 }
@@ -311,6 +355,8 @@ model VerticalNode {
   treasuryWallet Wallet?       @relation("TreasuryWallet")
   // Invitations whose Magic Link drops the invitee directly at this node.
   invitations    Invitation[]  @relation("InvitationTarget")
+  // Pulse rows scoped to this node (budget changes, directives, etc.).
+  activityLog    ActivityLog[]
 
   @@index([stateId])
   @@index([parentId])
@@ -1146,4 +1192,68 @@ model Vote {
   @@index([proposalId])
   @@index([userId])
   @@index([stateId])
+}
+
+// ---------------- State Pulse (Пульс Государства / Activity Feed) ----------------
+//
+// Агрегированная лента событий — главный экран гражданина. Любое
+// заметное действие модулей (Wallet, Chat, Governance, Kernel) или
+// ядра пишет сюда одну строку через `ActivityFeedService.record()`.
+// Подписка на Event Bus живёт в `src/core/activity-feed.ts`.
+//
+// Фильтрация «кто это увидит» управляется двумя колонками:
+//
+//   * `visibility`:
+//       - `public`    — любой гражданин этого State.
+//       - `node`      — члены `nodeId` + все предки (по лестнице
+//                       вертикали). Именно так работает чат.
+//       - `audience`  — только те, чей id есть в `audienceUserIds`.
+//       - `sovereign` — только Суверен (owner of the State).
+//   * `audienceUserIds` — свободный список получателей для точечных
+//     событий ("Вам выплатили зарплату", приглашения и т.д.).
+//
+// Суверен всегда видит всё (проверка в сервисе).
+
+model ActivityLog {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  // Каноническое имя события на шине, e.g. `core.wallet.transaction.created`.
+  event    String
+  // Человекочитаемая категория: "wallet" | "chat" | "governance" |
+  // "state" | "kernel" | "exchange" | ... — для табов UI.
+  category String
+
+  // i18n-ключ заголовка + параметры для интерполяции. Сервис НЕ
+  // хранит отрендеренный текст — UI сам выбирает язык. Например:
+  //   titleKey = "pulse.event.wallet.transfer"
+  //   titleParams = { amount: 500, currency: "KRN", to: "Минфин" }
+  titleKey    String
+  titleParams Json   @default("{}")
+
+  // Кто инициировал (актёр). Nullable для системных событий,
+  // watcher-ов и cron-джобов.
+  actorId String?
+  actor   User?   @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  // Привязка к узлу Вертикали — событие "происходит" в этом узле.
+  // Используется видимостью `node`. Nullable для событий уровня
+  // государства ("принят закон о налогах").
+  nodeId String?
+  node   VerticalNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  visibility      String   @default("public")
+  audienceUserIds String[] @default([])
+
+  // Свободное поле — id связанных сущностей, суммы, URL для перехода.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([stateId, createdAt])
+  @@index([stateId, category, createdAt])
+  @@index([stateId, visibility])
+  @@index([actorId])
+  @@index([nodeId])
 }

@@ -2,16 +2,21 @@
  * `GET /api/admin/nexus` — aggregated data for the Sovereign's Nexus.
  * ------------------------------------------------------------
  * Nexus is the main control room. The endpoint folds into a single
- * round-trip everything the three default cards need:
+ * round-trip everything the dashboard needs to render:
  *
- *   * Вертикаль — общее число узлов власти (`VerticalNode.count`).
- *   * Экономика — первичный `StateAsset` + его `taxRate` + суммарный
- *                 объём (aggregated positive `Wallet.balance`) и
- *                 `transactionTaxRate` из Палаты Указов.
- *   * Законы    — 3 последних Proposals из модуля Governance.
- *                 Модуля ещё нет — возвращаем `installed: false` и
- *                 пустой массив. Когда плагин приедет, он зарегистрируется
- *                 через InstalledModule и заполнит `proposals`.
+ *   * State header  — name / slug / created / owner display name +
+ *                     online/synchronised heartbeat flags.
+ *   * Вертикаль     — общее число узлов власти + число активных
+ *                     граждан (distinct user ids on `active` memberships).
+ *   * Экономика     — первичный `StateAsset` + его `taxRate` + суммарный
+ *                     объём (aggregated positive `Wallet.balance`) и
+ *                     `transactionTaxRate` из Палаты Указов. Сюда же
+ *                     прилетает id корневой Treasury — на него по
+ *                     умолчанию ложится результат `POST /api/wallet/mint`.
+ *   * Активность    — 5 последних строк «Пульса Государства» (фильтр
+ *                     видимости отключён: Суверен видит всё).
+ *   * Законы        — 3 последних Proposals из модуля Governance
+ *                     (если модуль установлен).
  *
  * Авторизация: только Суверен государства (`isOwner`) или держатель
  * глобального `system.admin` (включая `*`, `system.*`). Всем
@@ -21,10 +26,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { PermissionKey } from "@/types/kernel";
+import { getActivityFeed } from "@/server/activity-boot";
 import { loadStateContext, stateErrorResponse } from "../../state/_context";
 
 const NEXUS_PERMISSION: PermissionKey = "system.admin";
 const GOVERNANCE_SLUGS = ["governance", "core.governance"] as const;
+const ACTIVITY_RECENT_LIMIT = 5;
 
 type ProposalStatus =
   | "draft"
@@ -38,6 +45,17 @@ interface ProposalDto {
   id: string;
   title: string;
   status: ProposalStatus;
+  createdAt: string;
+}
+
+interface ActivityDto {
+  id: string;
+  event: string;
+  category: string;
+  titleKey: string;
+  titleParams: Record<string, unknown>;
+  actorId: string | null;
+  nodeId: string | null;
   createdAt: string;
 }
 
@@ -56,9 +74,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const [totalNodes, primaryAsset, settings, governanceModule] =
+    const [state, totalNodes, activeCitizens, primaryAsset, settings, governanceModule, rootNode] =
       await Promise.all([
+        prisma.state.findUnique({
+          where: { id: stateId },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            createdAt: true,
+            updatedAt: true,
+            owner: { select: { id: true, handle: true, displayName: true } },
+          },
+        }),
         prisma.verticalNode.count({ where: { stateId } }),
+        countActiveCitizens(stateId),
         prisma.stateAsset.findFirst({
           where: { stateId, isPrimary: true },
           select: {
@@ -82,7 +112,22 @@ export async function GET(req: NextRequest) {
           },
           select: { slug: true },
         }),
+        prisma.verticalNode.findFirst({
+          where: { stateId, parentId: null },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            treasuryWallet: { select: { id: true, address: true } },
+          },
+        }),
       ]);
+
+    if (!state) {
+      return NextResponse.json(
+        { error: "State not found.", code: "not_found" },
+        { status: 404 },
+      );
+    }
 
     const totalSupply = primaryAsset
       ? await computeTotalSupply(stateId, primaryAsset.id)
@@ -92,10 +137,30 @@ export async function GET(req: NextRequest) {
       ? await loadRecentProposals(stateId)
       : [];
 
+    const recentActivity = await loadRecentActivity(stateId, {
+      userId: access.userId,
+      isOwner: access.isOwner,
+    });
+
     return NextResponse.json({
-      state: { id: stateId },
+      state: {
+        id: state.id,
+        slug: state.slug,
+        name: state.name,
+        createdAt: state.createdAt.toISOString(),
+        updatedAt: state.updatedAt.toISOString(),
+        owner: state.owner
+          ? {
+              id: state.owner.id,
+              handle: state.owner.handle,
+              displayName: state.owner.displayName,
+            }
+          : null,
+      },
       vertical: {
         totalNodes,
+        totalCitizens: activeCitizens,
+        rootNodeId: rootNode?.id ?? null,
       },
       economy: {
         primaryAsset: primaryAsset
@@ -113,6 +178,10 @@ export async function GET(req: NextRequest) {
           : null,
         transactionTaxRate: settings.transactionTaxRate,
         currencyDisplayName: settings.currencyDisplayName,
+        rootTreasuryWalletId: rootNode?.treasuryWallet?.id ?? null,
+      },
+      activity: {
+        entries: recentActivity,
       },
       governance: {
         installed: Boolean(governanceModule),
@@ -143,6 +212,28 @@ function isSovereignOrAdmin(
   if (held.has(NEXUS_PERMISSION)) return true;
   if (held.has("system.*" as PermissionKey)) return true;
   return false;
+}
+
+/**
+ * Число активных граждан = число уникальных `userId` с хотя бы одной
+ * `active`-мембершипой. Sovereign (owner of the State) всегда
+ * учитывается — даже если его имени формально нет на Вертикали.
+ */
+async function countActiveCitizens(stateId: string): Promise<number> {
+  const rows = await prisma.membership.findMany({
+    where: { node: { stateId }, status: "active" },
+    distinct: ["userId"],
+    select: { userId: true },
+  });
+  const unique = new Set(rows.map((r) => r.userId));
+  // Dip in the owner: memberships are optional for the State owner
+  // in early setup stages — but they're still a citizen.
+  const state = await prisma.state.findUnique({
+    where: { id: stateId },
+    select: { ownerId: true },
+  });
+  if (state?.ownerId) unique.add(state.ownerId);
+  return unique.size;
 }
 
 /**
@@ -199,6 +290,45 @@ async function loadRecentProposals(_stateId: string): Promise<ProposalDto[]> {
       title: r.title,
       status: r.status as ProposalStatus,
       createdAt: r.createdAt.toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Последние N событий ленты с точки зрения Суверена (owner видит всё).
+ * Мы зовём `ActivityFeedService.listForViewer` с `scopeNodeIds = ∅`,
+ * потому что для owner-а фильтр всё равно обходится.
+ *
+ * Любая неполадка (например, таблица ActivityLog ещё не создана в
+ * окружении, где миграции не применены) приводит к `[]` — Nexus не
+ * должен падать из-за некритичной карточки.
+ */
+async function loadRecentActivity(
+  stateId: string,
+  caller: { userId: string; isOwner: boolean },
+): Promise<ActivityDto[]> {
+  try {
+    const service = getActivityFeed();
+    const rows = await service.listForViewer(
+      {
+        userId: caller.userId,
+        stateId,
+        isOwner: caller.isOwner,
+        scopeNodeIds: new Set<string>(),
+      },
+      { limit: ACTIVITY_RECENT_LIMIT },
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      event: row.event,
+      category: row.category,
+      titleKey: row.titleKey,
+      titleParams: row.titleParams,
+      actorId: row.actorId,
+      nodeId: row.nodeId,
+      createdAt: row.createdAt.toISOString(),
     }));
   } catch {
     return [];

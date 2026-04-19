@@ -109,6 +109,38 @@ export const en: Dict = {
   "setup.form.submit": "Crown the Sovereign",
   "setup.form.submitting": "Crowning…",
 
+  "setup.nav.back": "← Back",
+  "setup.nav.next": "Next →",
+  "setup.step1.nav": "State",
+  "setup.step1.title": "Name the state",
+  "setup.step1.desc":
+    "Everything starts here. Choose the name citizens will know your state by — e.g. \"Corporation X\" or \"Clan of Shadows\".",
+  "setup.step2.nav": "Currency",
+  "setup.step2.title": "Strike the first coin",
+  "setup.step2.desc":
+    "Every state decides what counts as money. This asset (StateAsset) becomes the national currency — every new citizen's wallet is opened in it by default.",
+  "setup.step2.presets": "Quick presets",
+  "setup.step2.symbol": "Ticker",
+  "setup.step2.symbolHint": "2–12 latin letters/digits (KRN, GOLD, USD1).",
+  "setup.step2.name": "Currency name",
+  "setup.step2.icon": "Glyph",
+  "setup.step2.iconHint": "One or two characters or emoji (⚜, ◈, 🪙).",
+  "setup.step2.color": "Colour (#HEX)",
+  "setup.step2.decimals": "Decimal places",
+  "setup.step2.decimalsHint": "Usually 18 (ERC-20), 6 (USDC), 9 (Solana).",
+  "setup.step2.preview": "Preview",
+  "setup.step3.nav": "Sovereign",
+  "setup.step3.title": "Crown the Sovereign",
+  "setup.step3.desc":
+    "The first account is granted `[*]` — absolute control over the state. You will later delegate powers to your \"ministers\" through the Vertical.",
+
+  "setup.done.inviteTitle": "First magic-link invite",
+  "setup.done.inviteDesc":
+    "Hand this link to your first minister. Accepting it drops them straight into the Sovereign node with inherited powers.",
+  "setup.done.inviteCode": "Code (QR)",
+  "setup.done.inviteExpires": "Expires",
+  "setup.done.inviteNever": "never",
+
   "invite.title": "Invitation to \"{stateName}\"",
   "invite.codeLabel": "Code:",
   "invite.uses": "Uses",
@@ -134,6 +166,18 @@ export const en: Dict = {
   "nexus.vertical.addNode": "Add node",
   "nexus.vertical.openTree": "Open the tree",
   "nexus.vertical.nodes": "{count} node | {count} nodes | {count} nodes",
+  "nexus.vertical.citizens":
+    "{count} citizen | {count} citizens | {count} citizens",
+  "nexus.vertical.citizensLabel": "Citizens",
+  "nexus.vertical.nodesLabel": "Nodes of power",
+
+  "nexus.status.online": "Online",
+  "nexus.status.offline": "Offline",
+  "nexus.status.synchronized": "Synchronized",
+  "nexus.status.syncing": "Syncing…",
+  "nexus.status.uptime": "Uptime {value}",
+  "nexus.status.lastSync": "Last sync {value}",
+
   "nexus.economy.eyebrow": "Economy",
   "nexus.economy.noCurrency": "Currency not defined",
   "nexus.economy.desc":
@@ -145,6 +189,47 @@ export const en: Dict = {
   "nexus.economy.supply": "Supply in system",
   "nexus.economy.openFactory": "Currency settings",
   "nexus.economy.openConstitution": "Sovereign's Decree",
+  "nexus.economy.mint": "Mint",
+  "nexus.economy.mintHint":
+    "Print fresh {symbol} and credit them to the root Treasury.",
+  "nexus.economy.mintDisabledNoTreasury":
+    "Create a root Vertical node so the Treasury exists before minting.",
+  "nexus.economy.mintDisabledNoAsset":
+    "Issue a primary currency in the Currency Factory first.",
+  "nexus.economy.mintDisabledCantMint":
+    "Minting is disabled for this asset (`canMint = false`).",
+
+  "nexus.mint.title": "Mint {symbol}",
+  "nexus.mint.desc":
+    "Print new units and credit them to the root Treasury. Recorded as a {kind} transaction.",
+  "nexus.mint.target": "Target",
+  "nexus.mint.targetTreasury": "Root Treasury",
+  "nexus.mint.amount": "Amount",
+  "nexus.mint.memo": "Memo (optional)",
+  "nexus.mint.memoPlaceholder": "reason for issuance",
+  "nexus.mint.confirm": "Mint",
+  "nexus.mint.cancel": "Cancel",
+  "nexus.mint.success": "Minted {amount} {symbol}.",
+  "nexus.mint.errorAmount": "Amount must be a positive number.",
+  "nexus.mint.errorGeneric": "Mint failed: {message}",
+
+  "nexus.activity.eyebrow": "Activity",
+  "nexus.activity.title": "Latest events",
+  "nexus.activity.desc":
+    "Five most recent rows of the State Pulse — transactions, new citizens, enacted laws.",
+  "nexus.activity.empty":
+    "Silence for now — once modules get working, events will land here.",
+  "nexus.activity.open": "Full Pulse",
+  "nexus.activity.openFeed": "Open the feed",
+  "nexus.activity.category.wallet": "Treasury",
+  "nexus.activity.category.chat": "Chancery",
+  "nexus.activity.category.governance": "Hall of Laws",
+  "nexus.activity.category.state": "Decree",
+  "nexus.activity.category.kernel": "Kernel",
+  "nexus.activity.category.exchange": "Exchange",
+  "nexus.activity.category.other": "Event",
+
+
   "nexus.governance.eyebrow": "Laws",
   "nexus.governance.title": "Latest proposals",
   "nexus.governance.desc":
@@ -170,6 +255,52 @@ export const en: Dict = {
     "Nexus is open only to the Sovereign or a holder of the global permission",
   "nexus.token.desc.middle": ". Use a CLI token issued via",
   "nexus.token.desc.after": ".",
+
+  "verticalEditor.eyebrow": "Vertical Builder",
+  "verticalEditor.title": "Tree of power",
+  "verticalEditor.subtitle":
+    "Assemble your state's vertical visually. Click the «+» under a node to spawn a department or position; drag a node onto another to change its parent; select a node — the edit panel opens on the right.",
+  "verticalEditor.addRoot": "Root node",
+  "verticalEditor.backToNexus": "Nexus",
+  "verticalEditor.empty.desc":
+    "The Vertical is empty. Start with a root node — ministries and ranks will branch out from it.",
+  "verticalEditor.members":
+    "{count} member | {count} members | {count} members",
+  "verticalEditor.type.position": "Position",
+  "verticalEditor.type.department": "Department",
+  "verticalEditor.type.rank": "Rank",
+  "verticalEditor.type.lobby": "Lobby",
+  "verticalEditor.node.addChild": "Add child node",
+  "verticalEditor.node.memberCount": "Active members",
+  "verticalEditor.node.noPerms": "no explicit permissions",
+  "verticalEditor.node.permCount":
+    "{count} permission | {count} permissions | {count} permissions",
+  "verticalEditor.prompt.childTitle": "Title of the new node",
+  "verticalEditor.defaults.childTitle": "New node",
+  "verticalEditor.panel.eyebrow": "Edit node",
+  "verticalEditor.panel.noneTitle": "Select a node",
+  "verticalEditor.panel.noneDesc":
+    "Click a node in the tree to edit its title, type or permissions. The «+» below a node spawns a child; dragging a node re-parents it.",
+  "verticalEditor.panel.title": "Title",
+  "verticalEditor.panel.type": "Node type",
+  "verticalEditor.panel.permissions": "Permissions",
+  "verticalEditor.panel.permsEmpty":
+    "No permissions granted yet. Add a key below.",
+  "verticalEditor.panel.permPlaceholder": "finance.read, chat.write, …",
+  "verticalEditor.panel.permHint":
+    "Canonical key in the form «<module>.<action>». Type and press Enter to add.",
+  "verticalEditor.panel.permRemove": "Revoke {key}",
+  "verticalEditor.panel.delete": "Delete node",
+  "verticalEditor.panel.lobbyLocked":
+    "The Lobby cannot be deleted — assign another default node first.",
+  "verticalEditor.panel.confirmDelete":
+    "Delete node «{title}»? Its children will become roots.",
+  "verticalEditor.token.title": "Enter the Vertical Builder",
+  "verticalEditor.token.desc.before":
+    "Editing the Vertical is limited to the Sovereign or holders of",
+  "verticalEditor.token.desc.middle":
+    ". Use a CLI token issued via",
+  "verticalEditor.token.desc.after": ".",
 
   "economy.eyebrow": "Currency Factory",
   "economy.title": "State economy",
@@ -347,6 +478,101 @@ export const en: Dict = {
   "constitution.keys.autoPromotionMinDays": "Auto-promotion: tenure",
   "constitution.keys.autoPromotionTargetNodeId": "Auto-promotion: node",
   "constitution.keys.treasuryTransparency": "Treasury transparency",
+
+  "styling.eyebrow": "Styling Hub",
+  "styling.title": "The look of your state",
+  "styling.subtitle":
+    "Configure the Theme Engine: colours, typography, corner radii, effects. Every change is broadcast across the whole OS instantly — from wallet to chat.",
+  "styling.saved": "Theme saved and rolled out across the state.",
+  "styling.dirty": "Unsaved changes",
+  "styling.clean": "Theme in sync with the database",
+  "styling.save": "Sign the style decree",
+  "styling.saving": "Saving…",
+  "styling.revert": "Discard edits",
+  "styling.reset": "Reset to Minimalist High-Tech",
+  "styling.resetHint":
+    "Live-rollback to the canonical KrwnOS theme (does not touch the DB).",
+  "styling.errorHint":
+    "Make sure your CLI token holds the \"{perm}\" permission, or that you are the Sovereign.",
+  "styling.token.title": "Enter the Styling Hub",
+  "styling.token.desc":
+    "A CLI token with the \"{perm}\" permission is required. Mint one via `krwn token mint`.",
+
+  "styling.presets.eyebrow": "Gallery",
+  "styling.presets.title": "Theme presets",
+  "styling.presets.desc":
+    "Pick a starting point. Fine-tune the tokens afterwards.",
+  "styling.presets.customNotice":
+    "You edited the preset — the theme is now marked as \"custom\". Saving persists it in the DB under that name.",
+  "styling.presets.minimal-hightech.label": "Minimalist High-Tech",
+  "styling.presets.minimal-hightech.desc":
+    "Fintech rigor: black canvas, golden accent, Inter.",
+  "styling.presets.terminal.label": "Terminal",
+  "styling.presets.terminal.desc":
+    "Green CRT, monospace typography, zero radii.",
+  "styling.presets.glass.label": "Glassmorphism",
+  "styling.presets.glass.desc":
+    "Light, translucent macOS-style aesthetics with generous radii.",
+  "styling.presets.royal-gold.label": "Royal Gold",
+  "styling.presets.royal-gold.desc":
+    "Deep purple + gold, ceremonial Cormorant Garamond.",
+  "styling.presets.cyberpunk.label": "Cyberpunk",
+  "styling.presets.cyberpunk.desc":
+    "Neon pink & cyan, Orbitron, glow for e-sports clans.",
+
+  "styling.palette.eyebrow": "Palette",
+  "styling.palette.title": "Colour tokens",
+  "styling.palette.desc":
+    "Every `--*` variable is emitted both as an HSL triple (for Tailwind) and as a raw hex (for direct CSS use).",
+  "styling.palette.background": "Background",
+  "styling.palette.foreground": "Foreground",
+  "styling.palette.card": "Card / panels",
+  "styling.palette.muted": "Muted surface",
+  "styling.palette.border": "Border",
+  "styling.palette.accent": "Accent",
+  "styling.palette.primary": "Primary",
+  "styling.palette.destructive": "Destructive",
+
+  "styling.typography.eyebrow": "Typography",
+  "styling.typography.title": "Interface fonts",
+  "styling.typography.desc":
+    "Changes cascade through every module — chat, wallet, admin — at once.",
+  "styling.typography.sans": "Body",
+  "styling.typography.mono": "Monospace",
+  "styling.typography.display": "Display",
+  "styling.typography.displayHint":
+    "Optional — used for oversized headings. Empty = disabled.",
+
+  "styling.shape.eyebrow": "Shape",
+  "styling.shape.title": "Radii & effects",
+  "styling.shape.desc":
+    "Live sliders: the UI repaints while you drag.",
+  "styling.shape.radiusSm": "Radius — small",
+  "styling.shape.radiusMd": "Radius — medium",
+  "styling.shape.radiusLg": "Radius — large",
+  "styling.shape.blur": "Blur (glass)",
+
+  "styling.preview.eyebrow": "Preview",
+  "styling.preview.title": "Live showcase",
+  "styling.preview.desc":
+    "This is how your citizens will see the interface right now — no page reload needed.",
+  "styling.preview.primary": "Sign",
+  "styling.preview.outline": "Discuss",
+  "styling.preview.ghost": "Cancel",
+  "styling.preview.badge": "online",
+  "styling.preview.cardTitle": "Module card",
+  "styling.preview.cardDesc":
+    "Sample text under the new font, colours, and radii.",
+  "styling.preview.inputPh": "Enter an amount…",
+  "styling.preview.submit": "Send",
+  "styling.preview.walletEyebrow": "Personal wallet",
+
+  "styling.custom.eyebrow": "Custom CSS",
+  "styling.custom.title": "Advanced escape hatch",
+  "styling.custom.desc":
+    "Raw CSS injected after all tokens into `<style id=\"krwn-theme\">`. Use `var(--primary-hex)`, `var(--radius)`, `var(--font-mono)` and friends.",
+  "styling.custom.hint":
+    "Limit: 16 KB. `</style>` and `<script>` tags are stripped server-side.",
 
   "governance.eyebrow": "Parliament",
   "governance.title": "Proposal assembly",
@@ -540,4 +766,57 @@ export const en: Dict = {
   "chat.tray.items":
     "You have {count} unacknowledged {word}.",
   "chat.tray.word": "directive | directives | directives",
+
+  // Dashboard / State Pulse (/dashboard)
+  "pulse.eyebrow": "State Pulse",
+  "pulse.title": "What's happening",
+  "pulse.subtitle":
+    "An aggregated feed of events from every module: laws, decrees, budgets, directives.",
+  "pulse.filter.all": "All",
+  "pulse.filter.wallet": "Treasury",
+  "pulse.filter.chat": "Chat",
+  "pulse.filter.governance": "Parliament",
+  "pulse.filter.state": "Decrees",
+  "pulse.filter.kernel": "Kernel",
+  "pulse.live.connected": "Live",
+  "pulse.live.offline": "Offline",
+  "pulse.empty.title": "Nothing on the wire",
+  "pulse.empty.body":
+    "As soon as anything happens in the state, it will show up here.",
+  "pulse.loadMore": "Load older",
+  "pulse.noMore": "This is the dawn of the state.",
+  "pulse.viewer.citizen": "Citizen",
+  "pulse.viewer.sovereign": "Sovereign",
+  "pulse.token.title": "Sign in to the State Pulse",
+  "pulse.token.desc":
+    "Paste a CLI token minted with `{cmd}`. The token stays in this browser only.",
+
+  "pulse.event.wallet.transfer":
+    "Transfer of {amount} {currency}",
+  "pulse.event.wallet.treasury_allocation":
+    "Treasury paid out {amount} {currency}",
+  "pulse.event.wallet.mint":
+    "New issuance: {amount} {currency} entered circulation",
+  "pulse.event.wallet.burn":
+    "Burned {amount} {currency}",
+  "pulse.event.chat.channel_created": "New channel created",
+  "pulse.event.chat.directive": "New directive: “{body}”",
+  "pulse.event.governance.proposal_created":
+    "New proposal: change “{key}”",
+  "pulse.event.governance.proposal_passed":
+    "Vote closed: law passed",
+  "pulse.event.governance.proposal_rejected":
+    "Vote closed: law rejected",
+  "pulse.event.governance.proposal_expired":
+    "Vote expired without a verdict",
+  "pulse.event.governance.proposal_executed":
+    "Law enacted: {key} → {value}",
+  "pulse.event.governance.proposal_vetoed":
+    "The Sovereign vetoed the proposal",
+  "pulse.event.state.settings_updated":
+    "Constitution updated",
+  "pulse.event.kernel.state_created":
+    "State was founded",
+  "pulse.event.kernel.membership_granted":
+    "New membership in the Vertical",
 };

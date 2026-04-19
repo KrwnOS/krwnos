@@ -2,25 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme Engine baseline.
+ * ------------------------------------------------------------
+ * Эти переменные — «аварийный дефолт» на случай, если
+ * ThemeProvider ещё не успел инъектировать свою тему (SSR-stale
+ * HTML без JS, первый запуск до /setup и т.п.). Любой рендер под
+ * `<ThemeProvider>` перекроет их содержимым из `State.themeConfig`.
+ *
+ * Значения отражают пресет Minimalist High-Tech:
+ *   background  Anthracite   #0A0A0A
+ *   foreground  Silver       #E2E2E2
+ *   card        Slate Gray   #1E1E1E
+ *   primary     Gold         #D4AF37
+ *
+ * Формат цветов — HSL-тройка (`H S% L%`), чтобы вписаться в
+ * Tailwind-шаблон `hsl(var(--background) / <alpha-value>)`.
+ * Одноимённые `--*-hex` переменные выдают те же цвета в сыром
+ * виде — удобно для градиентов, свечений, SVG-заливок.
+ */
 @layer base {
   :root {
-    --background: 30 8% 96%;
-    --foreground: 240 10% 8%;
-    --muted: 240 5% 90%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 89%;
+    --card: 0 0% 12%;
+    --muted: 0 0% 8%;
     --accent: 43 74% 52%;
-    --border: 240 6% 85%;
-  }
+    --border: 0 0% 16%;
+    --primary: 43 74% 52%;
+    --destructive: 357 76% 59%;
 
-  .dark {
-    --background: 240 10% 5%;
-    --foreground: 40 25% 96%;
-    --muted: 240 6% 14%;
-    --accent: 43 74% 52%;
-    --border: 240 6% 18%;
+    --background-hex: #0A0A0A;
+    --foreground-hex: #E2E2E2;
+    --card-hex: #1E1E1E;
+    --muted-hex: #141414;
+    --border-hex: #2A2A2A;
+    --accent-hex: #D4AF37;
+    --primary-hex: #D4AF37;
+    --destructive-hex: #E5484D;
+
+    --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+    --radius-sm: 0.25rem;
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    --effect-blur: 12px;
+    --effect-glow: 0 0 24px -6px rgba(212, 175, 55, 0.45);
   }
 
   html,
   body {
     height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
   }
 }
