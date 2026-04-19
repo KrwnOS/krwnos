@@ -25,6 +25,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 import {
   InvitationsService,
   type InvitationsRepository,
@@ -277,6 +278,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { token: string } },
 ) {
+  const limited = await rateLimitedResponse(req, "api_invite_accept");
+  if (limited) return limited;
+
   try {
     const user = await getAuth().requireUser();
 

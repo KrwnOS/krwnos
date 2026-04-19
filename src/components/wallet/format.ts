@@ -1,18 +1,30 @@
 /**
  * Formatting helpers for wallet UI.
  * ------------------------------------------------------------
- * Balances and transaction amounts are `Decimal` on the server;
- * wire JSON uses numbers. Renderers accept `Decimal` instances too.
+ * Balances on the wire are JSON numbers. Server-only code may pass
+ * Prisma `Decimal`-like objects (`toNumber()`). Do **not** import
+ * `@prisma/client/runtime/library` here — it pulls Node `fs` and
+ * breaks Next.js client bundles (`TransactionList`, etc.).
  */
-
-import { Decimal } from "@prisma/client/runtime/library";
 
 export const KRONA_SYMBOL = "⚜";
 export const DEFAULT_CURRENCY = "KRN";
 
-/** Loose parser — accepts number | string | bigint | Decimal. */
-export function toNumber(value: number | string | bigint | Decimal): number {
-  if (Decimal.isDecimal(value)) return value.toNumber();
+/** Narrow shape shared by Prisma.Decimal / decimal.js — no runtime import. */
+export type Decimalish = { toNumber: () => number };
+
+function isDecimalLike(value: unknown): value is Decimalish {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "toNumber" in value &&
+    typeof (value as Decimalish).toNumber === "function"
+  );
+}
+
+/** Loose parser — accepts number | string | bigint | Decimal-like. */
+export function toNumber(value: number | string | bigint | Decimalish): number {
+  if (isDecimalLike(value)) return value.toNumber();
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
   const n = Number(value);
@@ -29,7 +41,7 @@ export function toNumber(value: number | string | bigint | Decimal): number {
  *   formatAmount(1, { withSymbol: false }) -> "1.00"
  */
 export function formatAmount(
-  value: number | string | bigint | Decimal,
+  value: number | string | bigint | Decimalish,
   currencyOrOpts:
     | string
     | { currency?: string; withSymbol?: boolean; fractionDigits?: number } = {},
@@ -57,7 +69,7 @@ export function formatAmount(
 
 /** Back-compat alias — many call sites use `formatKrona(...)`. */
 export function formatKrona(
-  value: number | string | bigint | Decimal,
+  value: number | string | bigint | Decimalish,
   opts: { withSymbol?: boolean } = {},
 ): string {
   return formatAmount(value, { currency: DEFAULT_CURRENCY, ...opts });

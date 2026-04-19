@@ -13,6 +13,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 import { authenticateCli, CliAuthError } from "../../auth";
 import { CliTokenService } from "@/core/cli-tokens";
 import { cliTokenRepository } from "@/lib/cli-tokens-repo";
@@ -54,6 +55,9 @@ const lookup = {
 };
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_cli");
+  if (limited) return limited;
+
   try {
     const ctx = await authenticateCli(req, lookup);
     const input = body.parse(

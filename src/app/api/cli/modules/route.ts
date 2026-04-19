@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 import { registry } from "@/core";
 import { authenticateCli, requireScope, CliAuthError } from "../auth";
 
@@ -39,6 +40,9 @@ const lookup = {
 };
 
 export async function GET(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_cli");
+  if (limited) return limited;
+
   try {
     const ctx = await authenticateCli(req, lookup);
     requireScope(ctx, "modules.read");
@@ -63,6 +67,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_cli");
+  if (limited) return limited;
+
   try {
     const ctx = await authenticateCli(req, lookup);
     requireScope(ctx, "modules.write");

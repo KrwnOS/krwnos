@@ -3,6 +3,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 import { authenticateCli, CliAuthError } from "../auth";
 
 const lookup = {
@@ -26,6 +27,9 @@ const lookup = {
 };
 
 export async function GET(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_cli");
+  if (limited) return limited;
+
   try {
     const ctx = await authenticateCli(req, lookup);
 

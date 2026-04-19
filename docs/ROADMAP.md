@@ -86,16 +86,10 @@
 
 ### Security и observability
 
-- [ ] Rate-limit middleware (ioredis token-bucket) на
-      `/api/register`, `/api/invite/*/accept`, `/api/setup`,
-      `/api/cli/*`.
-- [ ] CSP + security headers в `next.config.mjs`.
 - [ ] Audit CSRF для non-idempotent App-Router routes.
 - [ ] Тест AEAD-шифрования модульных секретов (подмена
       `AUTH_SECRET` → падение).
-- [ ] Structured logger (pino) + request-id middleware.
 - [ ] OpenTelemetry traces (stdout в dev, OTLP в prod).
-- [ ] `/api/ready` (проверка БД + Redis) рядом с `/api/health`.
 
 ### Гигиена репо
 
@@ -239,7 +233,7 @@
 - [ ] Шаг 1 — Первый агент (CI + coverage)
 - [x] Шаг 2 — Второй агент (BullMQ + reapers)
 - [ ] Шаг 3 — Третий агент (Decimal)
-- [ ] Шаг 4 — Четвёртый агент (security)
+- [x] Шаг 4 — Четвёртый агент (security)
 - [ ] Шаг 5 — Vertical Editor (после шага 4)
 
 ---
@@ -256,6 +250,18 @@
 ## 9. Done
 
 Закрытые пункты остаются здесь как changelog проекта.
+
+### 2026-04 — Horizon 0 · Security и observability
+- [x] 2026-04-19 — Rate limiting (Redis fixed-window + Lua, ioredis) на
+      `POST /api/register`, `POST /api/invite/[token]/accept`,
+      `GET|POST /api/setup`, `/api/cli/*`; при недоступности Redis —
+      fail open (`src/lib/rate-limit.ts`).
+- [x] 2026-04-19 — CSP + базовые security headers в `next.config.mjs`;
+      `x-request-id` в `src/middleware.ts`.
+- [x] 2026-04-19 — Pino (`src/lib/logger.ts`, `LOG_LEVEL`) + корреляция
+      по `x-request-id` (см. `childLoggerFromRequest` в `/api/ready`).
+- [x] 2026-04-19 — `GET /api/ready` — readiness (PostgreSQL + Redis PING);
+      `GET /api/health` без изменений (liveness / БД).
 
 ### 2026-04 — Horizon 1 · Job runner (BullMQ)
 - [x] 2026-04-19 — BullMQ + Redis: очередь `krwn-jobs`, воркер

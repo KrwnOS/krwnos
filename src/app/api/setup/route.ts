@@ -17,6 +17,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 import { setupState, AlreadyInitialisedError } from "@/core/setup-state";
 
 export const dynamic = "force-dynamic";
@@ -60,12 +61,18 @@ const body = z.object({
   invite: inviteSchema,
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_setup_get");
+  if (limited) return limited;
+
   const count = await prisma.state.count();
   return NextResponse.json({ initialised: count > 0 });
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_setup_post");
+  if (limited) return limited;
+
   try {
     const parsed = body.parse(await req.json());
 

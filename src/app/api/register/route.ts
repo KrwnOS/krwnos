@@ -31,6 +31,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { rateLimitedResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,9 @@ const body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitedResponse(req, "api_register");
+  if (limited) return limited;
+
   try {
     const parsed = body.parse(await req.json());
     const handle = parsed.handle.trim().toLowerCase();
