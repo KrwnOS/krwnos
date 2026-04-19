@@ -29,10 +29,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    # Не публикуем наружу по умолчанию — БД доступна только внутри compose-сети.
-    # Раскомментируйте для Prisma Studio с хоста:
-    # ports:
-    #   - "127.0.0.1:5432:5432"
+    # Порт открыт ТОЛЬКО на localhost — чтобы нативный `next dev` с хоста
+    # (и Prisma Studio) мог подключаться к БД.
+    ports:
+      - "127.0.0.1:5432:5432"
 
   redis:
     image: redis:7-alpine
@@ -40,6 +40,9 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
       - krwn_redis:/data
+    # Порт открыт ТОЛЬКО на localhost для нативного dev-режима.
+    ports:
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -60,7 +63,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-krwn}:${POSTGRES_PASSWORD:-krwn}@postgres:5432/${POSTGRES_DB:-krwnos}?schema=public
       REDIS_URL: redis://redis:6379
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set. Run: openssl rand -hex 32}
+      AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET must be set. Run openssl rand -hex 32}"
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       APP_URL: ${APP_URL:-http://localhost:3000}
       KRWN_TIER: ${KRWN_TIER:-pro}

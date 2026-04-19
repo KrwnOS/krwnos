@@ -29,7 +29,7 @@ const source: BackupSource = {
       slug: s.slug,
       name: s.name,
       description: s.description,
-      config: s.config as BackupPayload["state"]["config"],
+      config: s.config as unknown as BackupPayload["state"]["config"],
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
       ownerHandle: s.owner.handle,

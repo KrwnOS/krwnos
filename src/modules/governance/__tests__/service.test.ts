@@ -896,7 +896,7 @@ describe("GovernanceService.closeAndMaybeExecute", () => {
     });
     for (let i = 0; i < 3; i++) {
       await env.service.createProposal(STATE_ID, buildCtx(CITIZEN_ID), {
-        title: `P${i}`,
+        title: `Proposal ${i}`,
         description: "Снизить",
         targetConfigKey: "transactionTaxRate",
         newValue: 0.01,

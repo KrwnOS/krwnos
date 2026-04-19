@@ -774,6 +774,8 @@ export const ru: Dict = {
   "chat.connect.desc":
     "Вставьте CLI-токен с scope'ами {read}, {write} (и опционально {admin}). Его можно сгенерировать командой {cmd}.",
   "chat.connect.submit": "Войти в канал",
+  "chat.connect.noToken": "Ещё не короновали Государство?",
+  "chat.connect.goSetup": "Открыть визард коронации →",
   "chat.apiErr": "Ошибка API ({status}): {message}",
   "chat.empty": "Выберите канал слева — или создайте новый через `chat.admin`.",
   "chat.noMessages": "Пока сообщений нет. Будьте первым.",
@@ -836,6 +838,27 @@ export const ru: Dict = {
   "pulse.token.desc":
     "Вставьте CLI-токен, выданный командой `{cmd}`. Токен хранится только в этом браузере.",
 
+  // --- Role card (header) ---
+  "pulse.role.sovereign": "Суверен",
+  "pulse.role.lobby": "Прихожая",
+  "pulse.role.none": "Без роли",
+  "pulse.role.noneHint":
+    "Суверен ещё не принял вас в Вертикаль — ждите приглашения.",
+  "pulse.role.pathLabel": "Путь по Вертикали",
+
+  // --- Balance card (header) ---
+  "pulse.balance.label": "Баланс",
+  "pulse.balance.none": "Кошелёк не выдан",
+
+  // --- Sidebar (дерево власти + онлайн) ---
+  "pulse.sidebar.title": "Вертикаль власти",
+  "pulse.sidebar.emptyTree":
+    "Государство ещё не построено. Создайте первый узел в редакторе Вертикали.",
+  "pulse.sidebar.onlineTotal":
+    "Онлайн: {count} | Онлайн: {count} | Онлайн: {count}",
+  "pulse.sidebar.footnote":
+    "Онлайн — активность за последние {seconds} с.",
+
   "pulse.event.wallet.transfer":
     "Перевод {amount} {currency}",
   "pulse.event.wallet.treasury_allocation":
@@ -864,4 +887,69 @@ export const ru: Dict = {
     "Государство основано",
   "pulse.event.kernel.membership_granted":
     "Новое членство в узле Вертикали",
+
+  // --- Broadcast (Суверенский указ) ---
+  "pulse.broadcast.trigger": "Огласить указ",
+  "pulse.broadcast.title": "Суверенский указ",
+  "pulse.broadcast.subtitle":
+    "Сообщение появится у всех граждан государства: в ленте, в тосте и в системном уведомлении браузера.",
+  "pulse.broadcast.headline": "Заголовок",
+  "pulse.broadcast.headlinePh": "Государь обращается к Вертикали",
+  "pulse.broadcast.body": "Текст",
+  "pulse.broadcast.bodyPh":
+    "Опциональное тело указа. Markdown не поддерживается.",
+  "pulse.broadcast.publish": "Огласить",
+  "pulse.broadcast.errTitleRequired": "Заголовок обязателен.",
+
+  // --- Push-тосты ---
+  "pulse.toast.eyebrow": "Указ Суверена",
+  "pulse.toast.defaultTitle": "Новое событие",
+
+  // --- Node detail drawer ---
+  "pulse.sidebar.onlineCount": "{online} из {total} онлайн",
+  "pulse.sidebar.you": "вы",
+  "pulse.nodeType.position": "Должность",
+  "pulse.nodeType.department": "Департамент",
+  "pulse.nodeType.rank": "Ранг",
+  "pulse.drawer.members": "Участники",
+  "pulse.drawer.membersEmpty": "Узел пуст.",
+  "pulse.drawer.children": "Подчинённые узлы",
+  "pulse.drawer.childrenEmpty": "Нет подчинённых узлов.",
+  "pulse.drawer.edit": "Редактировать узел",
+  "pulse.drawer.openChat": "Открыть канал",
+
+  // --- Header actions ---
+  "pulse.header.audit": "Журнал аудита",
+
+  // ------------------------------------------------------------
+  // /admin/audit — Audit Log
+  // ------------------------------------------------------------
+  "audit.eyebrow": "Журнал аудита",
+  "audit.title": "Полная история государства",
+  "audit.subtitle":
+    "Сырые события из Пульса без фильтра видимости. Только для Суверена и держателей system.admin.",
+  "audit.backToPulse": "Назад в Пульс",
+  "audit.forbidden.title": "Доступ ограничен",
+  "audit.forbidden.body":
+    "Журнал аудита доступен только Суверену. Если вам нужен доступ — получите мандат system.admin.",
+  "audit.forbidden.back": "На главную",
+  "audit.filter.category": "Категория",
+  "audit.filter.event": "Событие",
+  "audit.filter.actor": "Инициатор",
+  "audit.filter.actorPlaceholder": "@handle или cuid",
+  "audit.empty.title": "Ничего не найдено",
+  "audit.empty.body":
+    "Попробуйте смягчить фильтры — возможно, таких событий ещё не было.",
+  "audit.col.when": "Когда",
+  "audit.col.category": "Категория",
+  "audit.col.event": "Событие",
+  "audit.col.actor": "Инициатор",
+  "audit.col.title": "Описание",
+  "audit.col.visibility": "Видимость",
+  "audit.actor.system": "система",
+  "audit.footnote":
+    "Записи не удаляются автоматически. Для экспорта используйте JSON / CSV выше.",
+
+  // --- Broadcast as an Activity entry title ---
+  "pulse.event.broadcast.sovereign": "Указ Суверена: {title}",
 };

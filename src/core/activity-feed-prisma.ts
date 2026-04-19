@@ -42,6 +42,8 @@ export function createPrismaActivityRepository(
         limit: number;
         before: Date | null;
         category: string | null;
+        event?: string | null;
+        actorId?: string | null;
       },
     ): Promise<ActivityLog[]> {
       const rows = await prisma.activityLog.findMany({
@@ -49,6 +51,8 @@ export function createPrismaActivityRepository(
           stateId,
           ...(opts.before ? { createdAt: { lt: opts.before } } : {}),
           ...(opts.category ? { category: opts.category } : {}),
+          ...(opts.event ? { event: opts.event } : {}),
+          ...(opts.actorId ? { actorId: opts.actorId } : {}),
         },
         orderBy: { createdAt: "desc" },
         take: opts.limit,

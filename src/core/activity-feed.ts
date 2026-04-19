@@ -104,6 +104,14 @@ export interface ListActivityOptions {
   limit?: number;
   before?: Date | null;
   category?: ActivityCategory | null;
+  /**
+   * Точное имя канонического события (`core.wallet.transaction.created`,
+   * `core.broadcast.sovereign`, …). Удобно для Audit Log, где Суверен
+   * хочет поднять историю конкретного типа действий.
+   */
+  event?: string | null;
+  /** Фильтр по инициатору — тоже для Audit Log. */
+  actorId?: string | null;
 }
 
 // ------------------------------------------------------------
@@ -122,7 +130,13 @@ export interface ActivityRepository {
    */
   listByState(
     stateId: string,
-    opts: { limit: number; before: Date | null; category: ActivityCategory | null },
+    opts: {
+      limit: number;
+      before: Date | null;
+      category: ActivityCategory | null;
+      event?: string | null;
+      actorId?: string | null;
+    },
   ): Promise<ActivityLog[]>;
 }
 
@@ -204,6 +218,8 @@ export class ActivityFeedService {
     const limit = clampLimit(opts.limit ?? 50);
     const before = opts.before ?? null;
     const category = opts.category ?? null;
+    const event = opts.event ?? null;
+    const actorId = opts.actorId ?? null;
 
     // Overfetch — ранее отфильтрованные строки уменьшают видимую
     // пачку. Хватит 3× лимита для практических нагрузок.
@@ -212,6 +228,8 @@ export class ActivityFeedService {
       limit: overfetch,
       before,
       category,
+      event,
+      actorId,
     });
 
     const visible = rows.filter((row) => isVisibleTo(row, viewer));

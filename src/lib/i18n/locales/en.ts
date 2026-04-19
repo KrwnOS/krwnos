@@ -730,6 +730,8 @@ export const en: Dict = {
   "chat.connect.desc":
     "Paste a CLI token with scopes {read}, {write} (and optionally {admin}). Mint one with {cmd}.",
   "chat.connect.submit": "Enter the channel",
+  "chat.connect.noToken": "Haven't coronated the State yet?",
+  "chat.connect.goSetup": "Open setup wizard →",
   "chat.apiErr": "API error ({status}): {message}",
   "chat.empty":
     "Pick a channel on the left — or create one via `chat.admin`.",
@@ -791,6 +793,27 @@ export const en: Dict = {
   "pulse.token.desc":
     "Paste a CLI token minted with `{cmd}`. The token stays in this browser only.",
 
+  // --- Role card (header) ---
+  "pulse.role.sovereign": "Sovereign",
+  "pulse.role.lobby": "Waiting room",
+  "pulse.role.none": "No role",
+  "pulse.role.noneHint":
+    "The Sovereign has not admitted you into the Vertical yet — wait for an invitation.",
+  "pulse.role.pathLabel": "Vertical path",
+
+  // --- Balance card (header) ---
+  "pulse.balance.label": "Balance",
+  "pulse.balance.none": "No wallet issued",
+
+  // --- Sidebar (Vertical tree + presence) ---
+  "pulse.sidebar.title": "Vertical of power",
+  "pulse.sidebar.emptyTree":
+    "The state is not built yet. Create the first node in the Vertical editor.",
+  "pulse.sidebar.onlineTotal":
+    "{count} online | {count} online | {count} online",
+  "pulse.sidebar.footnote":
+    "Online = activity within the last {seconds}s.",
+
   "pulse.event.wallet.transfer":
     "Transfer of {amount} {currency}",
   "pulse.event.wallet.treasury_allocation":
@@ -819,4 +842,69 @@ export const en: Dict = {
     "State was founded",
   "pulse.event.kernel.membership_granted":
     "New membership in the Vertical",
+
+  // --- Broadcast (sovereign decree) ---
+  "pulse.broadcast.trigger": "Broadcast",
+  "pulse.broadcast.title": "Sovereign decree",
+  "pulse.broadcast.subtitle":
+    "The message will reach every citizen: in the feed, as a toast, and as a native browser notification.",
+  "pulse.broadcast.headline": "Headline",
+  "pulse.broadcast.headlinePh": "The Sovereign addresses the Vertical",
+  "pulse.broadcast.body": "Body",
+  "pulse.broadcast.bodyPh":
+    "Optional decree body. Markdown is not rendered.",
+  "pulse.broadcast.publish": "Publish",
+  "pulse.broadcast.errTitleRequired": "Headline is required.",
+
+  // --- Push toasts ---
+  "pulse.toast.eyebrow": "Sovereign decree",
+  "pulse.toast.defaultTitle": "New event",
+
+  // --- Node detail drawer ---
+  "pulse.sidebar.onlineCount": "{online} of {total} online",
+  "pulse.sidebar.you": "you",
+  "pulse.nodeType.position": "Position",
+  "pulse.nodeType.department": "Department",
+  "pulse.nodeType.rank": "Rank",
+  "pulse.drawer.members": "Members",
+  "pulse.drawer.membersEmpty": "No members yet.",
+  "pulse.drawer.children": "Child nodes",
+  "pulse.drawer.childrenEmpty": "No child nodes.",
+  "pulse.drawer.edit": "Edit node",
+  "pulse.drawer.openChat": "Open channel",
+
+  // --- Header actions ---
+  "pulse.header.audit": "Audit log",
+
+  // ------------------------------------------------------------
+  // /admin/audit — Audit Log
+  // ------------------------------------------------------------
+  "audit.eyebrow": "Audit log",
+  "audit.title": "Full state history",
+  "audit.subtitle":
+    "Raw events from the Pulse without visibility filters. Sovereign-only and system.admin holders.",
+  "audit.backToPulse": "Back to Pulse",
+  "audit.forbidden.title": "Access denied",
+  "audit.forbidden.body":
+    "The audit log is restricted to the Sovereign. If you need access, request a system.admin mandate.",
+  "audit.forbidden.back": "Home",
+  "audit.filter.category": "Category",
+  "audit.filter.event": "Event",
+  "audit.filter.actor": "Actor",
+  "audit.filter.actorPlaceholder": "@handle or cuid",
+  "audit.empty.title": "Nothing found",
+  "audit.empty.body":
+    "Try relaxing the filters — such events may not have happened yet.",
+  "audit.col.when": "When",
+  "audit.col.category": "Category",
+  "audit.col.event": "Event",
+  "audit.col.actor": "Actor",
+  "audit.col.title": "Description",
+  "audit.col.visibility": "Visibility",
+  "audit.actor.system": "system",
+  "audit.footnote":
+    "Entries are not deleted automatically. Use JSON / CSV export above.",
+
+  // --- Broadcast as an Activity entry title ---
+  "pulse.event.broadcast.sovereign": "Sovereign decree: {title}",
 };

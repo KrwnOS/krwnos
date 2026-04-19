@@ -147,45 +147,23 @@ krwn status
 
 ---
 
-## 6. Roadmap (MVP)
+## 6. Roadmap
 
-### Phase 1 — Foundation ✅ (текущая)
+| Фаза      | Что                                                                                                               | Статус |
+| --------- | ----------------------------------------------------------------------------------------------------------------- | ------ |
+| Phase 1   | Foundation: ядро, Permissions Engine, Registry, Event Bus, Prisma schema, Auth adapter                            | ✅     |
+| Phase 2   | Vertical Management: CRUD узлов, Membership, Lobby                                                                | ✅     |
+| Phase 3   | Module System: bootstrap, `core.chat`, Widget Shell                                                               | ✅     |
+| Phase 4   | Sovereign Node: три tier-а, CLI, magic-link invitations, Credentials Registry, Tunneling, Backup                  | ✅     |
+| Phase 4.5 | Economy + Governance v0.1: Currency Factory, кошельки, Krwn Exchange, Палата Указов, `core.governance`, Pulse     | ✅     |
+| Phase 5   | Scaling: realtime WS gateway, job runner, модули отчётности / changelog, Cloud marketplace images, федерация      | ⏳     |
 
-- Next.js 14+ App Router + Tailwind
-- Типовая модель ядра (`types/kernel.ts`)
-- Permissions Engine (наследование по Вертикали)
-- Module Registry + Event Bus
-- Prisma-схема (`State`, `VerticalNode`, `Membership`, `InstalledModule`)
-- Auth adapter (NextAuth → `setAuthAdapter()`)
+**Живая карта развития:** [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+Там лежит текущий спринт, активные горизонты (0–4), parking lot и
+changelog закрытых пунктов.
 
-### Phase 2 — Vertical Management
-
-- Drag-and-drop редактор иерархии
-- Server actions / API для CRUD узлов с проверкой прав
-- UI-назначение `Membership`
-
-### Phase 3 — Module System
-
-- Бутстрап модулей в `src/modules/index.ts`
-- Первый модуль: `core.chat` (базовая коммуникация внутри вертикали)
-- Dynamic Desktop (Widget Shell)
-
-### Phase 4 — Sovereign Node
-
-- Три tier-а установки: Sandbox / Pro / Cloud (concept + install scripts + compose)
-- Krwn CLI (login / module / vertical / invite / backup / status)
-- Magic-link invitations с SHA-256-hashing и QR-кодами
-- Passwordless credential registry (passkey / wallet / oauth / magic email)
-- Tunneling adapter (cloudflared / frp / ngrok / tailscale funnel)
-- Data isolation: schema-per-module
-- Backup engine (versioned snapshot JSON)
-
-### Phase 5 — Scaling
-
-- Модуль отчётности для инвесторов
-- Модуль Changelog («Указы» / «Обновления государства»)
-- Redis-backed Event Bus + WebSocket gateway
-- Cloud marketplace images (DigitalOcean / Linode / AWS)
+> Любое изменение scope — в том же PR обновляет `docs/ROADMAP.md`.
+> См. `.cursor/rules/roadmap.mdc`.
 
 ---
 
@@ -201,12 +179,17 @@ krwn status
 - Новый функционал = новый модуль или новая публичная функция ядра,
 но не ad-hoc код в `/app`.
 - Каждый модуль декларирует свои `PermissionKey` в `init()`.
+- **Roadmap — живой контракт.** Любое изменение scope (закрыл
+  пункт, ввёл новый, переприоретил) — обновляет
+  `[docs/ROADMAP.md](./docs/ROADMAP.md)` в том же PR. Правила
+  обновления — см. §0 внутри файла и `.cursor/rules/roadmap.mdc`.
 
 ---
 
 ## 8. Документация
 
-- `[docs/WHITEPAPER.md](./docs/WHITEPAPER.md)` — **обзорный white paper**: что это, что уже умеет, как этим пользоваться, roadmap.
+- `[docs/WHITEPAPER.md](./docs/WHITEPAPER.md)` — **обзорный white paper**: что это, что уже умеет, как этим пользоваться.
+- `[docs/ROADMAP.md](./docs/ROADMAP.md)` — **живая дорожная карта**: активные горизонты, Sprint 1, parking lot, changelog закрытых пунктов.
 - `[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)` — ядро, Vertical, модули, правила зависимостей.
 - `[docs/DATABASE.md](./docs/DATABASE.md)` — схема БД и типовые запросы.
 - `[docs/MODULE_GUIDE.md](./docs/MODULE_GUIDE.md)` — как написать плагин.

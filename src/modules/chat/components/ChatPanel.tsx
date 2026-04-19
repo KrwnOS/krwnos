@@ -15,6 +15,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { ChatSidebar } from "./ChatSidebar";
@@ -129,6 +130,15 @@ function ConnectForm({
       >
         {t("chat.connect.submit")}
       </button>
+      <div className="mt-1 flex items-center justify-between text-[11px] text-foreground/50">
+        <span>{t("chat.connect.noToken")}</span>
+        <Link
+          href="/setup"
+          className="font-semibold text-crown hover:underline"
+        >
+          {t("chat.connect.goSetup")}
+        </Link>
+      </div>
     </form>
   );
 }

@@ -27,6 +27,21 @@ import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
+// Должно совпадать с ключом в `src/modules/chat/components/useChat.ts`.
+// Сохраняем bootstrap-токен сюда сразу после коронации, чтобы чат
+// и другие клиентские модули подхватили его без ручного ввода.
+const TOKEN_STORAGE_KEY = "krwn.token";
+
+function persistBootstrapToken(token: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch {
+    // localStorage может быть заблокирован (приватный режим) —
+    // тогда пользователь увидит форму ввода в чате и вставит токен вручную.
+  }
+}
+
 // ------------------------------------------------------------
 // Types
 // ------------------------------------------------------------
@@ -163,7 +178,9 @@ export function SetupWizard() {
       if (!res.ok) {
         throw new Error(data?.message ?? data?.error ?? "Setup failed");
       }
-      setResult(data as SetupSuccess);
+      const success = data as SetupSuccess;
+      persistBootstrapToken(success.cliToken);
+      setResult(success);
       setStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -189,7 +206,9 @@ export function SetupWizard() {
       if (!res.ok) {
         throw new Error(data?.message ?? data?.error ?? "Rotation failed");
       }
-      setRotated(data.token as string);
+      const newToken = data.token as string;
+      persistBootstrapToken(newToken);
+      setRotated(newToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -753,7 +772,7 @@ function DoneScreen({
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
       <div className="mt-8 flex flex-col gap-2">
-        <a href={`/s/${result.stateSlug}`}>
+        <a href="/dashboard">
           <Button variant="crown" size="lg" className="w-full">
             {t("setup.done.enter")}
           </Button>

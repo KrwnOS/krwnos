@@ -32,10 +32,15 @@ export async function GET(req: NextRequest) {
     const before = beforeParam ? new Date(beforeParam) : null;
     const category = url.searchParams.get("category");
 
+    const event = url.searchParams.get("event");
+    const actorId = url.searchParams.get("actorId");
+
     const entries = await ctx.service.listForViewer(ctx.viewer, {
       limit,
       before: Number.isNaN(before?.getTime()) ? null : before,
       category: category || null,
+      event: event || null,
+      actorId: actorId || null,
     });
 
     return NextResponse.json({

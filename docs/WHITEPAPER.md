@@ -6,7 +6,7 @@
 
 **Версия документа:** 0.1 · MVP Foundation
 **Дата:** 2026-04-19
-**Статус:** Phase 1–4 завершены, Phase 5 в работе
+**Статус:** Phase 1–4.5 завершены, Phase 5 в работе (см. [`ROADMAP.md`](./ROADMAP.md))
 
 ---
 
@@ -475,38 +475,38 @@ Proposal → Vote[] → ProposalStatus переходит по одной из
 
 ## 10. Roadmap
 
-### ✅ Phase 1 — Foundation
-Next.js + Tailwind · kernel types · Permissions Engine ·
-Registry · Event Bus · Prisma schema · Auth adapter.
+Whitepaper описывает, **что** уже работает. Что **будет** и в каком
+порядке — живёт в отдельном документе: [`docs/ROADMAP.md`](./ROADMAP.md).
 
-### ✅ Phase 2 — Vertical Management
-CRUD узлов с проверкой прав · Membership · Lobby-узел
-(Прихожая).
+Короткий статус по фазам:
 
-### ✅ Phase 3 — Module System
-Bootstrap в `modules/index.ts` · `core.chat` (каналы +
-директивы + ack) · динамический Widget Shell.
+| Фаза | Что | Статус |
+|------|-----|--------|
+| Phase 1 | Foundation: ядро, Permissions Engine, Registry, Event Bus, Prisma schema, Auth adapter | ✅ |
+| Phase 2 | Vertical Management: CRUD узлов, Membership, Lobby | ✅ |
+| Phase 3 | Module System: bootstrap, `core.chat`, Widget Shell | ✅ |
+| Phase 4 | Sovereign Node: три tier-а, CLI, magic-link invitations, Credentials Registry, Tunneling, Backup, schema-per-module | ✅ |
+| Phase 4.5 | Economy + Governance v0.1: Currency Factory, кошельки, Krwn Exchange, Палата Указов, `core.governance`, Pulse, Theme Engine | ✅ |
+| Phase 5 | Scaling — разбит на Horizon 0–4 в `ROADMAP.md` | ⏳ |
 
-### ✅ Phase 4 — Sovereign Node
-Три tier-а установки · Krwn CLI · Magic-link приглашения ·
-Credentials Registry · Tunneling · BackupService · Schema-
-per-module изоляция.
+Активные горизонты (детали — в `ROADMAP.md`):
 
-### ✅ Phase 4.5 — Economy + Governance (v0.1)
-Currency Factory (INTERNAL / ON_CHAIN / HYBRID) · кошельки
-и казначейства · автоматический налог в корневую Казну ·
-Krwn Exchange Engine (межгосударственная торговля с
-направленными парами и «санкциями») · Палата Указов
-(StateSettings) · Core Governance (`decree` / `consultation` /
-`auto_dao` с вето Суверена).
+- **Horizon 0 — Стабилизация.** Тесты, CI, Decimal-миграция для
+  денег, security middleware, observability.
+- **Horizon 1 — Достройка запущенного.** Job runner (BullMQ),
+  WebSocket gateway, Vertical Editor, Audit Log UI, `exitRefundRate`
+  и `rolesPurchasable` flows.
+- **Horizon 2 — Опыт Суверена и гражданина.** Onboarding-тур, PWA,
+  push / email уведомления, i18n, accessibility, визуализации Pulse.
+- **Horizon 3 — Экосистема модулей.** `@krwnos/sdk`, manifest,
+  sandboxing, signed modules, marketplace, `core.reports` /
+  `core.changelog` / `core.tasks` / `core.elections` / `core.kyc`.
+- **Horizon 4 — Федерация и рост.** Discovery, federated identity,
+  embassy channels, cloud marketplace images, SaaS-tier.
 
-### ⏳ Phase 5 — Scaling
-Модуль отчётности · модуль Changelog («Указы / Обновления
-государства») · Redis-backed Event Bus + WebSocket gateway
-(realtime во всех модулях) · Cloud marketplace images
-(DigitalOcean / Linode / AWS one-click) · Treasury Watcher
-cron для ON_CHAIN активов · Decimal-migration для балансов ·
-Federated identity · Discovery-протокол между State-ами.
+> Контракт обновления: любой PR, меняющий scope, обязан обновить
+> `docs/ROADMAP.md`. См. §0 в самом файле и
+> `.cursor/rules/roadmap.mdc`.
 
 ---
 

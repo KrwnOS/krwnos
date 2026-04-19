@@ -25,6 +25,7 @@ import {
   type StateSettings,
   type UpdateStateSettingsPatch,
 } from "../state-config";
+import { DEFAULT_GOVERNANCE_RULES } from "../governance-rules";
 import type { ModuleEventBus, PermissionKey } from "@/types/kernel";
 
 // ------------------------------------------------------------
@@ -70,6 +71,7 @@ function makeRepo(): StateConfigRepository & {
       autoPromotionMinDays: null,
       autoPromotionTargetNodeId: null,
       treasuryTransparency: "council",
+      governanceRules: { ...DEFAULT_GOVERNANCE_RULES },
       extras: {},
       createdAt: now,
       updatedAt: now,

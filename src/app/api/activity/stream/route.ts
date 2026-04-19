@@ -20,6 +20,7 @@ import {
   activityErrorResponse,
   loadActivityContext,
 } from "../_context";
+import * as presence from "@/server/presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
         at: new Date().toISOString(),
       });
 
+      presence.touch(viewer.userId);
+
       offRecord = eventBus.on<ActivityRecordedEvent>(
         ACTIVITY_EVENTS.Recorded,
         (evt) => {
@@ -67,6 +70,7 @@ export async function GET(req: NextRequest) {
 
       heartbeat = setInterval(() => {
         if (closed) return;
+        presence.touch(viewer.userId);
         try {
           controller.enqueue(encoder.encode(`: keep-alive ${Date.now()}\n\n`));
         } catch {
@@ -81,6 +85,7 @@ export async function GET(req: NextRequest) {
         closed = true;
         if (heartbeat) clearInterval(heartbeat);
         if (offRecord) offRecord();
+        presence.leave(viewer.userId);
         try {
           controller.close();
         } catch {
@@ -92,6 +97,7 @@ export async function GET(req: NextRequest) {
       closed = true;
       if (heartbeat) clearInterval(heartbeat);
       if (offRecord) offRecord();
+      presence.leave(viewer.userId);
     },
   });
 
