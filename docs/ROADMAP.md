@@ -104,7 +104,6 @@
 
 ### Job runner
 
-- [ ] Cron: `roleTaxRate` ежемесячный тиккер.
 - [x] 2026-04-19 (#—) Автобэкап: ежедневный snapshot в S3/R2 + ретенция
       (`BackupService`, BullMQ `backup-daily`, `BackupManifest`, ретенция).
 
@@ -346,13 +345,19 @@
       `BackupService` + S3-совместимое хранилище (`@aws-sdk/client-s3`), запись
       `BackupManifest`, ретенция по `KRWN_BACKUP_RETENTION_COUNT` (удаление
       старых объектов и строк). Без `KRWN_BACKUP_S3_BUCKET` + ключей — no-op.
+- [x] 2026-04-19 (#—) Cron `roleTaxRate`: очередь `role-tax-monthly`, repeat через
+      `upsertJobScheduler` (`KRWN_JOB_ROLE_TAX_CRON`, дефолт `0 0 1 * *`,
+      `KRWN_JOB_ROLE_TAX_TZ`), списание доли баланса личного кошелька (первичный
+      актив) в корневую казну по `StateSettings.roleTaxRate`; идемпотентность
+      по месяцу UTC (`periodKey` YYYY-MM) в `RoleTaxPeriodCharge`
+      (`src/modules/wallet/role-tax-tick.ts`, `src/jobs/worker.ts`, `src/jobs/tasks.ts`).
 - [x] 2026-04-19 — BullMQ + Redis: очередь `krwn-jobs`, воркер
       `npm run worker:jobs` (`scripts/job-worker.ts`, `src/jobs/*`).
       Планировщики: `treasury-tick` (`TreasuryWatcher.tick`),
       `proposal-expirer` (`GovernanceService.tickDueProposals`, в т.ч.
       `auto_dao`), `invitation-reaper` (просроченные `Invitation` →
-      `expired`), `backup-daily` (см. отдельный пункт выше). Лидер
-      регистрации cron через `KRWN_JOB_LEADER`
+      `expired`), `auto-promotion`, `role-tax-monthly`, `backup-daily`
+      (см. отдельные пункты выше). Лидер регистрации cron через `KRWN_JOB_LEADER`
       (см. заголовок `scripts/job-worker.ts`). CLI `watcher:treasury`
       остаётся для ручного/демон-режима без Redis.
 - [x] 2026-04-19 — Cron `auto-promotion`: по `StateSettings`
