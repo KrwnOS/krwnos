@@ -110,3 +110,31 @@ test("api/admin/nexus: 401 without token; 200 with bootstrap bearer", async ({
   const json = (await ok.json()) as { state?: { name?: string } };
   expect(json.state?.name).toBe("E2E Playwright State");
 });
+
+test("dashboard: no horizontal overflow at mobile width", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    locale: "en-US",
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.evaluate((token) => {
+      window.localStorage.setItem("krwn.token", token);
+    }, bootstrapToken);
+
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: /E2E Playwright State/i }),
+    ).toBeVisible({ timeout: 30_000 });
+
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  } finally {
+    await context.close();
+  }
+});
