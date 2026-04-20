@@ -944,6 +944,8 @@ export const ru: Dict = {
   "pulse.filter.kernel": "Ядро",
   "pulse.live.connected": "Онлайн",
   "pulse.live.offline": "Офлайн",
+  "pulse.pwa.cachedContext":
+    "Нет сети — показываем последний снимок Пульса с этого устройства. Лента и присутствие могут быть устаревшими.",
   "pulse.empty.title": "В эфире тихо",
   "pulse.empty.body":
     "Как только в государстве что-то произойдёт — это появится здесь.",

@@ -44,7 +44,7 @@ export function ChatSidebar({
   }, [pendingDirectives]);
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col gap-4 border-r border-border/60 bg-background/80 p-3 text-sm">
+    <aside className="flex h-auto max-h-[min(42vh,320px)] w-full shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden border-b border-border/60 bg-background/80 p-3 text-sm touch-manipulation md:h-full md:max-h-none md:w-60 md:gap-4 md:overflow-visible md:border-b-0 md:border-r">
       <header className="flex items-center justify-between px-2 pt-1">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/50">
           {t("chat.sidebar.channels")}
@@ -126,7 +126,7 @@ function Group({
                   type="button"
                   onClick={() => onSelect(info.channel.id)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+                    "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left transition-colors md:min-h-0 md:py-1.5",
                     active
                       ? "bg-foreground/10 text-foreground"
                       : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground",

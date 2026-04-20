@@ -2,9 +2,26 @@
  * Citizen-facing helpers for constitution-backed flows (emigration, role market).
  * Amounts follow the same conventions as `StateSettings`: `exitRefundRate` is a
  * fraction in [0, 1], not a percentage.
+ *
+ * Uses `decimal.js` (not `@prisma/client/runtime`) so this module stays safe to
+ * import from Client Components — Prisma's runtime pulls Node builtins into the
+ * browser bundle.
  */
 
-import { ledgerDecimal, moneyToNumber, roundLedgerAmount } from "@/modules/wallet/money";
+import Decimal from "decimal.js";
+
+function ledgerDecimal(n: number | string | Decimal): Decimal {
+  return Decimal.isDecimal(n) ? n : new Decimal(n);
+}
+
+function roundLedgerAmount(value: Decimal, maxDecimals: number): Decimal {
+  const d = Math.max(0, Math.min(18, Math.trunc(maxDecimals)));
+  return value.toDecimalPlaces(d, Decimal.ROUND_HALF_EVEN);
+}
+
+function moneyToNumber(v: Decimal | number): number {
+  return Decimal.isDecimal(v) ? v.toNumber() : v;
+}
 
 export interface EmigrationSplit {
   /** Balance retained on the personal wallet (per constitution). */

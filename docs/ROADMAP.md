@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — Sovereign onboarding tour после `/setup`
+**Обновлено:** 2026-04-20 — Responsive pass (чат + Pulse / dashboard)
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -169,11 +169,18 @@
 
 ## 4. Horizon 2 — Опыт Суверена и гражданина
 
-- [ ] PWA: `manifest.webmanifest`, service-worker (офлайн Pulse),
-      web-push.
-- [ ] Responsive pass (чат и Pulse — основное потребление с
-      телефона).
-- [ ] Web-push уведомления для directive ACK и Proposal voting.
+- [x] 2026-04-20 (#—) PWA MVP: `public/manifest.webmanifest` + `public/sw.js`
+      (офлайн read-кэш `GET /api/state/pulse`, ключ кэша по `Authorization`
+      — см. `docs/ARCHITECTURE.md` §8), installability, CSP `worker-src` /
+      `manifest-src`; `POST /api/push/subscribe` — заглушка; VAPID env в
+      `docs/DEPLOYMENT.md`.
+- [x] 2026-04-20 (#—) Responsive pass (чат и Pulse / dashboard): стек
+      каналов + треда на `<md`, `min-w-0` / `overflow-x` на лентах,
+      safe-area для composer и toasts, touch targets ≥44px на
+      фильтрах/шапке Pulse; `e2e/smoke.spec.ts` — проверка отсутствия
+      горизонтального overflow на `/dashboard` при 390px.
+- [ ] Web-push (полная реализация): хранение подписок, серверная доставка
+      (directive ACK, Proposal voting); сейчас только scaffold и VAPID env.
 - [ ] Email-digest (ежедневный / еженедельный).
 - [ ] Telegram-bot-адаптер через `CredentialsRegistry`-паттерн.
 - [ ] i18n: ICU-формат, es/zh/tr, переключатель на уровне
@@ -279,6 +286,11 @@
 ## 9. Done
 
 Закрытые пункты остаются здесь как changelog проекта.
+
+### 2026-04 — Horizon 2 · PWA
+- [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse
+      (Bearer-scoped cache), installability, push subscribe stub + VAPID env
+      (`docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md` §8).
 
 ### 2026-04 — Horizon 2 · Onboarding
 - [x] 2026-04-20 (#—) Onboarding-тур после `/setup`: чеклист на `/dashboard`

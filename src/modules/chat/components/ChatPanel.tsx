@@ -47,7 +47,7 @@ export function ChatPanel({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full overflow-hidden rounded-lg border border-border/60 bg-background",
+        "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-border/60 bg-background md:flex-row",
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function ChatPanel({ className }: { className?: string }) {
         onSelect={chat.setActiveChannel}
         pendingDirectives={chat.pendingDirectives}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {chat.pendingDirectives.length > 0 && (
           <PendingTray
             count={chat.pendingDirectives.length}
@@ -126,7 +126,7 @@ function ConnectForm({
       <button
         type="submit"
         disabled={!value.trim()}
-        className="rounded-md bg-crown px-3 py-2 text-sm font-semibold text-black hover:bg-crown/90 disabled:opacity-50"
+        className="min-h-11 rounded-md bg-crown px-3 text-sm font-semibold text-black hover:bg-crown/90 disabled:opacity-50"
       >
         {t("chat.connect.submit")}
       </button>
@@ -183,7 +183,7 @@ function PendingTray({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 px-5 py-2 text-left text-xs text-crown hover:bg-crown/10"
+        className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left text-xs text-crown hover:bg-crown/10 sm:min-h-0 sm:px-5"
       >
         <DirectiveBadge />
         <span>
@@ -205,7 +205,7 @@ function PendingTray({
               <button
                 type="button"
                 onClick={() => onJump(p.channel.id)}
-                className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-widest text-foreground/70 hover:border-crown/60 hover:text-crown"
+                className="min-h-11 shrink-0 self-start rounded-md border border-border px-2 py-2 text-[10px] uppercase tracking-widest text-foreground/70 hover:border-crown/60 hover:text-crown sm:min-h-0 sm:py-1"
               >
                 #{p.channel.title}
               </button>

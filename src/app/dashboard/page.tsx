@@ -151,6 +151,10 @@ type FilterKey = (typeof FILTER_KEYS)[number];
 const PULSE_CTX_REFRESH_MS = 15_000;
 const SOVEREIGN_TOUR_SESSION_KEY = "krwn.sovereignTourSessionDismissed";
 
+/** ≥44px tap height on narrow viewports; compact again from `sm:` (desktop pass). */
+const pulseHeaderBtn =
+  "h-11 min-h-11 touch-manipulation sm:h-8 sm:min-h-8";
+
 // ------------------------------------------------------------
 // Page
 // ------------------------------------------------------------
@@ -171,6 +175,8 @@ export default function DashboardPage() {
   // Pulse context (viewer / role / wallet / tree)
   const [ctx, setCtx] = useState<PulseContext | null>(null);
   const [ctxError, setCtxError] = useState<string | null>(null);
+  /** Last successful GET /api/state/pulse was served from SW offline cache. */
+  const [pulseOfflineCached, setPulseOfflineCached] = useState(false);
   const [sovereignTourOpen, setSovereignTourOpen] = useState(false);
   const sovereignTourAutoOpenedRef = useRef(false);
 
@@ -358,6 +364,9 @@ export default function DashboardPage() {
         headers: { authorization: `Bearer ${token}` },
         cache: "no-store",
       });
+      setPulseOfflineCached(
+        res.headers.get("X-Krwn-Pulse-Cache") === "offline",
+      );
       const body = (await res.json()) as PulseContext | { error: unknown };
       if (!res.ok || !("viewer" in body)) {
         const msg =
@@ -367,11 +376,13 @@ export default function DashboardPage() {
               : JSON.stringify(body.error)
             : `HTTP ${res.status}`;
         setCtxError(msg);
+        setPulseOfflineCached(false);
         return;
       }
       setCtx(body);
       setCtxError(null);
     } catch (err) {
+      setPulseOfflineCached(false);
       setCtxError(err instanceof Error ? err.message : "unknown error");
     }
   }, [token]);
@@ -478,6 +489,7 @@ export default function DashboardPage() {
       <HeaderBar
         ctx={ctx}
         ctxError={ctxError}
+        pulseOfflineCached={pulseOfflineCached}
         liveConnected={liveConnected}
         loading={loading}
         onRefresh={() => {
@@ -490,16 +502,16 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-6 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Center: Activity Feed */}
-        <section className="min-w-0">
+        <section className="min-w-0 overflow-x-hidden">
           {error && (
             <Card className="mb-4 border-destructive/40 bg-destructive/5 text-sm text-destructive">
               {t("common.errorWith", { message: error })}
             </Card>
           )}
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2 touch-manipulation">
             {FILTER_KEYS.map((key) => (
               <FilterButton
                 key={key}
@@ -530,6 +542,7 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11 touch-manipulation sm:min-h-8"
                 onClick={() => void loadMore()}
                 disabled={loadingMore}
               >
@@ -544,7 +557,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Sidebar: Vertical tree */}
-        <aside className="min-w-0">
+        <aside className="min-w-0 overflow-x-hidden">
           <TreeSidebar
             ctx={ctx}
             activeNodeId={drawerNodeId}
@@ -669,7 +682,7 @@ function ToastStack({
   const { t } = useI18n();
   if (toasts.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] z-50 flex w-[360px] max-w-[min(360px,calc(100vw-2rem))] flex-col gap-2">
       {toasts.map((item) => {
         const md = item.entry.metadata ?? {};
         const title =
@@ -699,7 +712,7 @@ function ToastStack({
                 type="button"
                 onClick={() => onDismiss(item.id)}
                 aria-label={t("common.close")}
-                className="-mr-1 rounded-md p-1 text-foreground/40 hover:bg-foreground/5 hover:text-foreground/80"
+                className="-mr-1 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-lg text-foreground/40 hover:bg-foreground/5 hover:text-foreground/80"
               >
                 ×
               </button>
@@ -888,7 +901,7 @@ function NodeDetailDrawer({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="rounded-md p-1.5 text-foreground/50 hover:bg-foreground/5 hover:text-foreground/80"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-lg text-foreground/50 hover:bg-foreground/5 hover:text-foreground/80"
           >
             ×
           </button>
@@ -1008,6 +1021,7 @@ function nodeTypeLabel(
 function HeaderBar({
   ctx,
   ctxError,
+  pulseOfflineCached,
   liveConnected,
   loading,
   onRefresh,
@@ -1016,6 +1030,7 @@ function HeaderBar({
 }: {
   ctx: PulseContext | null;
   ctxError: string | null;
+  pulseOfflineCached: boolean;
   liveConnected: boolean;
   loading: boolean;
   onRefresh: () => void;
@@ -1038,51 +1053,62 @@ function HeaderBar({
 
   return (
     <header className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.3em] text-crown">
             {t("pulse.eyebrow")}
           </p>
-          <h1 className="mt-1 truncate text-3xl font-semibold">
+          <h1 className="mt-1 break-words text-2xl font-semibold sm:text-3xl">
             {ctx?.state.name ?? t("pulse.title")}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-foreground/60">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-foreground/60">
             {t("pulse.subtitle")}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 touch-manipulation">
           <LiveBadge connected={liveConnected} />
           {onBroadcast && (
-            <Button variant="crown" size="sm" onClick={onBroadcast}>
+            <Button
+              variant="crown"
+              size="sm"
+              className={pulseHeaderBtn}
+              onClick={onBroadcast}
+            >
               {t("pulse.broadcast.trigger")}
             </Button>
           )}
           {(viewer?.canAuditLog ?? viewer?.isOwner) && (
             <Link href="/admin/audit">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className={pulseHeaderBtn}>
                 {t("pulse.header.audit")}
               </Button>
             </Link>
           )}
           <Link href="/dashboard/emigration">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className={pulseHeaderBtn}>
               {t("citizen.nav.emigrate")}
             </Button>
           </Link>
           <Link href="/dashboard/role-market">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className={pulseHeaderBtn}>
               {t("citizen.nav.roleMarket")}
             </Button>
           </Link>
           <Button
             variant="outline"
             size="sm"
+            className={pulseHeaderBtn}
             onClick={onRefresh}
             disabled={loading}
           >
             {loading ? t("common.loadingDots") : t("common.refresh")}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onLogout}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={pulseHeaderBtn}
+            onClick={onLogout}
+          >
             {t("common.logout")}
           </Button>
         </div>
@@ -1091,6 +1117,12 @@ function HeaderBar({
       {ctxError && (
         <Card className="border-destructive/40 bg-destructive/5 text-sm text-destructive">
           {t("common.errorWith", { message: ctxError })}
+        </Card>
+      )}
+
+      {pulseOfflineCached && !ctxError && (
+        <Card className="border-crown/40 bg-crown/5 text-sm text-foreground/90">
+          {t("pulse.pwa.cachedContext")}
         </Card>
       )}
 
@@ -1375,7 +1407,7 @@ function TreeNodeRow({
           aria-expanded={open}
           aria-label={open ? "collapse" : "expand"}
           className={cn(
-            "flex h-7 w-4 shrink-0 items-center justify-center text-foreground/40 hover:text-foreground",
+            "flex min-h-11 min-w-[44px] shrink-0 items-center justify-center text-foreground/40 hover:text-foreground md:min-h-7 md:min-w-4",
             kids.length === 0 && "invisible",
           )}
         >
@@ -1385,7 +1417,7 @@ function TreeNodeRow({
           type="button"
           onClick={() => onNodeOpen(node.id)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 text-left hover:bg-foreground/5",
+            "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md py-2 text-left hover:bg-foreground/5 md:min-h-0 md:py-1",
             isActive && "hover:bg-crown/10",
           )}
         >
@@ -1502,14 +1534,16 @@ function EntryRow({ entry }: { entry: ActivityEntry }) {
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "mt-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-widest",
+            "mt-1 shrink-0 rounded-md border px-2 py-1 text-[10px] uppercase tracking-widest",
             tint,
           )}
         >
           {categoryLabel(entry.category, t)}
         </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground/90">{title}</p>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm leading-snug text-foreground/90">
+            {title}
+          </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-foreground/50">
             <span>{formatDateTime(entry.createdAt)}</span>
             {entry.actorId && (
@@ -1626,7 +1660,7 @@ function FilterButton({
       type="button"
       onClick={() => onClick(value)}
       className={cn(
-        "rounded-md border px-3 py-1 text-xs uppercase tracking-wider transition-colors",
+        "min-h-11 rounded-md border px-3 text-xs uppercase tracking-wider transition-colors touch-manipulation sm:min-h-0 sm:py-1",
         active
           ? "border-crown/60 bg-crown/10 text-crown"
           : "border-border/60 text-foreground/60 hover:bg-background/60",
@@ -1692,7 +1726,7 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8">
+    <main className="mx-auto min-h-screen w-full max-w-7xl overflow-x-hidden px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-8">
       {children}
     </main>
   );

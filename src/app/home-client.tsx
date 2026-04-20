@@ -23,12 +23,12 @@ export function HomeClient() {
     <div className="relative min-h-screen">
       <main
         className={cn(
-          "mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-16 transition-[margin] duration-300",
+          "mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-12 transition-[margin] duration-300 sm:px-6 sm:py-16",
           chatOpen && "lg:mr-[420px]",
         )}
       >
         <header className="flex items-center justify-end">
-          <nav className="flex items-center gap-2">
+          <nav className="flex max-w-full flex-wrap items-center justify-end gap-2">
             <Link href="/docs/ARCHITECTURE">
               <Button variant="ghost" size="sm">
                 {t("common.docs")}
@@ -54,7 +54,7 @@ export function HomeClient() {
           <span className="rounded-full border border-crown/40 px-3 py-1 text-xs uppercase tracking-widest text-crown">
             {t("home.hero.eyebrow")}
           </span>
-          <h1 className="text-5xl font-semibold leading-tight md:text-6xl">
+          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl md:text-6xl">
             {t("home.hero.titlePre")}{" "}
             <span className="text-crown">{t("home.hero.titleCrown")}</span>
           </h1>
@@ -99,7 +99,7 @@ export function HomeClient() {
         <button
           type="button"
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-crown/60 bg-background/90 px-4 py-2 text-sm font-semibold text-crown shadow-[0_0_24px_-6px_rgba(212,175,55,0.5)] backdrop-blur hover:bg-crown hover:text-black"
+          className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] right-[max(1.5rem,env(safe-area-inset-right,0px))] z-40 flex min-h-12 touch-manipulation items-center gap-2 rounded-full border border-crown/60 bg-background/90 px-4 text-sm font-semibold text-crown shadow-[0_0_24px_-6px_rgba(212,175,55,0.5)] backdrop-blur hover:bg-crown hover:text-black"
         >
           <span aria-hidden>◈</span> {t("home.chat.float")}
         </button>
@@ -134,24 +134,26 @@ function ChatSidePanel({
       />
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-40 flex w-full max-w-[420px] flex-col border-l border-border/70 bg-background shadow-2xl transition-transform duration-300",
+          "fixed inset-y-0 right-0 z-40 flex w-full max-w-[420px] flex-col border-l border-border/70 bg-background pt-[env(safe-area-inset-top,0px)] shadow-2xl transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full",
         )}
         aria-hidden={!open}
       >
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-crown">
+        <div className="flex items-center justify-between border-b border-border/60 px-3 py-2 sm:px-4">
+          <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-widest text-crown">
             {t("home.sidepanel.label")}
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-xs text-foreground/60 hover:bg-foreground/10"
+            className="inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-md text-sm text-foreground/60 hover:bg-foreground/10"
           >
             {t("common.closeX")}
           </button>
         </div>
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
+          {children}
+        </div>
       </aside>
     </>
   );

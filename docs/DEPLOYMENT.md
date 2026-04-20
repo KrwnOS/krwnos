@@ -77,6 +77,30 @@ npm run ws:gateway
 Next.js, и выставьте `NEXT_PUBLIC_KRWN_WS_URL` на публичный `wss://…`,
 чтобы CSP `connect-src` оставался предсказуемым.
 
+### PWA (install + offline Pulse)
+
+В production приложение регистрирует `public/sw.js` (см. `docs/ARCHITECTURE.md`
+§8): установка через manifest, офлайн read-кэш последнего успешного
+`GET /api/state/pulse` для текущего Bearer-токена, плюс runtime-кэш
+`/_next/static/*`. Иконки: `public/icons/icon-192.png`, `icon-512.png`
+(при необходимости перегенерировать: `scripts/generate-pwa-icons.ps1` в
+PowerShell на Windows).
+
+**Web Push (scaffold):** полная доставка уведомлений не реализована
+(`docs/ROADMAP.md`). Для будущей интеграции задайте VAPID-пару и субъект
+(только из секретов окружения, не в репозитории):
+
+| Env | Зачем |
+|-----|--------|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Публичный ключ VAPID (URL-safe base64) для `pushManager.subscribe` в браузере. |
+| `VAPID_PRIVATE_KEY` | Приватный ключ VAPID на сервере для подписи payload (будущий `web-push`). |
+| `VAPID_SUBJECT` | Контакт для VAPID, обычно `mailto:ops@example.com` или `https://…` по спецификации. |
+
+Заглушка `POST /api/push/subscribe` принимает JSON с полем `subscription`,
+ответ `202` без сохранения в БД. Когда появится отправка push, в
+`next.config.mjs` для `Content-Security-Policy` → `connect-src` может
+понадобиться добавить эндпоинты провайдера (например FCM).
+
 ---
 
 ## Tier 2 — Pro (свой VPS / домашний сервер)

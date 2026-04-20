@@ -52,6 +52,10 @@
     --effect-glow: 0 0 24px -6px rgba(212, 175, 55, 0.45);
   }
 
+  html {
+    overflow-x: clip;
+  }
+
   html,
   body {
     height: 100%;

@@ -895,6 +895,8 @@ export const en: Dict = {
   "pulse.filter.kernel": "Kernel",
   "pulse.live.connected": "Live",
   "pulse.live.offline": "Offline",
+  "pulse.pwa.cachedContext":
+    "You’re offline — showing the last Pulse snapshot from this device. Live feed and presence may be stale.",
   "pulse.empty.title": "Nothing on the wire",
   "pulse.empty.body":
     "As soon as anything happens in the state, it will show up here.",

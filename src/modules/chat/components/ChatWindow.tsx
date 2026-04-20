@@ -43,14 +43,14 @@ export function ChatWindow({
 
   if (!channel) {
     return (
-      <section className="flex h-full flex-1 items-center justify-center text-sm text-foreground/50">
+      <section className="flex h-full min-h-0 flex-1 items-center justify-center px-4 text-center text-sm text-foreground/50">
         {t("chat.empty")}
       </section>
     );
   }
 
   return (
-    <section className="flex h-full flex-1 flex-col">
+    <section className="flex h-full min-h-0 flex-1 flex-col">
       <Header channel={channel} />
       <MessageList
         messages={messages}
@@ -75,16 +75,16 @@ function Header({ channel }: { channel: ChannelAccessInfo }) {
   const t = useT();
   const sub = subtitleForAccessReason(channel, t);
   return (
-    <header className="flex items-center justify-between border-b border-border/60 px-5 py-3">
-      <div className="flex flex-col">
-        <h2 className="text-base font-semibold text-foreground">
+    <header className="flex flex-col gap-2 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0 flex flex-col">
+        <h2 className="break-words text-base font-semibold text-foreground">
           # {channel.channel.title}
         </h2>
         {channel.channel.topic && (
           <p className="text-xs text-foreground/60">{channel.channel.topic}</p>
         )}
       </div>
-      <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-foreground/50">
+      <span className="w-fit shrink-0 rounded-full border border-border px-2 py-1 text-[10px] uppercase tracking-widest text-foreground/50">
         {sub}
       </span>
     </header>
@@ -145,7 +145,7 @@ function MessageList({
   return (
     <div
       ref={scrollerRef}
-      className="flex-1 overflow-y-auto px-5 py-4"
+      className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5"
     >
       {messages.length === 0 ? (
         <p className="text-sm text-foreground/40">{t("chat.noMessages")}</p>
@@ -226,7 +226,7 @@ function MessageRow({
       </div>
 
       {message.isDirective && requiresAck && !isOwn && (
-        <div className="mt-2 flex items-center gap-2 rounded-md bg-background/60 p-2">
+        <div className="mt-2 flex flex-col gap-2 rounded-md bg-background/60 p-2 sm:flex-row sm:items-center">
           <span className="text-xs text-foreground/70">
             {t("chat.ack.required")}
           </span>
@@ -234,7 +234,7 @@ function MessageRow({
             type="button"
             onClick={handleAck}
             disabled={acking}
-            className="ml-auto rounded-md bg-crown px-3 py-1 text-xs font-semibold text-black shadow transition hover:bg-crown/90 disabled:opacity-60"
+            className="ml-auto min-h-11 w-full rounded-md bg-crown px-3 text-xs font-semibold text-black shadow transition hover:bg-crown/90 disabled:opacity-60 sm:min-h-0 sm:w-auto sm:py-2"
           >
             {acking ? t("chat.ack.submitting") : t("chat.ack.submit")}
           </button>
@@ -288,7 +288,7 @@ function Composer({
   };
 
   return (
-    <footer className="border-t border-border/60 bg-background/70 p-3">
+    <footer className="border-t border-border/60 bg-background/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
       <div
         className={cn(
           "flex flex-col gap-2 rounded-lg border border-border/60 p-2 transition-colors",
@@ -305,18 +305,18 @@ function Composer({
               : t("chat.composer.sendMessage", { title: channelTitle })
           }
           rows={2}
-          className="min-h-[44px] w-full resize-none bg-transparent text-sm text-foreground placeholder:text-foreground/40 focus:outline-none"
+          className="min-h-[48px] w-full resize-none bg-transparent text-base text-foreground placeholder:text-foreground/40 focus:outline-none sm:min-h-[44px] sm:text-sm"
           disabled={busy}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canPostDirective && (
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-foreground/70">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-foreground/70 md:min-h-0">
               <input
                 type="checkbox"
                 checked={asDirective}
                 onChange={(e) => setAsDirective(e.target.checked)}
-                className="h-3.5 w-3.5 accent-crown"
+                className="h-4 w-4 accent-crown"
                 disabled={busy}
               />
               <DirectiveBadge className="pointer-events-none" />
@@ -328,7 +328,7 @@ function Composer({
             onClick={submit}
             disabled={busy || value.trim().length === 0}
             className={cn(
-              "ml-auto rounded-md px-3 py-1.5 text-xs font-semibold transition",
+              "ml-auto min-h-11 min-w-[44px] rounded-md px-4 text-xs font-semibold transition md:min-h-0 md:min-w-0 md:px-3 md:py-1.5",
               asDirective
                 ? "bg-crown text-black hover:bg-crown/90"
                 : "bg-foreground text-background hover:bg-foreground/90",

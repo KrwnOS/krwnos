@@ -200,3 +200,32 @@ can(user, permission):
 | POST | `wallet/transfer` | Bearer CLI |
 | POST | `wallet/transfer/confirm` | Bearer CLI |
 | POST | `wallet/transfer/intent` | Bearer CLI |
+
+---
+
+## 8. PWA и офлайн-кэш Pulse
+
+Установляемое приложение (`public/manifest.webmanifest`, иконки в
+`public/icons/`) и service worker (`public/sw.js`) регистрируются из
+`ServiceWorkerRegister` **только в production**, чтобы не конфликтовать с
+HMR в dev.
+
+**`GET /api/state/pulse`** — персональный контекст (Bearer CLI-токен). Его
+нельзя кэшировать «по URL одному на всех»: Cache API ключует запросы без
+учёта заголовков по умолчанию. SW поэтому:
+
+- кладёт успешный ответ в `caches` под **синтетическим ключом**
+  `GET /__krwn_sw/pulse/<SHA-256(Authorization)>`;
+- при офлайне отдаёт последний успешный снимок для **того же** токена и
+  помечает ответ заголовком `X-Krwn-Pulse-Cache: offline`, чтобы UI мог
+  показать предупреждение.
+
+Кэширование **не** применяется, если нет заголовка `Authorization: Bearer
+…` (например, тестовый запрос без токена). Лента активности и SSE/WS без
+сети по-прежнему недоступны — MVP охватывает только снимок Pulse + статику
+`/_next/static/*`.
+
+**Web Push** (подписки в БД, доставка) — в дорожной карте; заглушка
+`POST /api/push/subscribe` и переменные VAPID описаны в `docs/DEPLOYMENT.md`.
+При включении отправки уведомлений в CSP для `connect-src` понадобятся
+эндпоинты провайдера (например FCM).
