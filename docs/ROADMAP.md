@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — /admin/citizens + StateUserBan
+**Обновлено:** 2026-04-20 — Sovereign onboarding tour после `/setup`
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -169,8 +169,6 @@
 
 ## 4. Horizon 2 — Опыт Суверена и гражданина
 
-- [ ] Onboarding-тур после `/setup`: «создай Казначейство → валюту →
-      первых граждан → налоги → Парламент».
 - [ ] PWA: `manifest.webmanifest`, service-worker (офлайн Pulse),
       web-push.
 - [ ] Responsive pass (чат и Pulse — основное потребление с
@@ -281,6 +279,12 @@
 ## 9. Done
 
 Закрытые пункты остаются здесь как changelog проекта.
+
+### 2026-04 — Horizon 2 · Onboarding
+- [x] 2026-04-20 (#—) Onboarding-тур после `/setup`: чеклист на `/dashboard`
+      (Nexus/казна → Фабрика валют → граждане → Палата Указов/налоги →
+      Парламент), завершение в `StateSettings.extras`, API
+      `POST /api/state/sovereign-onboarding/complete`, поля в `GET /api/state/pulse`.
 
 ### 2026-04 — Horizon 0 · Гигиена репо
 - [x] 2026-04-19 — Игнор `.next/` в `.gitignore`. Проверка: `git log --all -- .next`

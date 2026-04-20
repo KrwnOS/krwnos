@@ -159,6 +159,32 @@ export const ru: Dict = {
   "setup.done.inviteNever": "никогда",
 
   // ------------------------------------------------------------
+  // Sovereign onboarding (post-setup checklist on /dashboard)
+  // ------------------------------------------------------------
+  "sovereignOnboarding.eyebrow": "Первые шаги",
+  "sovereignOnboarding.title": "Маршрут Суверена",
+  "sovereignOnboarding.subtitle":
+    "Пять реальных экранов: казна и эмиссия, валюта, граждане, налоги в Палате Указов, Парламент. Отметьте «Готово», когда осмотритесь — повторно не показываем.",
+  "sovereignOnboarding.later": "Позже",
+  "sovereignOnboarding.done": "Готово",
+  "sovereignOnboarding.errNoToken": "Нет CLI-токена — войдите снова.",
+  "sovereignOnboarding.step.treasury.title": "Казначейство (Nexus)",
+  "sovereignOnboarding.step.treasury.body":
+    "Корневая казна, налоги штата и эмиссия в оборот.",
+  "sovereignOnboarding.step.currency.title": "Фабрика валют",
+  "sovereignOnboarding.step.currency.body":
+    "Активы, первичная валюта и параметры монетарной политики.",
+  "sovereignOnboarding.step.citizens.title": "Граждане и инвайты",
+  "sovereignOnboarding.step.citizens.body":
+    "Список граждан, роли по узлам и выпуск приглашений.",
+  "sovereignOnboarding.step.taxes.title": "Налоги и конституция",
+  "sovereignOnboarding.step.taxes.body":
+    "Палата Указов: транзакционный, подоходный, налог на роль и витрина валюты.",
+  "sovereignOnboarding.step.parliament.title": "Парламент",
+  "sovereignOnboarding.step.parliament.body":
+    "Предложения, голосование и режим управления государством.",
+
+  // ------------------------------------------------------------
   // Invite (/invite/[token])
   // ------------------------------------------------------------
   "invite.title": "Приглашение в «{stateName}»",

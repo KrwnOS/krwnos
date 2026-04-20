@@ -315,6 +315,7 @@ export default function AdminConstitutionPage() {
       {form && (
         <form className="space-y-6" onSubmit={onSubmit}>
           <Section
+            id="constitution-fiscal"
             eyebrow={t("constitution.ch1.eyebrow")}
             title={t("constitution.ch1.title")}
             description={t("constitution.ch1.desc")}
@@ -770,18 +771,20 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
 }
 
 function Section({
+  id,
   eyebrow,
   title,
   description,
   children,
 }: {
+  id?: string;
   eyebrow: string;
   title: string;
   description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card>
+    <Card id={id}>
       <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/50">
         {eyebrow}
       </p>

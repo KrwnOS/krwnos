@@ -430,7 +430,7 @@ function EconomyCard({
         : null;
 
   return (
-    <NexusCard>
+    <NexusCard id="nexus-economy-treasury">
       <Eyebrow>{t("nexus.economy.eyebrow")}</Eyebrow>
       <CardTitle className="mt-1 flex items-center gap-2">
         <span
@@ -859,12 +859,15 @@ function Shell({ children }: { children: React.ReactNode }) {
 function NexusCard({
   children,
   className,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <Card
+      id={id}
       className={cn(
         "flex flex-col border-primary/20 bg-card/60 backdrop-blur-sm",
         "transition-colors hover:border-primary/40",

@@ -156,7 +156,10 @@ export default function AdminEconomyPage() {
       )}
 
       {primary && (
-        <Card className="mb-6 border-crown/50 bg-crown/5">
+        <Card
+          id="admin-economy-primary"
+          className="mb-6 border-crown/50 bg-crown/5"
+        >
           <div className="flex items-center gap-3">
             <span className="text-3xl" style={{ color: primary.color ?? undefined }}>
               {primary.icon ?? "⚜"}

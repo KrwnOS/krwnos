@@ -38,6 +38,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { SovereignOnboardingTour } from "@/components/sovereign-onboarding-tour";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -126,6 +127,7 @@ interface PulseContext {
     onlineUserIds: string[];
   };
   presenceWindowMs: number;
+  sovereignOnboarding?: { completed: boolean };
 }
 
 // ------------------------------------------------------------
@@ -147,6 +149,7 @@ const FILTER_KEYS = [
 type FilterKey = (typeof FILTER_KEYS)[number];
 
 const PULSE_CTX_REFRESH_MS = 15_000;
+const SOVEREIGN_TOUR_SESSION_KEY = "krwn.sovereignTourSessionDismissed";
 
 // ------------------------------------------------------------
 // Page
@@ -168,6 +171,8 @@ export default function DashboardPage() {
   // Pulse context (viewer / role / wallet / tree)
   const [ctx, setCtx] = useState<PulseContext | null>(null);
   const [ctxError, setCtxError] = useState<string | null>(null);
+  const [sovereignTourOpen, setSovereignTourOpen] = useState(false);
+  const sovereignTourAutoOpenedRef = useRef(false);
 
   // --- Push-уведомления + broadcast + node drawer ---
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -378,6 +383,21 @@ export default function DashboardPage() {
     return () => window.clearInterval(id);
   }, [loadCtx, token]);
 
+  // Sovereign first-run checklist (server-persisted; session-dismiss with «Later»).
+  useEffect(() => {
+    if (!ctx?.sovereignOnboarding) return;
+    if (ctx.sovereignOnboarding.completed) return;
+    if (sovereignTourAutoOpenedRef.current) return;
+    if (
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(SOVEREIGN_TOUR_SESSION_KEY) === "1"
+    ) {
+      return;
+    }
+    sovereignTourAutoOpenedRef.current = true;
+    setSovereignTourOpen(true);
+  }, [ctx?.sovereignOnboarding]);
+
   // Разово просим permission на Web Notifications. Браузеры
   // требуют user-gesture context — поэтому прячем запрос за
   // `visibilitychange` (пользователь открыл вкладку осознанно)
@@ -549,6 +569,24 @@ export default function DashboardPage() {
           node={selectedNode}
           ctx={ctx}
           onClose={() => setDrawerNodeId(null)}
+        />
+      )}
+
+      {ctx?.sovereignOnboarding && !ctx.sovereignOnboarding.completed && (
+        <SovereignOnboardingTour
+          open={sovereignTourOpen}
+          onSnooze={() => {
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem(SOVEREIGN_TOUR_SESSION_KEY, "1");
+            }
+            setSovereignTourOpen(false);
+          }}
+          onCompleted={() => {
+            void loadCtx();
+            if (typeof window !== "undefined") {
+              window.sessionStorage.removeItem(SOVEREIGN_TOUR_SESSION_KEY);
+            }
+          }}
         />
       )}
     </Shell>

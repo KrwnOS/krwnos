@@ -24,6 +24,8 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { permissionsEngine } from "@/core";
+import { StateConfigPermissions } from "@/core/state-config";
+import { isSovereignOnboardingComplete } from "@/core/sovereign-onboarding";
 import { prisma } from "@/lib/prisma";
 import type { PermissionKey, VerticalNode, VerticalSnapshot } from "@/types/kernel";
 import {
@@ -117,6 +119,13 @@ interface PulseContextDto {
     onlineUserIds: string[];
   };
   presenceWindowMs: number;
+  /**
+   * Present only for Sovereign or `state.configure`: first-run checklist
+   * on `/dashboard` until `POST .../sovereign-onboarding/complete`.
+   */
+  sovereignOnboarding?: {
+    completed: boolean;
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -139,7 +148,7 @@ export async function GET(req: NextRequest) {
 
     // Всё одним параллельным залпом — Pulse дёргается часто, хочется
     // один round-trip на Postgres, не десять.
-    const [state, me, nodes, memberships] = await Promise.all([
+    const [state, me, nodes, memberships, stateSettingsRow] = await Promise.all([
       prisma.state.findUnique({
         where: { id: stateId },
         select: { id: true, slug: true, name: true, ownerId: true },
@@ -173,6 +182,10 @@ export async function GET(req: NextRequest) {
             select: { id: true, handle: true, displayName: true },
           },
         },
+      }),
+      prisma.stateSettings.findUnique({
+        where: { stateId },
+        select: { extras: true },
       }),
     ]);
 
@@ -221,6 +234,15 @@ export async function GET(req: NextRequest) {
         },
         "system.admin",
       );
+
+    const held = permissionsEngine.resolveAll({
+      stateId,
+      userId: me.id,
+      isOwner,
+      snapshot,
+    });
+    const eligibleForSovereignOnboarding =
+      isOwner || held.has(StateConfigPermissions.Configure);
 
     // --- Presence snapshot for everyone we're about to return ---
     // `touch` самого себя — pulse-endpoint пулится клиентом каждые
@@ -338,6 +360,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const extrasPlain =
+      stateSettingsRow?.extras &&
+      typeof stateSettingsRow.extras === "object" &&
+      !Array.isArray(stateSettingsRow.extras)
+        ? (stateSettingsRow.extras as Record<string, unknown>)
+        : undefined;
+
     const dto: PulseContextDto = {
       viewer: {
         userId: me.id,
@@ -365,6 +394,12 @@ export async function GET(req: NextRequest) {
       },
       presenceWindowMs: presence.PRESENCE_WINDOW_MS,
     };
+
+    if (eligibleForSovereignOnboarding) {
+      dto.sovereignOnboarding = {
+        completed: isSovereignOnboardingComplete(extrasPlain, me.id),
+      };
+    }
 
     return NextResponse.json(dto);
   } catch (err) {

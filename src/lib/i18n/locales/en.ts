@@ -141,6 +141,29 @@ export const en: Dict = {
   "setup.done.inviteExpires": "Expires",
   "setup.done.inviteNever": "never",
 
+  "sovereignOnboarding.eyebrow": "First steps",
+  "sovereignOnboarding.title": "Sovereign path",
+  "sovereignOnboarding.subtitle":
+    "Five real screens: treasury and mint, currency, citizens, taxes in the Decree hall, Parliament. Press Done when you have looked around — we will not show this again.",
+  "sovereignOnboarding.later": "Later",
+  "sovereignOnboarding.done": "Done",
+  "sovereignOnboarding.errNoToken": "No CLI token — sign in again.",
+  "sovereignOnboarding.step.treasury.title": "Treasury (Nexus)",
+  "sovereignOnboarding.step.treasury.body":
+    "Root treasury, state tax knobs, and mint into circulation.",
+  "sovereignOnboarding.step.currency.title": "Currency factory",
+  "sovereignOnboarding.step.currency.body":
+    "State assets, primary currency, and monetary knobs.",
+  "sovereignOnboarding.step.citizens.title": "Citizens and invites",
+  "sovereignOnboarding.step.citizens.body":
+    "Roster, node assignments, and issuing invitations.",
+  "sovereignOnboarding.step.taxes.title": "Taxes and constitution",
+  "sovereignOnboarding.step.taxes.body":
+    "Decree hall: transfer, income, role tax, and currency display name.",
+  "sovereignOnboarding.step.parliament.title": "Parliament",
+  "sovereignOnboarding.step.parliament.body":
+    "Proposals, voting, and how the state is governed.",
+
   "invite.title": "Invitation to \"{stateName}\"",
   "invite.codeLabel": "Code:",
   "invite.uses": "Uses",

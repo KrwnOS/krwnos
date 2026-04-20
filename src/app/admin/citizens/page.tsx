@@ -218,7 +218,7 @@ export default function AdminCitizensPage() {
         </Card>
       )}
 
-      <Card className="mb-6">
+      <Card id="admin-citizens" className="mb-6">
         <div className="flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-widest text-foreground/60">
             {t("citizens.admin.filter.node")}
