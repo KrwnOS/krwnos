@@ -292,6 +292,12 @@
       (Bearer-scoped cache), installability, push subscribe stub + VAPID env
       (`docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md` §8).
 
+### 2026-04 — Horizon 2 · Responsive
+- [x] 2026-04-20 (#—) Чат + Pulse (`ChatPanel` / `/dashboard`): колонка
+      каналов над тредом на узких экранах, safe-area, touch targets,
+      `overflow-x` / `min-w-0`; Playwright — отсутствие горизонтального
+      overflow на `/dashboard` при 390px (`e2e/smoke.spec.ts`).
+
 ### 2026-04 — Horizon 2 · Onboarding
 - [x] 2026-04-20 (#—) Onboarding-тур после `/setup`: чеклист на `/dashboard`
       (Nexus/казна → Фабрика валют → граждане → Палата Указов/налоги →

@@ -1660,7 +1660,7 @@ function FilterButton({
       type="button"
       onClick={() => onClick(value)}
       className={cn(
-        "min-h-11 rounded-md border px-3 text-xs uppercase tracking-wider transition-colors touch-manipulation sm:min-h-0 sm:py-1",
+        "inline-flex min-h-11 items-center justify-center rounded-md border px-3 text-xs uppercase tracking-wider transition-colors touch-manipulation sm:min-h-0 sm:py-1",
         active
           ? "border-crown/60 bg-crown/10 text-crown"
           : "border-border/60 text-foreground/60 hover:bg-background/60",
