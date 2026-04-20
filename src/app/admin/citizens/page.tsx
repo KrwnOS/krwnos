@@ -259,7 +259,7 @@ export default function AdminCitizensPage() {
               placeholder="@handle"
             />
           </label>
-          <Button type="button" variant="secondary" size="sm" onClick={() => void loadRows()}>
+          <Button type="button" variant="outline" size="sm" onClick={() => void loadRows()}>
             {t("common.refresh")}
           </Button>
         </div>
@@ -323,7 +323,8 @@ export default function AdminCitizensPage() {
                       <Button
                         type="button"
                         size="sm"
-                        variant="destructive"
+                        variant="outline"
+                        className="border-destructive/50 text-destructive hover:bg-destructive/10"
                         onClick={() => {
                           const reason = window.prompt(t("citizens.admin.prompt.banReason"));
                           if (reason === null) return;
@@ -340,7 +341,7 @@ export default function AdminCitizensPage() {
                         <Button
                           type="button"
                           size="sm"
-                          variant="secondary"
+                          variant="outline"
                           onClick={() =>
                             void postAction({ action: "unban", userId: r.userId })
                           }
@@ -351,7 +352,7 @@ export default function AdminCitizensPage() {
                       <Button
                         type="button"
                         size="sm"
-                        variant="secondary"
+                        variant="outline"
                         onClick={() => {
                           const toNodeId = window.prompt(t("citizens.admin.prompt.moveTo"));
                           if (!toNodeId?.trim()) return;
@@ -425,7 +426,8 @@ export default function AdminCitizensPage() {
           </label>
           <Button
             type="button"
-            variant="destructive"
+            variant="outline"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10"
             onClick={() => {
               if (!mergeSource.trim() || !mergeTarget.trim()) return;
               if (

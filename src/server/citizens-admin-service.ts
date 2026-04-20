@@ -3,6 +3,7 @@
  * `citizens-admin-logic`; routes call both.
  */
 
+import { randomBytes } from "node:crypto";
 import { Decimal } from "@prisma/client/runtime/library";
 import { eventBus, KernelEvents } from "@/core";
 import {
@@ -17,6 +18,7 @@ import { MembershipAdminPermissions } from "@/core/membership-admin-permissions"
 import type { StateConfigAccessContext } from "@/core/state-config";
 import type { VerticalSnapshot } from "@/types/kernel";
 import { prisma } from "@/lib/prisma";
+import { bannedUserIdsInState } from "@/server/state-ban";
 
 export class CitizensAdminError extends Error {
   constructor(
@@ -88,17 +90,9 @@ export async function listCitizens(input: ListCitizensInput): Promise<CitizenRow
     },
   });
 
-  const bannedIds = new Set(
-    (
-      await prisma.stateUserBan.findMany({
-        where: {
-          stateId: input.stateId,
-          revokedAt: null,
-          userId: { in: [...new Set(rows.map((r) => r.userId))] },
-        },
-        select: { userId: true },
-      })
-    ).map((b) => b.userId),
+  const bannedIds = await bannedUserIdsInState(
+    input.stateId,
+    [...new Set(rows.map((r) => r.userId))],
   );
 
   return rows.map((r) => ({
@@ -174,22 +168,23 @@ export async function banUser(input: {
     await tx.membership.deleteMany({
       where: { userId: input.userId, node: { stateId: input.stateId } },
     });
-    await tx.stateUserBan.upsert({
-      where: {
-        stateId_userId: { stateId: input.stateId, userId: input.userId },
-      },
-      create: {
-        stateId: input.stateId,
-        userId: input.userId,
-        reason: input.reason ?? null,
-        createdById: input.access.userId,
-      },
-      update: {
-        reason: input.reason ?? null,
-        revokedAt: null,
-        createdById: input.access.userId,
-      },
-    });
+    const banId = `ban_${randomBytes(12).toString("hex")}`;
+    await tx.$executeRaw`
+      INSERT INTO "StateUserBan" ("id", "stateId", "userId", "reason", "createdAt", "createdById", "revokedAt")
+      VALUES (
+        ${banId},
+        ${input.stateId},
+        ${input.userId},
+        ${input.reason ?? null},
+        NOW(),
+        ${input.access.userId},
+        NULL
+      )
+      ON CONFLICT ("stateId", "userId") DO UPDATE SET
+        "reason" = EXCLUDED."reason",
+        "revokedAt" = NULL,
+        "createdById" = EXCLUDED."createdById"
+    `;
   });
 
   await eventBus.emit(KernelEvents.UserBannedInState, {
@@ -209,14 +204,13 @@ export async function unbanUser(input: {
   if (!canBanOrMerge(input.stateId, input.access, input.snapshot, MembershipAdminPermissions.Ban)) {
     throw new CitizensAdminError("Only the sovereign may unban citizens.", "forbidden");
   }
-  await prisma.stateUserBan.updateMany({
-    where: {
-      stateId: input.stateId,
-      userId: input.userId,
-      revokedAt: null,
-    },
-    data: { revokedAt: new Date() },
-  });
+  await prisma.$executeRaw`
+    UPDATE "StateUserBan"
+    SET "revokedAt" = NOW()
+    WHERE "stateId" = ${input.stateId}
+      AND "userId" = ${input.userId}
+      AND "revokedAt" IS NULL
+  `;
   await eventBus.emit(KernelEvents.UserUnbannedInState, {
     stateId: input.stateId,
     userId: input.userId,
@@ -582,9 +576,9 @@ export async function mergeUsers(input: {
       data: { userId: targetId },
     });
 
-    await tx.stateUserBan.deleteMany({
-      where: { userId: sourceId },
-    });
+    await tx.$executeRaw`
+      DELETE FROM "StateUserBan" WHERE "userId" = ${sourceId}
+    `;
 
     const creds = await tx.authCredential.findMany({ where: { userId: sourceId } });
     for (const c of creds) {

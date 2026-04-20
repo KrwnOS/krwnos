@@ -1026,6 +1026,16 @@ function HeaderBar({
               </Button>
             </Link>
           )}
+          <Link href="/dashboard/emigration">
+            <Button variant="outline" size="sm">
+              {t("citizen.nav.emigrate")}
+            </Button>
+          </Link>
+          <Link href="/dashboard/role-market">
+            <Button variant="outline" size="sm">
+              {t("citizen.nav.roleMarket")}
+            </Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"

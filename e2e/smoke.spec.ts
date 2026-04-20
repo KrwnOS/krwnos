@@ -75,6 +75,28 @@ test("admin nexus: token prompt without session; dashboard with bootstrap token"
   }
 });
 
+test("admin citizens: token prompt; list with bootstrap token", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ locale: "en-US" });
+  const page = await context.newPage();
+  try {
+    await page.goto("/admin/citizens");
+    await expect(page.getByRole("heading", { name: /enter the citizens hall/i })).toBeVisible();
+
+    await page.evaluate((token) => {
+      window.localStorage.setItem("krwn.token", token);
+    }, bootstrapToken);
+
+    await page.goto("/admin/citizens");
+    await expect(page.getByRole("heading", { name: /^citizens$/i })).toBeVisible({
+      timeout: 30_000,
+    });
+  } finally {
+    await context.close();
+  }
+});
+
 test("api/admin/nexus: 401 without token; 200 with bootstrap bearer", async ({
   request,
 }) => {

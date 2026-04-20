@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — /admin/audit retention + CSV hardening
+**Обновлено:** 2026-04-20 — /admin/citizens + StateUserBan
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -149,13 +149,21 @@
       дерева (смена parent и order соседей), одно атомарное сохранение
       `PUT /api/admin/vertical/tree`, подсветка конфликтов до сохранения,
       доступ через `permissionsEngine.can(system.admin)`.
-- [ ] Единый экран «Граждане»: kick, ban, перевод между узлами,
-      `pending → active`, смена `title`, merge дубликатов.
+- [x] 2026-04-20 (#—) Единый экран «Граждане» (`/admin/citizens`,
+      `GET/POST /api/admin/citizens`): kick, ban / unban (`StateUserBan`),
+      перевод между узлами, `pending → active` (как `/api/register/admit`),
+      смена `title`, merge дубликатов (идемпотентно); Pulse-события
+      `kernel.membership.*` / `kernel.user.banned_in_state` / `kernel.users.merged_in_state`;
+      ключи `members.*` в `registerCorePermissions()`. См. `docs/DATABASE.md`.
 
 ### Заявленное, но не доделанное
 
-- [ ] UI и flow для `exitRefundRate` (эмиграция).
-- [ ] UI и flow для `rolesPurchasable` (роль-маркет).
+- [x] 2026-04-20 (#—) UI и flow для `exitRefundRate` (эмиграция):
+      `/dashboard/emigration`, `POST /api/state/emigrate` (сплит баланса по
+      конституции, снятие членств, отзыв CLI-токенов State).
+- [x] 2026-04-20 (#—) UI и flow для `rolesPurchasable` (роль-маркет):
+      `/dashboard/role-market`, `POST /api/state/purchase-role` (плата =
+      `citizenshipFeeAmount`, казна целевого узла; только из Прихожей).
 
 ---
 
@@ -363,6 +371,15 @@
       одним вызовом `PUT /api/admin/vertical/tree` (транзакция Prisma),
       превью конфликтов (цикл, перенос прихожей); gate через
       `permissionsEngine.can(system.admin)` (`src/app/api/state/_context.ts`).
+
+### 2026-04 — Horizon 1 · UX админки (Citizens)
+- [x] 2026-04-20 (#—) `/admin/citizens` + `GET/POST /api/admin/citizens`:
+      kick / ban / unban (`StateUserBan`), move, admit (`pending → active`),
+      edit title, merge duplicates; `members.*` в `registerCorePermissions()`;
+      Pulse: `kernel.membership.revoked|moved`, `kernel.user.banned_in_state` /
+      `unbanned`, `kernel.users.merged_in_state`;
+      блокировки: `GET /api/state/pulse`, `POST /api/register`, accept invite
+      при активном бане.
 
 ### 2026-04 — Horizon 1 · Magic email (SMTP)
 - [x] 2026-04-19 — SMTP-транспорт для `magic_email`: `SMTP_HOST`, `SMTP_PORT`,

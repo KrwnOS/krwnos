@@ -450,6 +450,52 @@ export const ru: Dict = {
   "citizens.admin.prompt.banReason": "Причина бана (необязательно)",
   "citizens.admin.err": "Ошибка запроса",
 
+  "citizen.backToPulse": "Назад к Пульсу",
+  "citizen.tokenRequired": "Войдите с CLI-токеном (как на Пульсе), чтобы открыть эту страницу.",
+  "citizen.nav.emigrate": "Эмиграция",
+  "citizen.nav.roleMarket": "Роль-маркет",
+  "citizen.emigration.kicker": "Выход",
+  "citizen.emigration.title": "Эмиграция",
+  "citizen.emigration.previewTitle": "Предпросмотр возврата",
+  "citizen.emigration.previewIntro":
+    "Цифры берутся из конституции (`exitRefundRate`) и текущего баланса основного кошелька. Доля в казну без дополнительного налога на транзакции — это конституционный сплит при выходе.",
+  "citizen.emigration.rate": "Возврат при выходе (конституция)",
+  "citizen.emigration.balance": "Баланс кошелька",
+  "citizen.emigration.kept": "Остаётся на вашем кошельке",
+  "citizen.emigration.forfeit": "В казну государства",
+  "citizen.emigration.effectsTitle": "Что произойдёт",
+  "citizen.emigration.effectsBody":
+    "Все членства в этом State снимаются. CLI-токены для этого State отзываются — чтобы вернуться, нужна новая регистрация или приглашение. Удержанная сумма остаётся в записи личного кошелька; доступ к приложениям State прекращается вместе с отозванным токеном.",
+  "citizen.emigration.sovereignTitle": "Аккаунт Суверена",
+  "citizen.emigration.sovereignBody":
+    "Владелец State не может эмигрировать этим сценарием. Сначала передайте владение или завершите работу State через операционные инструменты.",
+  "citizen.emigration.confirm": "Подтвердить эмиграцию",
+  "citizen.emigration.submitting": "Выход…",
+  "citizen.emigration.doneTitle": "Вы покинули государство",
+  "citizen.emigration.doneBody":
+    "Членства сняты, привязанные к State токены отозваны. Если на кошельке остался баланс, он разделён так, как было показано до подтверждения.",
+  "citizen.emigration.home": "На главную",
+  "citizen.roleMarket.kicker": "Маркет",
+  "citizen.roleMarket.title": "Роль-маркет",
+  "citizen.roleMarket.sovereignTitle": "Недоступно Суверену",
+  "citizen.roleMarket.sovereignBody":
+    "Владелец State назначает роли через Вертикаль / граждан — самообслуживание для гостей в Прихожей.",
+  "citizen.roleMarket.offTitle": "Покупка отключена",
+  "citizen.roleMarket.offBody":
+    "Конституция не включила выкуп ролей (`rolesPurchasable`). Изменить это могут предложения в Парламенте, если правила это допускают.",
+  "citizen.roleMarket.priceTitle": "Цена",
+  "citizen.roleMarket.priceBody":
+    "Плата — это взнос за гражданство из конституции: {amount} {currency} за покупку (зачисляется в казну выбранного узла).",
+  "citizen.roleMarket.yourBalance": "Ваш баланс: {amount} {currency}",
+  "citizen.roleMarket.nodesTitle": "Узлы для вступления",
+  "citizen.roleMarket.nodesHint":
+    "Нужно быть в Прихожей без другой активной роли. Оплата по тем же правилам, что и платное принятие приглашения.",
+  "citizen.roleMarket.noNodes": "Пока нет узлов кроме Прихожей.",
+  "citizen.roleMarket.buy": "Купить",
+  "citizen.roleMarket.purchased": "Готово",
+  "citizen.roleMarket.notLobbyOnly":
+    "У вас уже есть активная роль вне Прихожей. Перевод — через управление или офицера; рынок только для пути из Прихожей.",
+
   "constitution.dirty": "Есть несохранённые изменения",
   "constitution.clean": "Все поля синхронизированы с БД",
   "constitution.sign": "Подписать указ",

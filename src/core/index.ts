@@ -153,6 +153,22 @@ export {
 } from "./state-config";
 export { createPrismaStateConfigRepository } from "./state-config-prisma";
 
+// --- Citizen administration (Vertical + kernel) ---
+export {
+  MembershipAdminPermissions,
+  membershipAdminPermissionDescriptors,
+} from "./membership-admin-permissions";
+export {
+  canAccessCitizensAdminScreen,
+  canActOnVerticalNode,
+  canAdmitToNode,
+  canKickOnNode,
+  canMoveFromNode,
+  canMoveToNode,
+  canEditTitleOnNode,
+  canBanOrMerge,
+} from "./citizens-admin-logic";
+
 // --- State Pulse (Пульс Государства / Activity Feed) ---
 export { ACTIVITY_EVENTS } from "./activity-events";
 export {

@@ -414,6 +414,52 @@ export const en: Dict = {
   "citizens.admin.prompt.banReason": "Ban reason (optional)",
   "citizens.admin.err": "Request failed",
 
+  "citizen.backToPulse": "Back to Pulse",
+  "citizen.tokenRequired": "Sign in with a CLI token (same as Pulse) to use this page.",
+  "citizen.nav.emigrate": "Emigration",
+  "citizen.nav.roleMarket": "Role market",
+  "citizen.emigration.kicker": "Exit",
+  "citizen.emigration.title": "Emigration",
+  "citizen.emigration.previewTitle": "Refund preview",
+  "citizen.emigration.previewIntro":
+    "Figures come from the constitution (`exitRefundRate`) and your current primary-wallet balance. No extra transaction tax is applied to the treasury portion — it is a constitutional exit split.",
+  "citizen.emigration.rate": "Exit refund (constitution)",
+  "citizen.emigration.balance": "Wallet balance",
+  "citizen.emigration.kept": "You keep on your wallet",
+  "citizen.emigration.forfeit": "To the state treasury",
+  "citizen.emigration.effectsTitle": "What happens",
+  "citizen.emigration.effectsBody":
+    "All memberships in this State are removed. Your CLI tokens for this State are revoked — you will need a new invitation or registration to return. The kept amount remains on your personal wallet record; access to this State’s apps ends with the revoked token.",
+  "citizen.emigration.sovereignTitle": "Sovereign account",
+  "citizen.emigration.sovereignBody":
+    "The owner of a State cannot emigrate through this flow. Transfer ownership first, or wind down the State from operations tooling.",
+  "citizen.emigration.confirm": "Confirm emigration",
+  "citizen.emigration.submitting": "Leaving…",
+  "citizen.emigration.doneTitle": "You have left the State",
+  "citizen.emigration.doneBody":
+    "Your memberships were removed and State-scoped tokens were revoked. If you still have a balance on the ledger, it is split as shown before confirmation.",
+  "citizen.emigration.home": "Home",
+  "citizen.roleMarket.kicker": "Market",
+  "citizen.roleMarket.title": "Role market",
+  "citizen.roleMarket.sovereignTitle": "Not available for the Sovereign",
+  "citizen.roleMarket.sovereignBody":
+    "The State owner assigns roles through the Vertical / citizens tools — the self-service market is for guests in the Waiting Room.",
+  "citizen.roleMarket.offTitle": "Purchases are disabled",
+  "citizen.roleMarket.offBody":
+    "The constitution has not enabled purchasable roles (`rolesPurchasable`). Proposals can change this under governance when allowed.",
+  "citizen.roleMarket.priceTitle": "Price",
+  "citizen.roleMarket.priceBody":
+    "Listed fee is the citizenship fee from the constitution: {amount} {currency} per purchase (credited to the chosen node’s treasury).",
+  "citizen.roleMarket.yourBalance": "Your balance: {amount} {currency}",
+  "citizen.roleMarket.nodesTitle": "Nodes you can join",
+  "citizen.roleMarket.nodesHint":
+    "You must be in the Waiting Room with no other active role. Payment uses the same rules as accepting a paid invitation.",
+  "citizen.roleMarket.noNodes": "No non-lobby nodes exist yet.",
+  "citizen.roleMarket.buy": "Purchase",
+  "citizen.roleMarket.purchased": "Done",
+  "citizen.roleMarket.notLobbyOnly":
+    "You already hold an active role outside the Waiting Room. Use governance or ask an officer to move you — the market is only for the lobby path.",
+
   "constitution.dirty": "Unsaved changes",
   "constitution.clean": "All fields are in sync with the DB",
   "constitution.sign": "Sign the decree",

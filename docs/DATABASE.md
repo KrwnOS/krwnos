@@ -82,6 +82,19 @@
 - `title` — опциональный персональный титул («Первый Министр»,
   «Рядовой»).
 
+### `StateUserBan`
+Блокировка пользователя в рамках одного `State` (повторный вход и
+открытая регистрация отклоняются, пока `revokedAt IS NULL`).
+
+| Поле | Заметки |
+|------|---------|
+| `stateId`, `userId` | `@@unique([stateId, userId])` |
+| `reason` | Опционально; для аудита |
+| `createdById` | Кто выставил бан (nullable, без FK) |
+| `revokedAt` | Разбан: не `null` → запись остаётся, но бан не активен |
+
+См. `src/server/citizens-admin-service.ts`, `src/server/state-ban.ts`.
+
 ### `InstalledModule`
 Per-State установка плагина с собственным `config` JSONB.
 
