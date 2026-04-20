@@ -11,8 +11,6 @@
 import { registerTelegramCredentialProviderIfConfigured } from "@/lib/auth/register-telegram-credentials";
 import { handleTelegramWebhookUpdate } from "@/lib/auth/telegram-webhook-handler";
 
-registerTelegramCredentialProviderIfConfigured();
-
 const token = process.env.KRWN_TELEGRAM_BOT_TOKEN?.trim();
 if (!token) {
   console.error("KRWN_TELEGRAM_BOT_TOKEN is required");
@@ -46,6 +44,7 @@ async function pollOnce(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await registerTelegramCredentialProviderIfConfigured();
   console.error("telegram-polling: started (Ctrl+C to stop)");
   for (;;) {
     try {

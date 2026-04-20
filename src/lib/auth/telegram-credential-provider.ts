@@ -6,7 +6,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import type { AuthCredential, UserRef } from "@/types/kernel";
-import type { CredentialProvider, CredentialRepository } from "@/core";
+import type {
+  CredentialProvider,
+  CredentialRepository,
+} from "@/core/auth-credentials";
 
 export interface TelegramCredentialProviderOptions {
   repo: CredentialRepository;

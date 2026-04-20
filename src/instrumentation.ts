@@ -12,7 +12,7 @@ export async function register(): Promise<void> {
   const { registerTelegramCredentialProviderIfConfigured } = await import(
     "@/lib/auth/register-telegram-credentials"
   );
-  registerTelegramCredentialProviderIfConfigured();
+  await registerTelegramCredentialProviderIfConfigured();
 
   const { configureRedisEventBusIfAvailable } = await import(
     "@/lib/redis-event-bootstrap"

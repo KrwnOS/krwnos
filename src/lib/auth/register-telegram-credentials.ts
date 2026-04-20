@@ -1,16 +1,16 @@
 /**
  * Регистрирует `TelegramCredentialProvider` в `credentialsRegistry`, если заданы env.
  * Вызывается из `instrumentation.ts` (Node runtime).
+ *
+ * Тяжёлые модули (Prisma, `node:crypto`) подгружаются через `import()`, чтобы
+ * webpack при сборке `instrumentation` не тянул Node builtins / Prisma runtime.
  */
 
-import { credentialsRegistry } from "@/core";
-import { prisma } from "@/lib/prisma";
-import { PrismaCredentialRepository } from "./prisma-credential-repository";
-import { TelegramCredentialProvider } from "./telegram-credential-provider";
+import { credentialsRegistry } from "@/core/auth-credentials";
 
 let registered = false;
 
-export function registerTelegramCredentialProviderIfConfigured(): void {
+export async function registerTelegramCredentialProviderIfConfigured(): Promise<void> {
   if (registered) return;
 
   const token = process.env.KRWN_TELEGRAM_BOT_TOKEN?.trim();
@@ -18,6 +18,13 @@ export function registerTelegramCredentialProviderIfConfigured(): void {
   if (!token || !username) {
     return;
   }
+
+  const [{ prisma }, { PrismaCredentialRepository }, { TelegramCredentialProvider }] =
+    await Promise.all([
+      import(/* webpackIgnore: true */ "@/lib/prisma"),
+      import(/* webpackIgnore: true */ "./prisma-credential-repository"),
+      import(/* webpackIgnore: true */ "./telegram-credential-provider"),
+    ]);
 
   const repo = new PrismaCredentialRepository(prisma);
   const provider = new TelegramCredentialProvider({

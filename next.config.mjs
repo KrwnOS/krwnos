@@ -36,9 +36,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     instrumentationHook: true,
-    // `instrumentation.ts` imports ioredis; keep it external so webpack does not
-    // try to bundle Node core modules for non-Node compilation graphs.
-    serverComponentsExternalPackages: ["ioredis"],
+    // `instrumentation.ts` → `@/core` pulls ioredis + nodemailer; keep them
+    // external so webpack does not bundle Node core modules (`stream`, etc.).
+    serverComponentsExternalPackages: ["ioredis", "nodemailer"],
   },
   // typedRoutes включим позже, когда стабилизируется карта роутов.
   // Сейчас некоторые Link ведут на ещё не созданные страницы (ROADMAP,

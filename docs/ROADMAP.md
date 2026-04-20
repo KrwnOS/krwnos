@@ -4,8 +4,8 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — Node subscriptions + wallet fines; a11y; `krwn.module.json`
-**Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
+**Обновлено:** 2026-04-20 — синхрон §4/§5 с кодом; «Актуальный горизонт» → Horizon 3
+**Актуальный горизонт:** Horizon 3 — Экосистема модулей (sandboxing, подписи, marketplace)
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
 ---
@@ -51,7 +51,7 @@
 
 ---
 
-## 2. Horizon 0 — Стабилизация фундамента (active)
+## 2. Horizon 0 — Стабилизация фундамента (закрыт)
 
 Цель: довести v0.1 до состояния, в котором не стыдно звать первого
 реального Суверена. Критерий выхода из горизонта: зелёный CI, тесты
@@ -112,10 +112,9 @@
 
 ---
 
-## 3. Horizon 1 — Достройка запущенного
+## 3. Horizon 1 — Достройка запущенного (закрыт)
 
-Вещи, которые уже заявлены в схеме/доках, но в коде либо заглушка,
-либо отсутствует рантайм.
+Вещи, которые уже заявлены в схеме/доках; пункты ниже закрыты (см. §9).
 
 ### Job runner
 
@@ -173,7 +172,7 @@
 
 ---
 
-## 4. Horizon 2 — Опыт Суверена и гражданина
+## 4. Horizon 2 — Опыт Суверена и гражданина (закрыт)
 
 - [x] 2026-04-20 (#—) PWA MVP: `public/manifest.webmanifest` + `public/sw.js`
       (офлайн read-кэш `GET /api/state/pulse`, ключ кэша по `Authorization`
@@ -206,22 +205,28 @@
       token-prompt экранов; live region для ленты чата; при желании ужесточить
       jsx-a11y (`no-autofocus`, клики по backdrop) точечно по файлам; полный
       Lighthouse/axe по `/admin/*` в CI.
-- [ ] Визуализации Pulse: объём переводов, налоговые поступления,
-      явка на голосования, map-view Вертикали.
-- [ ] Автоматические зарплаты: cron `TREASURY → PERSONAL` по
-      расписанию.
-- [ ] Подписки узлов (дочерний платит родителю) и штрафы (вычет из
-      кошелька по приказу).
+- [x] 2026-04-20 (#—) Визуализации Pulse: объём переводов, налоговые поступления,
+      явка на голосования, древовидная «карта» Вертикали (`PulseTreeNode` /
+      `VerticalTreeBranches`) — `src/components/pulse/pulse-visualizations.tsx`,
+      `src/lib/pulse-aggregates.ts`, блок на `/dashboard`.
+- [x] 2026-04-20 (#—) Автоматические зарплаты: `TREASURY → PERSONAL` по
+      `StateSettings.payroll*` — `runPayrollPeriodicTick`
+      (`src/modules/wallet/payroll-tick.ts`), BullMQ `payroll-periodic`
+      (`src/jobs/worker.ts`), интеграция `payroll-tick.integration.test.ts`.
+- [x] 2026-04-20 (#—) Подписки узлов и штрафы — закрыто в §3 «Job runner» и
+      §9 Done (`NodeSubscription`, `WalletFine`, `/api/wallet/fine`,
+      `/api/wallet/node-subscription`); дублирующий пункт Horizon 2 снят.
 
 ---
 
-## 5. Horizon 3 — Экосистема модулей
+## 5. Horizon 3 — Экосистема модулей (active)
 
 Сейчас модули — только first-party, слитые с монорепо. Для
 масштабирования нужен настоящий Registry.
 
-- [~] `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
-      prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`).
+- [x] 2026-04-20 (#—) `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
+      prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`,
+      `packages/sdk/src/harness.test.ts`).
 - [ ] Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
 - [ ] Секреты модуля — только через `ctx.secrets.get()`.
@@ -317,6 +322,11 @@
       опциональное поле `manifest` в `POST /api/cli/modules`, фикстура
       `fixtures/modules/example-good/`, тесты `packages/sdk/src/manifest.test.ts`.
 
+### 2026-04 — Horizon 3 · SDK
+- [x] 2026-04-20 (#—) `@krwnos/sdk` v0.1: `KrwnModule`, `ModuleContext`, хелперы
+      `prisma-per-schema`, `runModuleHarness` / `createTestModuleContext`
+      (`packages/sdk`, `docs/MODULE_GUIDE.md`).
+
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse
       (Bearer-scoped cache), installability, push subscribe stub + VAPID env
@@ -339,6 +349,17 @@
       (Nexus/казна → Фабрика валют → граждане → Палата Указов/налоги →
       Парламент), завершение в `StateSettings.extras`, API
       `POST /api/state/sovereign-onboarding/complete`, поля в `GET /api/state/pulse`.
+
+### 2026-04 — Horizon 2 · Pulse viz
+- [x] 2026-04-20 (#—) Визуализации на `/dashboard`: серии по объёму кошельков /
+      налогам по дням, участие в голосованиях, дерево Вертикали с подписями
+      узлов — `src/components/pulse/pulse-visualizations.tsx`,
+      `src/lib/pulse-aggregates.ts`.
+
+### 2026-04 — Horizon 2 · Payroll
+- [x] 2026-04-20 (#—) Автозарплата: `payroll-periodic` в BullMQ, `runPayrollPeriodicTick`,
+      конституция `payrollEnabled` / `payrollAmountPerCitizen`, тесты
+      `src/modules/wallet/__tests__/payroll-tick.integration.test.ts`.
 
 ### 2026-04 — Horizon 0 · Гигиена репо
 - [x] 2026-04-19 — Игнор `.next/` в `.gitignore`. Проверка: `git log --all -- .next`
