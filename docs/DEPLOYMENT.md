@@ -86,20 +86,118 @@ Next.js, и выставьте `NEXT_PUBLIC_KRWN_WS_URL` на публичный
 (при необходимости перегенерировать: `scripts/generate-pwa-icons.ps1` в
 PowerShell на Windows).
 
-**Web Push (scaffold):** полная доставка уведомлений не реализована
-(`docs/ROADMAP.md`). Для будущей интеграции задайте VAPID-пару и субъект
-(только из секретов окружения, не в репозитории):
+**Web Push:** подписки хранятся в таблице `WebPushSubscription`, сервер
+шлёт уведомления через [`web-push`](https://www.npmjs.com/package/web-push)
+(см. `docs/ARCHITECTURE.md` §8). Задайте VAPID-пару и субъект только из
+секретов окружения (не в репозитории):
 
 | Env | Зачем |
 |-----|--------|
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Публичный ключ VAPID (URL-safe base64) для `pushManager.subscribe` в браузере. |
-| `VAPID_PRIVATE_KEY` | Приватный ключ VAPID на сервере для подписи payload (будущий `web-push`). |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Публичный ключ VAPID (URL-safe base64) для `pushManager.subscribe` в браузере (`ServiceWorkerRegister`). |
+| `VAPID_PRIVATE_KEY` | Приватный ключ VAPID на сервере для подписи payload (`web-push`). |
 | `VAPID_SUBJECT` | Контакт для VAPID, обычно `mailto:ops@example.com` или `https://…` по спецификации. |
 
-Заглушка `POST /api/push/subscribe` принимает JSON с полем `subscription`,
-ответ `202` без сохранения в БД. Когда появится отправка push, в
-`next.config.mjs` для `Content-Security-Policy` → `connect-src` может
-понадобиться добавить эндпоинты провайдера (например FCM).
+`POST /api/push/subscribe` (Bearer CLI, JSON `{ subscription, prefs? }`)
+сохраняет или обновляет подписку; `DELETE` с `{ endpoint }` снимает её.
+События подтверждения директивы (ack) и голоса в Парламенте доставляются
+подписчикам согласно `notifyDirectiveAcks` / `notifyProposalVotes`.
+Без заданных VAPID ключей регистрация на клиенте пропускается, серверные
+хендлеры не шлют push (no-op).
+
+Для нестандартных клиентов в `Content-Security-Policy` → `connect-src`
+иногда добавляют эндпоинты push-провайдера (например FCM) — см.
+текущий `next.config.mjs`.
+
+### Telegram bot (CredentialsRegistry)
+
+Токен бота и секрет webhook задаются **только** в окружении (как VAPID), не в
+репозитории. Провайдер `TelegramCredentialProvider` регистрируется в
+`credentialsRegistry` при старте Node-процесса (`instrumentation.ts`), если
+заданы `KRWN_TELEGRAM_BOT_TOKEN` и `KRWN_TELEGRAM_BOT_USERNAME`.
+
+| Env | Зачем |
+|-----|--------|
+| `KRWN_TELEGRAM_BOT_TOKEN` | Токен от BotFather (`123456:ABC…`). |
+| `KRWN_TELEGRAM_BOT_USERNAME` | Имя бота **без** `@` — для ссылки `https://t.me/<username>?start=…`. |
+| `KRWN_TELEGRAM_WEBHOOK_SECRET` | Строка до 256 символов; при `setWebhook` передаётся как `secret_token`, а входящие запросы к `POST /api/telegram/webhook` должны иметь заголовок `X-Telegram-Bot-Api-Secret-Token` с тем же значением. Без секрета маршрут отвечает `401`. |
+
+**Привязка Telegram ↔ User без обхода правил auth:** выдать CLI-токен со scope
+`credentials.telegram.link` (или `*`), затем `POST /api/telegram/link/start`
+с `Authorization: Bearer …`. В ответе — `deepLink`; пользователь открывает
+его в Telegram и нажимает **Start** — webhook помечает одноразовый токен и
+создаёт `AuthCredential` с `kind = telegram`. Новый аккаунт из Telegram **не**
+создаётся: только привязка к уже существующему пользователю, прошедшему
+проверку Bearer.
+
+**Webhook:** публичный URL инстанса, например
+`https://<host>/api/telegram/webhook`. Регистрация: вызов Bot API `setWebhook`
+с `url` и `secret_token` = `KRWN_TELEGRAM_WEBHOOK_SECRET`.
+
+**Polling (без публичного URL):** в отдельном процессе
+`npm run telegram:poll` — long polling `getUpdates`, тот же обработчик
+обновлений (секрет webhook не используется).
+
+После изменения схемы: `npx prisma migrate deploy` (enum `telegram`, таблица
+`TelegramLinkToken`).
+
+### Email digest (BullMQ + SMTP)
+
+Фоновые задачи `email-digest-daily` и `email-digest-weekly` (очередь
+`krwn-jobs`, процесс `npm run worker:jobs`) собирают краткую сводку и
+отправляют её через тот же SMTP, что и `magic_email` (`SMTP_*` в
+окружении — **без** секретов в репозитории).
+
+| Env | Зачем |
+|-----|--------|
+| `KRWN_EMAIL_DIGEST_ENABLED` | `1` — разрешить реальную отправку (и запись идемпотентности в `EmailDigestSend`). Без этого задача выходит сразу (`skipped`), кроме режима dry-run. |
+| `KRWN_EMAIL_DIGEST_DRY_RUN` | `1` / `0` / не задано: в **development** по умолчанию dry-run (логируем получателей, **без** SMTP и без записей в БД). В production задайте `0` для отправки. |
+| `KRWN_JOB_EMAIL_DIGEST_DAILY_CRON` | Расписание daily (по умолчанию `0 8 * * *`). |
+| `KRWN_JOB_EMAIL_DIGEST_DAILY_TZ` | IANA TZ для cron и для **ключей идемпотентности** календарного дня (`YYYY-MM-DD`). |
+| `KRWN_JOB_EMAIL_DIGEST_WEEKLY_CRON` | Расписание weekly (по умолчанию `0 8 * * 1` — понедельник 08:00). |
+| `KRWN_JOB_EMAIL_DIGEST_WEEKLY_TZ` | IANA TZ для cron weekly. Ключ периода для weekly — **ISO-неделя UTC** на момент срабатывания (`YYYY-Www`); выровняйте cron с желаемой границей недели. |
+
+**Контент (минимальный scope):**
+
+- Пульс: до 12 строк `ActivityLog` за скользящее окно (daily = 24 ч,
+  weekly = 7 суток), с теми же правилами видимости, что и API Pulse.
+- Открытые предложения: `Proposal` со статусом `active` и `expiresAt` в будущем.
+- Опционально: «упоминания в чате» — подсчёт сообщений, где тело содержит
+  подстроку `@handle` пользователя (регистронезависимо); включается полем
+  `User.emailDigestChatMentions`.
+
+Подписка пользователя: `email` не пустой и флаги `emailDigestDaily` /
+`emailDigestWeekly` в БД (см. `docs/DATABASE.md`); UI-профиль может
+появиться позже.
+
+### Payroll (BullMQ, TREASURY → PERSONAL)
+
+Задача `payroll-periodic` в очереди `krwn-jobs` (`npm run worker:jobs`)
+выплачивает **валовую** сумму `StateSettings.payrollAmountPerCitizen` каждому
+активному члену из **корневой** казны (первичный актив), если
+`payrollEnabled = true` и сумма положительна. Удержание `incomeTaxRate` и проводки
+совпадают с `WalletService` для `treasury_allocation` (дробные суммы,
+`Decimal` в БД). Идемпотентность: таблица `PayrollPeriodPayout` с ключом
+`(stateId, userId, periodKey)` где `periodKey` — **UTC** `YYYY-MM` (как у
+role-tax). После успешной проводки шлётся `core.wallet.transaction.created`
+— запись попадает в Pulse при подписанном activity-feed воркере
+(`getActivityFeed()` в `scripts/job-worker.ts`).
+
+| Env | Зачем |
+|-----|-------|
+| `KRWN_JOB_PAYROLL_CRON` | Cron (по умолчанию `0 8 15 * *` — 15-е число, 08:00). |
+| `KRWN_JOB_PAYROLL_TZ` | IANA TZ для cron (по умолчанию `UTC`). |
+
+**Ошибки и повторы (BullMQ):** при падении задачи BullMQ может повторить job
+с экспоненциальной задержкой (настройки по умолчанию воркера). Повтор **не**
+дублирует выплату за тот же период: вставка в `PayrollPeriodPayout` и леджер
+выполняются в **одной** SQL-транзакции; при `P2002` (уже выплачено) строка
+пропускается. Если у казны **недостаточно** средств для конкретного
+гражданина, транзакция откатывается и счётчик `usersSkippedNoTreasuryOrFunds`
+увеличивается — пополните казну и дождитесь следующего запуска **того же**
+`periodKey` (или задайте `payrollPeriodKey` / `payrollNowIso` в payload job
+для ручного backfill в тестах). Убедитесь, что лидер воркера один
+(`KRWN_JOB_LEADER` не `0` на одном инстансе), чтобы не плодить конкурирующие
+scheduler-ы Redis.
 
 ---
 

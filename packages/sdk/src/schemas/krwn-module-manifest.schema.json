@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krwnos.com/schemas/krwn-module-manifest.json",
+  "title": "KrwnModuleManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "version",
+    "permissions",
+    "migrations",
+    "peerDeps",
+    "ui",
+    "schemaName"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema $id for editor validation."
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Semantic version of the packaged module (npm semver string).",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\*|([^*]+\\.[^*]+))$"
+      }
+    },
+    "migrations": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Path to Prisma/SQL migrations directory, relative to the module package root.",
+      "pattern": "^[^\\x00\\\\]+$"
+    },
+    "peerDeps": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ui": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "UI bundle entry (e.g. Next.js page or client chunk path), relative to the module package root.",
+      "pattern": "^[^\\x00\\\\]+$"
+    },
+    "schemaName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "description": "Postgres schema name for module-isolated tables (snake_case; must fit PG identifier limits).",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    }
+  }
+}

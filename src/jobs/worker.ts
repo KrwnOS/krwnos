@@ -7,8 +7,12 @@
  *   - invitation-reaper
  *   - auto-promotion
  *   - role-tax-monthly
+ *   - node-subscription-tick
+ *   - payroll-periodic
  *   - backup-daily
  *   - activity-log-reaper
+ *   - email-digest-daily
+ *   - email-digest-weekly
  */
 import { Queue, Worker } from "bullmq";
 import type { Job } from "bullmq";
@@ -21,7 +25,10 @@ import {
   runInvitationReaper,
   runProposalExpirer,
   runRoleTaxMonthlyJob,
+  runNodeSubscriptionJob,
+  runPayrollPeriodicJob,
   runActivityLogReaper,
+  runEmailDigestJob,
   runTreasuryWatchTick,
 } from "./tasks";
 
@@ -31,8 +38,12 @@ export const JOB_NAMES = {
   invitationReaper: "invitation-reaper",
   autoPromotion: "auto-promotion",
   roleTaxMonthly: "role-tax-monthly",
+  nodeSubscriptionTick: "node-subscription-tick",
+  payrollPeriodic: "payroll-periodic",
   backupDaily: "backup-daily",
   activityLogReaper: "activity-log-reaper",
+  emailDigestDaily: "email-digest-daily",
+  emailDigestWeekly: "email-digest-weekly",
 } as const;
 
 export interface KrwnJobPayload {
@@ -42,6 +53,11 @@ export interface KrwnJobPayload {
   roleTaxPeriodKey?: string;
   /** Anchor instant when deriving default `periodKey` from the calendar month. */
   roleTaxNowIso?: string;
+  /** Override UTC month key `YYYY-MM` for payroll idempotency (tests / backfill). */
+  payrollPeriodKey?: string;
+  payrollNowIso?: string;
+  /** Anchor for node-subscription period keys (tests). */
+  nodeSubscriptionNowIso?: string;
 }
 
 function numberEnv(name: string, fallback: number): number {
@@ -107,6 +123,29 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
       data: {} satisfies KrwnJobPayload,
     },
   );
+  const nodeSubCron =
+    process.env.KRWN_JOB_NODE_SUBSCRIPTION_CRON?.trim() || "0 2 * * *";
+  const nodeSubTz =
+    process.env.KRWN_JOB_NODE_SUBSCRIPTION_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:node-subscription-tick",
+    { pattern: nodeSubCron, tz: nodeSubTz },
+    {
+      name: JOB_NAMES.nodeSubscriptionTick,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
+  const payrollCron =
+    process.env.KRWN_JOB_PAYROLL_CRON?.trim() || "0 8 15 * *";
+  const payrollTz = process.env.KRWN_JOB_PAYROLL_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:payroll-periodic",
+    { pattern: payrollCron, tz: payrollTz },
+    {
+      name: JOB_NAMES.payrollPeriodic,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
   const backupCron =
     process.env.KRWN_JOB_BACKUP_CRON?.trim() || "0 3 * * *";
   const backupTz = process.env.KRWN_JOB_BACKUP_TZ?.trim() || "UTC";
@@ -130,6 +169,30 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
       data: {} satisfies KrwnJobPayload,
     },
   );
+  const digestDailyCron =
+    process.env.KRWN_JOB_EMAIL_DIGEST_DAILY_CRON?.trim() || "0 8 * * *";
+  const digestDailyTz =
+    process.env.KRWN_JOB_EMAIL_DIGEST_DAILY_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:email-digest-daily",
+    { pattern: digestDailyCron, tz: digestDailyTz },
+    {
+      name: JOB_NAMES.emailDigestDaily,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
+  const digestWeeklyCron =
+    process.env.KRWN_JOB_EMAIL_DIGEST_WEEKLY_CRON?.trim() || "0 8 * * 1";
+  const digestWeeklyTz =
+    process.env.KRWN_JOB_EMAIL_DIGEST_WEEKLY_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:email-digest-weekly",
+    { pattern: digestWeeklyCron, tz: digestWeeklyTz },
+    {
+      name: JOB_NAMES.emailDigestWeekly,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
 }
 
 async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
@@ -147,10 +210,23 @@ async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
         roleTaxPeriodKey: job.data?.roleTaxPeriodKey,
         roleTaxNowIso: job.data?.roleTaxNowIso,
       });
+    case JOB_NAMES.nodeSubscriptionTick:
+      return runNodeSubscriptionJob({
+        nowIso: job.data?.nodeSubscriptionNowIso,
+      });
+    case JOB_NAMES.payrollPeriodic:
+      return runPayrollPeriodicJob({
+        payrollPeriodKey: job.data?.payrollPeriodKey,
+        payrollNowIso: job.data?.payrollNowIso,
+      });
     case JOB_NAMES.backupDaily:
       return runDailyBackup(prisma);
     case JOB_NAMES.activityLogReaper:
       return runActivityLogReaper();
+    case JOB_NAMES.emailDigestDaily:
+      return runEmailDigestJob({ kind: "daily" });
+    case JOB_NAMES.emailDigestWeekly:
+      return runEmailDigestJob({ kind: "weekly" });
     default:
       throw new Error(`Unknown job name: ${job.name}`);
   }

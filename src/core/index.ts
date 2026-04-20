@@ -159,6 +159,10 @@ export {
   membershipAdminPermissionDescriptors,
 } from "./membership-admin-permissions";
 export {
+  CredentialsPermissions,
+  credentialsPermissionDescriptors,
+} from "./credentials-permissions";
+export {
   canAccessCitizensAdminScreen,
   canActOnVerticalNode,
   canAdmitToNode,

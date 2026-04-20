@@ -137,7 +137,7 @@ Discord/Slack для общения, Notion для иерархии, Google Form
 |-----------|------|------------|
 | **PermissionsEngine** | `permissions-engine.ts` | `can()` / `resolveAll()` с `walkUp()` по Вертикали. Супер-право `*` у Суверена. Wildcard `finance.*`. |
 | **Auth** | `auth.ts` | Абстракция над провайдером. Регистрация через `setAuthAdapter()`. Никакой привязки к NextAuth/Clerk на уровне ядра. |
-| **CredentialsRegistry** | `auth-credentials.ts` | Плагинные провайдеры: passkey (WebAuthn), Ethereum/Solana wallet (SIWE), GitHub/Google OAuth, magic email. |
+| **CredentialsRegistry** | `auth-credentials.ts` | Плагинные провайдеры: passkey (WebAuthn), Ethereum/Solana wallet (SIWE), GitHub/Google OAuth, magic email, Telegram bot (`telegram` + `TelegramCredentialProvider`). |
 | **Event Bus** | `event-bus.ts` | `InMemoryEventBus` + `RedisEventBus`. Канонические `KernelEvents`. |
 | **Module Registry** | `registry.ts` | Единственный источник истины по установленным плагинам и их правам. |
 | **InvitationsService** | `invitations.ts` | Magic links + QR-коды. SHA-256 хранение токенов, коды вида `KRWN-7HX2-9KQ4`. |
@@ -161,7 +161,7 @@ Discord/Slack для общения, Notion для иерархии, Google Form
   таблиц модулей).
 - **StateSettings** — 1:1 с State. Типизированные колонки для
   hot-path (`transactionTaxRate`, `incomeTaxRate`,
-  `citizenshipFeeAmount`, `treasuryTransparency`, …) + JSON
+  `citizenshipFeeAmount`, `treasuryTransparency`, `uiLocale`, …) + JSON
   `governanceRules`.
 - **ChatChannel · ChatMessage · ChatDirectiveAck** — чат и
   приказы.

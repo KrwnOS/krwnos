@@ -18,5 +18,8 @@
     "type": "git",
     "url": "https://github.com/KrwnOS/krwnos.git",
     "directory": "cli"
+  },
+  "dependencies": {
+    "@krwnos/sdk": "workspace:*"
   }
 }

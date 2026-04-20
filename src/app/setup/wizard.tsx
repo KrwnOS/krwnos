@@ -21,6 +21,7 @@
  * in a half-initialised state.
  */
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
@@ -87,6 +88,13 @@ interface SetupSuccess {
   primaryAssetSymbol: string;
   invite: SetupInvite | null;
 }
+
+/** Mirrors `Button` crown + lg for a single accessible `Link` CTA. */
+const ButtonClassCrownLg = cn(
+  "inline-flex min-h-12 items-center justify-center rounded-md px-6 text-base font-medium transition-colors motion-reduce:transition-none",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crown focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "bg-crown text-black hover:bg-crown/90 shadow-[0_0_24px_-6px_rgba(212,175,55,0.6)]",
+);
 
 const CURRENCY_PRESETS = [
   { symbol: "KRN", name: "Krona", icon: "⚜", color: "#C9A227" },
@@ -320,15 +328,19 @@ function Stepper({ current }: { current: 1 | 2 | 3 | 4 }) {
   ] as const;
 
   return (
-    <div className="mb-8 flex items-center gap-3">
+    <nav
+      className="mb-8 flex items-center gap-3"
+      aria-label={t("setup.stepper.a11yNav")}
+    >
       {steps.map((s, i) => {
         const done = current > s.n || current === 4;
         const active = current === s.n;
         return (
           <div key={s.n} className="flex flex-1 items-center gap-3">
             <div
+              aria-current={active ? "step" : undefined}
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors motion-reduce:transition-none",
                 done && "border-crown bg-crown text-black",
                 active && "border-crown text-crown",
                 !done && !active && "border-border text-foreground/50",
@@ -357,7 +369,7 @@ function Stepper({ current }: { current: 1 | 2 | 3 | 4 }) {
           </div>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
@@ -456,11 +468,12 @@ function StepCurrency({
               <button
                 key={p.symbol}
                 type="button"
+                aria-pressed={active}
                 onClick={() =>
                   onChange({ ...draft, ...p, decimals: draft.decimals })
                 }
                 className={cn(
-                  "flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  "flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors motion-reduce:transition-none",
                   active
                     ? "border-crown bg-crown/10 text-foreground"
                     : "border-border text-foreground/70 hover:border-crown/60 hover:text-foreground",
@@ -530,9 +543,11 @@ function StepCurrency({
               aria-label={t("setup.step2.color")}
             />
             <input
+              id="setup-field-currencyColorHex"
               value={draft.color}
               onChange={(e) => onChange({ ...draft, color: e.target.value })}
               placeholder="#C9A227"
+              aria-label={t("setup.step2.color")}
               className="flex-1 bg-transparent font-mono text-sm focus:outline-none"
             />
           </div>
@@ -772,11 +787,15 @@ function DoneScreen({
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
       <div className="mt-8 flex flex-col gap-2">
-        <a href="/dashboard">
-          <Button variant="crown" size="lg" className="w-full">
-            {t("setup.done.enter")}
-          </Button>
-        </a>
+        <Link
+          href="/dashboard"
+          className={cn(
+            ButtonClassCrownLg,
+            "w-full text-center",
+          )}
+        >
+          {t("setup.done.enter")}
+        </Link>
       </div>
     </Card>
   );
@@ -802,13 +821,15 @@ function Field(props: {
   autoFocus?: boolean;
   mono?: boolean;
 }) {
+  const fieldId = `setup-field-${props.name}`;
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className="flex flex-col gap-1.5" htmlFor={fieldId}>
       <span className="text-xs uppercase tracking-widest text-foreground/60">
         {props.label}
         {props.required ? <span className="text-crown"> *</span> : null}
       </span>
       <input
+        id={fieldId}
         name={props.name}
         type={props.type ?? "text"}
         placeholder={props.placeholder}

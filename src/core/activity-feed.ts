@@ -328,6 +328,8 @@ interface WalletTxEvent {
     amount: number;
     currency: string;
     initiatedById: string;
+    /** Optional JSON bag (e.g. tax breakdown) from wallet events. */
+    metadata?: unknown;
   };
   recipientUserIds: string[];
 }
@@ -363,6 +365,12 @@ interface ProposalClosedShape {
   stateId: string;
   proposalId: string;
   status: string;
+  tally?: {
+    voteCount: number;
+    electorateSize: number;
+    totalCastWeight: number;
+    quorumReached: boolean;
+  };
 }
 
 interface ProposalExecutedShape {
@@ -430,6 +438,25 @@ export function subscribeActivityFeed(
       const audience = new Set<string>(evt.recipientUserIds ?? []);
       audience.add(tx.initiatedById);
 
+      const txMeta =
+        tx.metadata && typeof tx.metadata === "object"
+          ? (tx.metadata as Record<string, unknown>)
+          : null;
+      const rawStateTax = txMeta?.stateTax;
+      const stateTaxSummary =
+        rawStateTax &&
+        typeof rawStateTax === "object" &&
+        rawStateTax !== null &&
+        typeof (rawStateTax as { amount?: unknown }).amount === "number"
+          ? {
+              amount: (rawStateTax as { amount: number }).amount,
+              rate:
+                typeof (rawStateTax as { rate?: unknown }).rate === "number"
+                  ? (rawStateTax as { rate: number }).rate
+                  : undefined,
+            }
+          : undefined;
+
       void service.record({
         stateId: evt.stateId,
         event: SUBSCRIBED_EVENTS.WalletTx,
@@ -449,6 +476,7 @@ export function subscribeActivityFeed(
           kind: tx.kind,
           fromWalletId: tx.fromWalletId,
           toWalletId: tx.toWalletId,
+          ...(stateTaxSummary ? { stateTax: stateTaxSummary } : {}),
         },
       });
     }),
@@ -535,6 +563,24 @@ export function subscribeActivityFeed(
       SUBSCRIBED_EVENTS.ProposalClosed,
       (evt) => {
         if (!evt) return;
+        const tally = evt.tally;
+        const tallyMeta =
+          tally &&
+          typeof tally.voteCount === "number" &&
+          typeof tally.electorateSize === "number"
+            ? {
+                tally: {
+                  voteCount: tally.voteCount,
+                  electorateSize: tally.electorateSize,
+                  totalCastWeight:
+                    typeof tally.totalCastWeight === "number"
+                      ? tally.totalCastWeight
+                      : tally.voteCount,
+                  quorumReached: tally.quorumReached === true,
+                },
+              }
+            : {};
+
         void service.record({
           stateId: evt.stateId,
           event: SUBSCRIBED_EVENTS.ProposalClosed,
@@ -542,7 +588,11 @@ export function subscribeActivityFeed(
           titleKey: `pulse.event.governance.proposal_${evt.status}`,
           titleParams: { status: evt.status },
           visibility: "public",
-          metadata: { proposalId: evt.proposalId, status: evt.status },
+          metadata: {
+            proposalId: evt.proposalId,
+            status: evt.status,
+            ...tallyMeta,
+          },
         });
       },
     ),

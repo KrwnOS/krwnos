@@ -28,6 +28,7 @@ import {
   type ExchangeServiceDeps,
 } from "./exchange";
 import { createPrismaExchangeRepository } from "./exchange-prisma";
+import { credentialsPermissionDescriptors } from "./credentials-permissions";
 import { stateConfigPermissionDescriptors } from "./state-config";
 import { membershipAdminPermissionDescriptors } from "./membership-admin-permissions";
 
@@ -154,6 +155,9 @@ export function registerCorePermissions(): void {
     registry.registerCorePermission(perm);
   }
   for (const perm of membershipAdminPermissionDescriptors) {
+    registry.registerCorePermission(perm);
+  }
+  for (const perm of credentialsPermissionDescriptors) {
     registry.registerCorePermission(perm);
   }
 }

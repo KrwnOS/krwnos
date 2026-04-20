@@ -136,6 +136,8 @@ export const GOVERNANCE_MANAGEABLE_KEYS = [
   "transactionTaxRate",
   "incomeTaxRate",
   "roleTaxRate",
+  "payrollEnabled",
+  "payrollAmountPerCitizen",
   "currencyDisplayName",
   "citizenshipFeeAmount",
   "rolesPurchasable",
@@ -146,6 +148,7 @@ export const GOVERNANCE_MANAGEABLE_KEYS = [
   "autoPromotionMinDays",
   "autoPromotionTargetNodeId",
   "treasuryTransparency",
+  "walletFine",
 ] as const;
 
 export type GovernanceManageableKey =

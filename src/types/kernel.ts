@@ -4,38 +4,23 @@
  * Canonical contracts shared between the core and every module.
  * The core MUST NOT import anything from `/src/modules`.
  * Modules MUST only depend on this file (plus public core APIs).
- */
-
-// ============================================================
-// 1. Permissions
-// ============================================================
-
-/**
- * A permission is an opaque string key in the form
- *   `<domain>.<action>`   e.g. "finance.read", "members.kick"
  *
- * Rules:
- *   * Lowercase, dot-separated.
- *   * Domain is owned by a module slug OR by the core ("core").
- *   * Use the wildcard "*" only at the top level of a role
- *     (effectively grants the Sovereign all rights).
+ * Module contract types (`KrwnModule`, `ModuleContext`, permissions)
+ * are defined in `@krwnos/sdk` and re-exported here for stable `@/types/kernel` imports.
  */
-export type PermissionKey = `${string}.${string}` | "*";
 
-/**
- * Runtime descriptor registered by a module at `init()` time.
- * The Registry collects these and exposes them to the Vertical
- * editor so that the Sovereign can attach them to nodes.
- */
-export interface PermissionDescriptor {
-  key: PermissionKey;
-  /** Module slug that owns this permission ("core" for kernel). */
-  owner: string;
-  label: string;
-  description?: string;
-  /** If true, this permission can never be granted to non-owners. */
-  sovereignOnly?: boolean;
-}
+import type { PermissionKey } from "@krwnos/sdk";
+
+export type {
+  KrwnModule,
+  ModuleContext,
+  ModuleEventBus,
+  ModuleLogger,
+  ModuleSettingsPanel,
+  ModuleWidget,
+  PermissionDescriptor,
+  PermissionKey,
+} from "@krwnos/sdk";
 
 // ============================================================
 // 2. Identity
@@ -118,80 +103,7 @@ export interface Membership {
 // ============================================================
 // 5. Module contract (плагин)
 // ============================================================
-
-/**
- * Minimal runtime context passed to every module method.
- * The core decides what to expose here — modules never touch
- * Prisma or Redis directly.
- */
-export interface ModuleContext {
-  stateId: string;
-  userId: string | null;
-  /** Canonical permissions the current user holds in this State. */
-  permissions: ReadonlySet<PermissionKey>;
-  /** Typed event bus (see `core/event-bus`). */
-  bus: ModuleEventBus;
-  /** Lightweight logger; implementations may forward to OTEL. */
-  logger: ModuleLogger;
-}
-
-export interface ModuleLogger {
-  debug: (msg: string, meta?: Record<string, unknown>) => void;
-  info: (msg: string, meta?: Record<string, unknown>) => void;
-  warn: (msg: string, meta?: Record<string, unknown>) => void;
-  error: (msg: string, meta?: Record<string, unknown>) => void;
-}
-
-export interface ModuleEventBus {
-  emit<T = unknown>(event: string, payload: T): Promise<void>;
-  on<T = unknown>(event: string, handler: (payload: T) => void | Promise<void>): () => void;
-}
-
-/** Descriptor returned by `module.getWidget()`. */
-export interface ModuleWidget {
-  /** Stable id, unique within the module. */
-  id: string;
-  title: string;
-  /** React component reference; rendered by the Dynamic UI shell. */
-  component: unknown;
-  /** Permission required to display this widget. */
-  requiredPermission?: PermissionKey;
-  defaultSize?: "sm" | "md" | "lg" | "xl";
-}
-
-/** Descriptor returned by `module.getSettings()`. */
-export interface ModuleSettingsPanel {
-  title: string;
-  component: unknown;
-  /** Only the State owner or holders of this permission may edit. */
-  requiredPermission?: PermissionKey;
-}
-
-/**
- * Every module MUST implement this interface.
- * The core communicates with it exclusively through these methods.
- */
-export interface KrwnModule {
-  /** Globally unique, dot-namespaced slug: "core.chat", "treasury". */
-  readonly slug: string;
-  readonly name: string;
-  readonly version: string;
-  readonly description?: string;
-
-  /**
-   * Called once when the module is registered into the Registry.
-   * The module MUST declare every permission it will ever check.
-   */
-  init(): {
-    permissions: PermissionDescriptor[];
-  } | Promise<{ permissions: PermissionDescriptor[] }>;
-
-  /** Desktop widget(s) contributed to the Dynamic UI. */
-  getWidget(ctx: ModuleContext): ModuleWidget | ModuleWidget[] | null;
-
-  /** Settings panel for the State owner. */
-  getSettings(ctx: ModuleContext): ModuleSettingsPanel | null;
-}
+// See `@krwnos/sdk` — re-exported at the top of this file.
 
 // ============================================================
 // 6. Invitations (Magic links / QR passports)
@@ -235,7 +147,8 @@ export type AuthCredentialKind =
   | "wallet_solana"
   | "oauth_github"
   | "oauth_google"
-  | "magic_email";
+  | "magic_email"
+  | "telegram";
 
 export interface AuthCredential {
   id: string;

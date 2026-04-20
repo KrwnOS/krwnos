@@ -17,12 +17,15 @@ import {
   serialiseForWire,
   stateErrorResponse,
 } from "../_context";
+import { isLocale } from "@/lib/i18n/locales";
 
 const PatchSchema = z
   .object({
     transactionTaxRate: z.number().min(0).max(1).optional(),
     incomeTaxRate: z.number().min(0).max(1).optional(),
     roleTaxRate: z.number().min(0).max(1).optional(),
+    payrollEnabled: z.boolean().optional(),
+    payrollAmountPerCitizen: z.number().min(0).optional(),
     currencyDisplayName: z.string().max(64).nullable().optional(),
 
     citizenshipFeeAmount: z.number().min(0).optional(),
@@ -42,6 +45,19 @@ const PatchSchema = z
     governanceRules: z.record(z.string(), z.unknown()).optional(),
 
     extras: z.record(z.string(), z.unknown()).optional(),
+
+    uiLocale: z
+      .string()
+      .max(8)
+      .nullable()
+      .optional()
+      .refine(
+        (v) =>
+          v === undefined ||
+          v === null ||
+          (typeof v === "string" && isLocale(v.trim().toLowerCase())),
+        { message: "invalid uiLocale" },
+      ),
   })
   .strict();
 

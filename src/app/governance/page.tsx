@@ -118,6 +118,8 @@ const ALL_KEYS = [
   "transactionTaxRate",
   "incomeTaxRate",
   "roleTaxRate",
+  "payrollEnabled",
+  "payrollAmountPerCitizen",
   "currencyDisplayName",
   "citizenshipFeeAmount",
   "rolesPurchasable",
@@ -484,8 +486,11 @@ function CreateProposalForm({
       <CardDescription>{t("governance.create.desc")}</CardDescription>
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
         <div>
-          <Label>{t("governance.create.name")}</Label>
+          <Label htmlFor="governance-create-title">
+            {t("governance.create.name")}
+          </Label>
           <Input
+            id="governance-create-title"
             className="mt-1"
             placeholder={t("governance.create.namePh")}
             value={title}
@@ -494,8 +499,11 @@ function CreateProposalForm({
           />
         </div>
         <div>
-          <Label>{t("governance.create.why")}</Label>
+          <Label htmlFor="governance-create-desc">
+            {t("governance.create.why")}
+          </Label>
           <textarea
+            id="governance-create-desc"
             className="mt-1 min-h-[100px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             placeholder={t("governance.create.whyPh")}
             value={description}
@@ -505,8 +513,11 @@ function CreateProposalForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label>{t("governance.create.key")}</Label>
+            <Label htmlFor="governance-create-key">
+              {t("governance.create.key")}
+            </Label>
             <select
+              id="governance-create-key"
               className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
               value={targetKey}
               onChange={(e) => setTargetKey(e.target.value)}
@@ -519,8 +530,11 @@ function CreateProposalForm({
             </select>
           </div>
           <div>
-            <Label>{t("governance.create.value")}</Label>
+            <Label htmlFor="governance-create-value">
+              {t("governance.create.value")}
+            </Label>
             <Input
+              id="governance-create-value"
               className="mt-1 font-mono"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
@@ -689,6 +703,11 @@ function ProposalCard({
           variant="ghost"
           size="sm"
           onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-controls={
+            expanded ? `governance-proposal-${proposal.id}-panel` : undefined
+          }
+          id={`governance-proposal-${proposal.id}-toggle`}
         >
           {expanded ? t("common.collapse") : t("common.details")}
         </Button>
@@ -720,7 +739,12 @@ function ProposalCard({
       </div>
 
       {expanded && (
-        <div className="mt-4 space-y-4 border-t border-border/60 pt-4 text-sm">
+        <div
+          id={`governance-proposal-${proposal.id}-panel`}
+          role="region"
+          aria-labelledby={`governance-proposal-${proposal.id}-toggle`}
+          className="mt-4 space-y-4 border-t border-border/60 pt-4 text-sm"
+        >
           <p className="whitespace-pre-wrap text-foreground/80">
             {proposal.description}
           </p>
@@ -915,9 +939,18 @@ function DescriptionWithLink({
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({
+  htmlFor,
+  children,
+}: {
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="text-[11px] font-semibold uppercase tracking-widest text-foreground/60">
+    <label
+      htmlFor={htmlFor}
+      className="text-[11px] font-semibold uppercase tracking-widest text-foreground/60"
+    >
       {children}
     </label>
   );
@@ -1005,11 +1038,16 @@ function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void }) {
           if (value.trim()) onSubmit(value.trim());
         }}
       >
+        <Label htmlFor="governance-token-input">
+          {t("governance.token.fieldLabel")}
+        </Label>
         <Input
+          id="governance-token-input"
           placeholder="kt_…"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           autoFocus
+          className="mt-1"
         />
         <Button type="submit" variant="crown">
           {t("common.login")}
@@ -1031,6 +1069,7 @@ function valueHint(
   ];
   const numericAmount = [
     "citizenshipFeeAmount",
+    "payrollAmountPerCitizen",
     "autoPromotionMinBalance",
     "autoPromotionMinDays",
   ];
@@ -1038,6 +1077,7 @@ function valueHint(
     "rolesPurchasable",
     "permissionInheritance",
     "autoPromotionEnabled",
+    "payrollEnabled",
   ];
   if (numericRate.includes(key)) return t("governance.hint.rate");
   if (numericAmount.includes(key)) return t("governance.hint.amount");
@@ -1061,12 +1101,17 @@ function coerceValue(
     "roleTaxRate",
     "exitRefundRate",
   ];
-  const numericAmount = ["citizenshipFeeAmount", "autoPromotionMinBalance"];
+  const numericAmount = [
+    "citizenshipFeeAmount",
+    "payrollAmountPerCitizen",
+    "autoPromotionMinBalance",
+  ];
   const numericInt = ["autoPromotionMinDays"];
   const boolKeys = [
     "rolesPurchasable",
     "permissionInheritance",
     "autoPromotionEnabled",
+    "payrollEnabled",
   ];
   if (numericRate.includes(key)) {
     const n = Number(trimmed);

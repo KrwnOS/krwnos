@@ -1,25 +1,20 @@
 /**
  * Core i18n types for KrwnOS.
  * ------------------------------------------------------------
- * The localization layer is intentionally minimal — no external
- * dependencies (no react-intl / i18next). Each locale is a flat
- * dictionary `Record<string, string>` whose keys are dotted paths
- * like `"admin.nexus.title"`. Values may contain `{placeholder}`
- * slots that the `t()` function substitutes with typed vars.
+ * Each locale is a flat dictionary `Record<string, string>` whose keys
+ * are dotted paths like `"admin.nexus.title"`. Values use ICU
+ * MessageFormat (plural, select, `{name}` placeholders) rendered via
+ * `intl-messageformat`.
  *
  * Why flat keys?
- *   * Typed autocompletion (keyof RuDict) across the whole app.
  *   * Simple JSON-compatible fallback/merge behaviour.
  *   * Trivial to generate / diff against a translation tool.
  *
- * Adding a new language: create `locales/<code>.ts` that exports
- * the same keys as `ru.ts`, then register it in `locales/index.ts`.
- * Missing keys fall back to the `ru` dictionary — so a partial
- * translation degrades gracefully rather than rendering empty
- * strings.
+ * Adding a new language: add overrides in `locales/<code>.ts`, merge
+ * with `en` in `locales/index.ts`. Missing keys fall back to English.
  */
 
-export type LocaleCode = "ru" | "en";
+export type LocaleCode = "en" | "ru" | "es" | "zh" | "tr";
 
 export interface LocaleMeta {
   code: LocaleCode;
@@ -27,7 +22,7 @@ export interface LocaleMeta {
   nativeName: string;
   /** BCP 47 tag for `Intl.*` + `<html lang>`. */
   bcp47: string;
-  /** Pluralization rule — Slavic-style (one/few/many) or English-style. */
+  /** Legacy pipe-plural helper (`formatters.pluralize`) — prefer ICU in messages. */
   plural: "slavic" | "english";
 }
 

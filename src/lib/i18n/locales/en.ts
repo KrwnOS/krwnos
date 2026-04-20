@@ -1,15 +1,8 @@
 /**
  * English dictionary.
  * ------------------------------------------------------------
- * Mirrors the shape of `ru.ts`. Any key missing here falls back
- * to the Russian value at runtime (see `src/lib/i18n/index.ts`).
- * When adding a new string, always add the key in `ru.ts` first,
- * then here.
- *
- * Plural templates use English "one | other" semantics; the
- * runtime only picks between the first ("one") and last ("many")
- * variants for English locales. Middle variants are harmless —
- * they're kept to preserve a consistent split-by-pipe shape.
+ * Canonical source dictionary; other locales merge overrides on top.
+ * Messages use ICU MessageFormat for plurals and placeholders.
  */
 
 import type { Dict } from "../types";
@@ -55,6 +48,7 @@ export const en: Dict = {
   "home.chat.open": "Open chat",
   "home.chat.close": "Hide chat",
   "home.chat.float": "Chat",
+  "home.chat.closeOverlay": "Close chat panel",
   "home.chat.preparing": "Opening the channel…",
   "home.cta.coronate": "Coronate",
   "home.hero.eyebrow": "Community OS",
@@ -111,6 +105,7 @@ export const en: Dict = {
 
   "setup.nav.back": "← Back",
   "setup.nav.next": "Next →",
+  "setup.stepper.a11yNav": "Setup progress",
   "setup.step1.nav": "State",
   "setup.step1.title": "Name the state",
   "setup.step1.desc":
@@ -188,9 +183,9 @@ export const en: Dict = {
     "Nodes, roles and ranks — the graph that distributes permissions.",
   "nexus.vertical.addNode": "Add node",
   "nexus.vertical.openTree": "Open the tree",
-  "nexus.vertical.nodes": "{count} node | {count} nodes | {count} nodes",
+  "nexus.vertical.nodes": "{count, plural, one {# node} other {# nodes}}",
   "nexus.vertical.citizens":
-    "{count} citizen | {count} citizens | {count} citizens",
+    "{count, plural, one {# citizen} other {# citizens}}",
   "nexus.vertical.citizensLabel": "Citizens",
   "nexus.vertical.nodesLabel": "Nodes of power",
 
@@ -288,7 +283,7 @@ export const en: Dict = {
   "verticalEditor.empty.desc":
     "The Vertical is empty. Start with a root node — ministries and ranks will branch out from it.",
   "verticalEditor.members":
-    "{count} member | {count} members | {count} members",
+    "{count, plural, one {# member} other {# members}}",
   "verticalEditor.type.position": "Position",
   "verticalEditor.type.department": "Department",
   "verticalEditor.type.rank": "Rank",
@@ -297,7 +292,7 @@ export const en: Dict = {
   "verticalEditor.node.memberCount": "Active members",
   "verticalEditor.node.noPerms": "no explicit permissions",
   "verticalEditor.node.permCount":
-    "{count} permission | {count} permissions | {count} permissions",
+    "{count, plural, one {# permission} other {# permissions}}",
   "verticalEditor.prompt.childTitle": "Title of the new node",
   "verticalEditor.defaults.childTitle": "New node",
   "verticalEditor.panel.eyebrow": "Edit node",
@@ -483,6 +478,14 @@ export const en: Dict = {
   "citizen.roleMarket.notLobbyOnly":
     "You already hold an active role outside the Waiting Room. Use governance or ask an officer to move you — the market is only for the lobby path.",
 
+  "constitution.locale.eyebrow": "Localization",
+  "constitution.locale.title": "Official UI language",
+  "constitution.locale.desc":
+    "Default interface language for this State on first load. Citizens can still pick another language in the header; their cookie wins for their own browser.",
+  "constitution.locale.field": "Primary locale",
+  "constitution.locale.hint":
+    "Stored in StateSettings (not cookie-only). Falls back to English when unset.",
+
   "constitution.dirty": "Unsaved changes",
   "constitution.clean": "All fields are in sync with the DB",
   "constitution.sign": "Sign the decree",
@@ -501,6 +504,12 @@ export const en: Dict = {
   "constitution.ch1.roleTax": "Role tax (%/mo)",
   "constitution.ch1.roleTaxHint":
     "Monthly subscription to retain a high-ranking position.",
+  "constitution.ch1.payrollEnabled": "Automatic payroll",
+  "constitution.ch1.payrollEnabledHint":
+    "When enabled, the job worker pays each active member from the root treasury on the payroll schedule (BullMQ).",
+  "constitution.ch1.payrollAmount": "Payroll amount (per citizen)",
+  "constitution.ch1.payrollAmountHint":
+    "Gross units of the primary currency per citizen per payout period. Income tax still applies. 0 disables payouts even if payroll is on.",
   "constitution.ch1.display": "Currency display name",
   "constitution.ch1.displayHint":
     "Optional UI caption. The actual unit of account stays in the Currency Factory (the primary asset's ticker).",
@@ -581,6 +590,8 @@ export const en: Dict = {
   "constitution.keys.transactionTaxRate": "Transfer tax",
   "constitution.keys.incomeTaxRate": "Income tax",
   "constitution.keys.roleTaxRate": "Role tax",
+  "constitution.keys.payrollEnabled": "Automatic payroll",
+  "constitution.keys.payrollAmountPerCitizen": "Payroll amount per citizen",
   "constitution.keys.currencyDisplayName": "Currency display",
   "constitution.keys.citizenshipFeeAmount": "Citizenship fee",
   "constitution.keys.rolesPurchasable": "Purchasable roles",
@@ -591,6 +602,7 @@ export const en: Dict = {
   "constitution.keys.autoPromotionMinDays": "Auto-promotion: tenure",
   "constitution.keys.autoPromotionTargetNodeId": "Auto-promotion: node",
   "constitution.keys.treasuryTransparency": "Treasury transparency",
+  "constitution.keys.walletFine": "Wallet fine (Parliament execution)",
 
   "styling.eyebrow": "Styling Hub",
   "styling.title": "The look of your state",
@@ -773,6 +785,7 @@ export const en: Dict = {
   "governance.token.title": "Enter Parliament",
   "governance.token.desc":
     "Voting and submitting proposals require a citizen's CLI token. Mint one with {cmd}.",
+  "governance.token.fieldLabel": "CLI token",
   "governance.hint.rate": "Example: 0.05 (=5%). Range 0..1.",
   "governance.hint.amount": "Integer or decimal ≥ 0. Empty → null.",
   "governance.hint.bool": "true or false",
@@ -808,6 +821,7 @@ export const en: Dict = {
   "wallet.source.noTreasuries.suffix": "permission.",
   "wallet.personalOnly.prefix": "Transferring from your personal wallet. Balance:",
   "wallet.recipient": "Recipient",
+  "wallet.recipientValueLabel": "Recipient id or address",
   "wallet.recipient.user": "User",
   "wallet.recipient.userModal": "User (userId)",
   "wallet.recipient.treasury": "Treasury",
@@ -842,6 +856,7 @@ export const en: Dict = {
   "chat.connect.title": "Connect to chat",
   "chat.connect.desc":
     "Paste a CLI token with scopes {read}, {write} (and optionally {admin}). Mint one with {cmd}.",
+  "chat.connect.fieldLabel": "CLI token",
   "chat.connect.submit": "Enter the channel",
   "chat.connect.noToken": "Haven't coronated the State yet?",
   "chat.connect.goSetup": "Open setup wizard →",
@@ -868,6 +883,8 @@ export const en: Dict = {
   "chat.ack.submitting": "...",
   "chat.composer.sendMessage":
     "Message in #{title}… (Markdown supported)",
+  "chat.composer.a11yMessage": "Message text, channel {title}",
+  "chat.composer.a11yDirective": "Directive text, channel {title}",
   "chat.composer.sendDirective":
     "Directive in #{title}… (Markdown supported)",
   "chat.composer.sendAsDirective": "Send as Directive",
@@ -879,8 +896,7 @@ export const en: Dict = {
   "chat.directive.ackedAria": "Directive acknowledged",
   "chat.directive.badgeAria": "System directive",
   "chat.tray.items":
-    "You have {count} unacknowledged {word}.",
-  "chat.tray.word": "directive | directives | directives",
+    "{count, plural, one {You have # unacknowledged directive.} other {You have # unacknowledged directives.}}",
 
   // Dashboard / State Pulse (/dashboard)
   "pulse.eyebrow": "State Pulse",
@@ -925,7 +941,7 @@ export const en: Dict = {
   "pulse.sidebar.emptyTree":
     "The state is not built yet. Create the first node in the Vertical editor.",
   "pulse.sidebar.onlineTotal":
-    "{count} online | {count} online | {count} online",
+    "{count, plural, one {# online} other {# online}}",
   "pulse.sidebar.footnote":
     "Online = activity within the last {seconds}s.",
 
@@ -996,6 +1012,33 @@ export const en: Dict = {
 
   // --- Header actions ---
   "pulse.header.audit": "Audit log",
+
+  // --- Pulse visualizations (from visible activity + vertical tree) ---
+  "pulse.viz.title": "Pulse insights",
+  "pulse.viz.scopeNote":
+    "Figures reflect only events you can see in the Pulse and the history loaded below — load older items to extend the window. Sovereign and audience-scoped rows follow the same visibility rules as the feed.",
+  "pulse.viz.transfersTitle": "Wallet volume",
+  "pulse.viz.transfersDesc":
+    "Sum of logged wallet movements (per day, UTC) from your visible feed.",
+  "pulse.viz.taxTitle": "Tax accrual to treasury",
+  "pulse.viz.taxDesc":
+    "State tax split on transfers when the ledger recorded `stateTax.amount` on the event.",
+  "pulse.viz.votesTitle": "Vote participation",
+  "pulse.viz.votesDesc":
+    "Share of the electorate that cast a ballot when a proposal closed (from stored tallies).",
+  "pulse.viz.verticalMapTitle": "Vertical map",
+  "pulse.viz.verticalMapDesc":
+    "Hierarchy from the Pulse context — membership and online counts per node (not geographic).",
+  "pulse.viz.noData": "No wallet events in the loaded history.",
+  "pulse.viz.taxNoData":
+    "No tax amounts on loaded events yet — they appear on taxed transfers after this release.",
+  "pulse.viz.votesNoData":
+    "No closed proposals with tallies in the loaded history.",
+  "pulse.viz.treeEmpty": "Vertical tree unavailable until Pulse context loads.",
+  "pulse.viz.participationPct": "{pct}% turnout",
+  "pulse.viz.participationNA": "n/a",
+  "pulse.viz.quorumOk": "quorum",
+  "pulse.viz.nodeFootnote": "{members} members · {online} online",
 
   // ------------------------------------------------------------
   // /admin/audit — Audit Log

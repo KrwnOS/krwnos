@@ -44,6 +44,23 @@
 `email` — тоже. Один пользователь может владеть многими State
 (`ownedStates`) и состоять в многих узлах через `Membership`.
 
+Поля **email digest** (BullMQ `email-digest-daily` / `email-digest-weekly`):
+`emailDigestDaily`, `emailDigestWeekly`, `emailDigestChatMentions`
+(опциональная подсекция «упоминания в чате» по подстроке `@handle`).
+Включение дайджестов на инстансе — env `KRWN_EMAIL_DIGEST_ENABLED`
+(см. `docs/DEPLOYMENT.md`). Персистентное «письмо одно за период» —
+`EmailDigestSend`.
+
+### `AuthCredential` / `TelegramLinkToken`
+Беспарольные учётные данные: `kind` в enum включает `telegram` — в
+`identifier` хранится числовой id пользователя Telegram (строка). Уникальность
+`@@unique([kind, identifier])` не даёт привязать один Telegram к двум
+аккаунтам KrwnOS.
+
+`TelegramLinkToken` — одноразовые хеши ссылок привязки (выдаются
+`TelegramCredentialProvider.beginEnrollment`), срок `expiresAt`, после успеха
+`consumedAt`. См. `docs/DEPLOYMENT.md`, `POST /api/telegram/link/start`.
+
 ### `State` — Государство
 | Поле | Тип | Заметки |
 |------|-----|---------|
@@ -95,11 +112,39 @@
 
 См. `src/server/citizens-admin-service.ts`, `src/server/state-ban.ts`.
 
+### `NodeSubscription` / `NodeSubscriptionPeriodCharge`
+
+Подписка узла: фиксированный перевод из **казны дочернего** `VerticalNode`
+в **казну родителя** (`parentId` дочернего должен совпадать с
+`parentNodeId`). Расписание: `MONTHLY` (ключ периода UTC `YYYY-MM`) или
+`WEEKLY` (ключ — дата понедельника ISO-недели UTC `YYYY-MM-DD`).
+Идемпотентность списаний: `@@unique([nodeSubscriptionId, periodKey])` на
+`NodeSubscriptionPeriodCharge` (аналогично `RoleTaxPeriodCharge`).
+Фон: BullMQ `node-subscription-tick` (`src/modules/wallet/node-subscription-tick.ts`).
+
+### `WalletFine`
+
+Штраф с **личного** кошелька в казну узла: по **указу** Суверена
+(`POST /api/wallet/fine`, `source = decree`) или после исполнения
+предложения Парламента с `targetConfigKey = walletFine` (`source =
+governance`). Уникальность исполнения по голосованию: `proposalId`
+nullable `@unique`. Налог на перевод (state + asset) применяется как при
+обычном `transfer` (см. `src/modules/wallet/wallet-fine.ts`).
+
 ### `InstalledModule`
 Per-State установка плагина с собственным `config` JSONB.
 
 - `@@unique([stateId, slug])`.
 - Удаление State каскадно удаляет записи.
+
+### `StateSettings`
+Палата Указов (1:1 с `State`). Помимо фискальных и governance-полей:
+
+| Поле | Заметки |
+|------|---------|
+| `uiLocale` | Nullable `TEXT`. Код интерфейса по умолчанию для инстанса (`en`, `ru`, `es`, `zh`, `tr`). Персональный cookie `krwnos_locale` на устройстве по-прежнему может переопределить при SSR. |
+
+См. `prisma/schema.prisma`, `src/core/state-config.ts`, `/admin/constitution`.
 
 ### `ActivityLog`
 Агрегированная лента (Пульс / аудит): одна строка на заметное событие модулей.
@@ -112,6 +157,26 @@ Per-State установка плагина с собственным `config` J
 **Ретенция:** переменная окружения `KRWN_ACTIVITY_LOG_RETENTION_DAYS` (по умолчанию `365`; `0` — не ограничивать и не удалять фоном). API `/api/activity` и `ActivityFeedService.listForViewer` отсекают строки старше порога; фоновая задача BullMQ `activity-log-reaper` удаляет просроченные строки из БД (см. `src/jobs/worker.ts`, `.env.example`).
 
 **Полный журнал аудита:** `GET /api/activity?audit=1` — только Суверен или эффективный `system.admin`; снимает фильтр видимости, но ретенция по дате остаётся.
+
+### `WebPushSubscription`
+PWA Web Push: одна строка на пару (`userId`, `endpoint` push-сервиса) в
+рамках `stateId`.
+
+| Поле | Заметки |
+|------|---------|
+| `endpoint` | URL endpoint (дублируется из JSON для `@@unique([userId, endpoint])`). |
+| `subscription` | JSON `PushSubscription` из браузера (`endpoint` + `keys`). |
+| `notifyDirectiveAcks` | Уведомлять автора директивы о «Принято к исполнению». |
+| `notifyProposalVotes` | Уведомлять автора предложения о новых голосах. |
+
+Каскад при удалении `User` / `State`. См. `src/lib/web-push-delivery.ts`,
+`POST /api/push/subscribe`.
+
+### `EmailDigestSend`
+Идемпотентность email-дайджестов: уникальный ключ `(userId, kind, periodKey)`
+(`kind`: `daily` | `weekly`; `periodKey` — см. `src/jobs/email-digest-period.ts`).
+Запись создаётся сразу перед SMTP-отправкой; при ошибке SMTP строка
+удаляется, чтобы следующий cron мог повторить.
 
 ---
 

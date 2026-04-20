@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — Responsive pass (чат + Pulse / dashboard)
+**Обновлено:** 2026-04-20 — Node subscriptions + wallet fines; a11y; `krwn.module.json`
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -124,6 +124,12 @@
 - [x] 2026-04-19 (#—) Cron `auto-promotion` — `src/core/auto-promotion.ts`,
       `src/jobs/auto-promotion.ts`.
 - [x] 2026-04-19 (#—) Cron `role-tax-monthly` — `src/modules/wallet/role-tax-tick.ts`.
+- [x] 2026-04-20 (#—) Подписки узлов (казна ребёнка → родитель) +
+      штрафы (`WalletFine`: указ `POST /api/wallet/fine`, Парламент —
+      ключ `walletFine`), BullMQ `node-subscription-tick`, миграция
+      `20260420160000_node_subscriptions_wallet_fines`, тесты в
+      `service.test.ts` / `wallet-fine.test.ts` / integration
+      `node-subscription-tick.integration.test.ts`.
 - [x] 2026-04-19 (#—) SMTP `magic_email` — `src/core/magic-email-smtp.ts`.
 - [x] 2026-04-19 (#—) Автобэкап: ежедневный snapshot в S3/R2 + ретенция
       (`BackupService`, BullMQ `backup-daily`, `BackupManifest`).
@@ -172,21 +178,34 @@
 - [x] 2026-04-20 (#—) PWA MVP: `public/manifest.webmanifest` + `public/sw.js`
       (офлайн read-кэш `GET /api/state/pulse`, ключ кэша по `Authorization`
       — см. `docs/ARCHITECTURE.md` §8), installability, CSP `worker-src` /
-      `manifest-src`; `POST /api/push/subscribe` — заглушка; VAPID env в
-      `docs/DEPLOYMENT.md`.
+      `manifest-src`; VAPID env в `docs/DEPLOYMENT.md`.
 - [x] 2026-04-20 (#—) Responsive pass (чат и Pulse / dashboard): стек
       каналов + треда на `<md`, `min-w-0` / `overflow-x` на лентах,
       safe-area для composer и toasts, touch targets ≥44px на
       фильтрах/шапке Pulse; `e2e/smoke.spec.ts` — проверка отсутствия
       горизонтального overflow на `/dashboard` при 390px.
-- [ ] Web-push (полная реализация): хранение подписок, серверная доставка
-      (directive ACK, Proposal voting); сейчас только scaffold и VAPID env.
-- [ ] Email-digest (ежедневный / еженедельный).
-- [ ] Telegram-bot-адаптер через `CredentialsRegistry`-паттерн.
-- [ ] i18n: ICU-формат, es/zh/tr, переключатель на уровне
-      `StateSettings`, а не user-cookie.
-- [ ] Accessibility pass: ARIA, focus-trap в модалках,
-      `prefers-reduced-motion`, проверка контраста Gold-theme.
+- [x] 2026-04-20 (#—) Email-digest (ежедневный / еженедельный): BullMQ
+      `email-digest-daily` / `email-digest-weekly`, шаблоны SMTP
+      (`src/core/magic-email-smtp.ts`), агрегат Пульса / открытых
+      предложений / опционально упоминаний `@handle` в чате (substring);
+      opt-in (`KRWN_EMAIL_DIGEST_ENABLED`, поля `User.emailDigest*`),
+      идемпотентность `EmailDigestSend`, dry-run в dev — `docs/DEPLOYMENT.md`.
+- [x] Telegram-bot-адаптер через `CredentialsRegistry`-паттерн (`POST /api/telegram/*`, см. `docs/DEPLOYMENT.md`).
+- [x] 2026-04-20 (#—) i18n: ICU (`intl-messageformat`), локали `en/ru/es/zh/tr`,
+      fallback `en`, колонка `StateSettings.uiLocale` + переключатель в Палате
+      Указов; cookie по-прежнему переопределяет для браузера. Снимки ICU —
+      `src/lib/i18n/__tests__/icu.test.ts`; smoke по локали — `e2e/smoke.spec.ts`.
+- [x] 2026-04-20 (#—) Accessibility pass: `useFocusTrap` на dashboard
+      (broadcast + node drawer), TransferModal, MintModal, Sovereign tour,
+      home chat sidepanel; подписи форм (governance, setup wizard, chat connect
+      / composer); глобальный `prefers-reduced-motion` в `globals.css` +
+      `motion-reduce:*` на длинных transition; слегка поднят контраст
+      `CardDescription` (`text-foreground/70`); incremental
+      `eslint-plugin-jsx-a11y` (часть строгих правил отключена — см. ниже).
+      **Осталось / известные зазоры:** полный аудит админ-страниц и
+      token-prompt экранов; live region для ленты чата; при желании ужесточить
+      jsx-a11y (`no-autofocus`, клики по backdrop) точечно по файлам; полный
+      Lighthouse/axe по `/admin/*` в CI.
 - [ ] Визуализации Pulse: объём переводов, налоговые поступления,
       явка на голосования, map-view Вертикали.
 - [ ] Автоматические зарплаты: cron `TREASURY → PERSONAL` по
@@ -201,11 +220,8 @@
 Сейчас модули — только first-party, слитые с монорепо. Для
 масштабирования нужен настоящий Registry.
 
-- [ ] `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
-      prisma-per-schema, тест-harness.
-- [ ] Manifest `krwn.module.json` (slug, version, permissions,
-      migrations path, peerDeps, ui entrypoint, schema name) +
-      валидация на install.
+- [~] `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
+      prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`).
 - [ ] Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
 - [ ] Секреты модуля — только через `ctx.secrets.get()`.
@@ -287,10 +303,30 @@
 
 Закрытые пункты остаются здесь как changelog проекта.
 
+### 2026-04 — Horizon 1 · Economy / governance
+- [x] 2026-04-20 (#—) Подписки узлов и штрафы: `NodeSubscription`,
+      `WalletFine`, `walletFine` в `GOVERNANCE_MANAGEABLE_KEYS`,
+      `applyWalletFine` из `GovernanceService`, API `/api/wallet/fine`,
+      `/api/wallet/node-subscription`.
+
+### 2026-04 — Horizon 3 · Manifest
+- [x] 2026-04-20 (#—) Manifest `krwn.module.json` (slug, version,
+      permissions, migrations path, peerDeps, ui entrypoint, schema
+      name): JSON Schema `packages/sdk/src/schemas/krwn-module-manifest.schema.json`,
+      `validateKrwnModuleManifest` в `@krwnos/sdk`, CLI `krwn module validate`,
+      опциональное поле `manifest` в `POST /api/cli/modules`, фикстура
+      `fixtures/modules/example-good/`, тесты `packages/sdk/src/manifest.test.ts`.
+
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse
       (Bearer-scoped cache), installability, push subscribe stub + VAPID env
       (`docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md` §8).
+- [x] 2026-04-20 (#—) Web Push (полная реализация): таблица
+      `WebPushSubscription`, `web-push` + VAPID, `POST/DELETE /api/push/subscribe`,
+      fan-out на `core.chat.directive.acknowledged` и
+      `core.governance.proposal.vote_cast` (prefs), rate-limit, обработчики в
+      `public/sw.js`, тест `src/lib/__tests__/web-push-delivery.test.ts`;
+      обновлены `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT.md`, `docs/DATABASE.md`.
 
 ### 2026-04 — Horizon 2 · Responsive
 - [x] 2026-04-20 (#—) Чат + Pulse (`ChatPanel` / `/dashboard`): колонка

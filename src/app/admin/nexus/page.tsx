@@ -25,12 +25,13 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -360,7 +361,7 @@ function VerticalCard({
   totalNodes: number;
   totalCitizens: number;
 }) {
-  const { t, tp } = useI18n();
+  const { t } = useI18n();
   return (
     <NexusCard>
       <Eyebrow>{t("nexus.vertical.eyebrow")}</Eyebrow>
@@ -371,12 +372,12 @@ function VerticalCard({
         <BigStat
           value={totalNodes}
           caption={t("nexus.vertical.nodesLabel")}
-          subtitle={tp("nexus.vertical.nodes", totalNodes)}
+          subtitle={t("nexus.vertical.nodes", { count: totalNodes })}
         />
         <BigStat
           value={totalCitizens}
           caption={t("nexus.vertical.citizensLabel")}
-          subtitle={tp("nexus.vertical.citizens", totalCitizens)}
+          subtitle={t("nexus.vertical.citizens", { count: totalCitizens })}
         />
       </div>
 
@@ -670,20 +671,8 @@ function MintModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  // Esc закрывает модалку; блокируем прокрутку body, пока открыта.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
+  const trapRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(true, trapRef, { onEscape: onClose });
 
   const amount = useMemo(() => {
     const parsed = Number(amountText.replace(",", "."));
@@ -740,17 +729,18 @@ function MintModal({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
-      aria-label={t("nexus.mint.title", { symbol: asset.symbol })}
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      aria-labelledby="nexus-mint-title"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 motion-reduce:transition-none"
     >
       {/* Glassmorphism backdrop: затемнение + размытие заднего плана. */}
-      <button
-        type="button"
-        aria-label={t("common.close")}
-        onClick={onClose}
+      <div
+        role="presentation"
         className="absolute inset-0 bg-background/70 backdrop-blur-md"
+        onClick={onClose}
+        aria-hidden
       />
 
       <form
@@ -761,7 +751,7 @@ function MintModal({
         )}
       >
         <Eyebrow>{t("nexus.economy.eyebrow")}</Eyebrow>
-        <CardTitle className="mt-1">
+        <CardTitle id="nexus-mint-title" className="mt-1">
           {t("nexus.mint.title", { symbol: asset.symbol })}
         </CardTitle>
         <CardDescription>
@@ -804,7 +794,10 @@ function MintModal({
         </div>
 
         {error && (
-          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+          <div
+            role="alert"
+            className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive"
+          >
             {error}
           </div>
         )}

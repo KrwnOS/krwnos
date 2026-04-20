@@ -258,7 +258,7 @@ function Composer({
   onSend: (body: string, asDirective: boolean) => Promise<void>;
   channelTitle: string;
 }) {
-  const t = useT();
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   const [asDirective, setAsDirective] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -303,6 +303,11 @@ function Composer({
             asDirective
               ? t("chat.composer.sendDirective", { title: channelTitle })
               : t("chat.composer.sendMessage", { title: channelTitle })
+          }
+          aria-label={
+            asDirective && canPostDirective
+              ? t("chat.composer.a11yDirective", { title: channelTitle })
+              : t("chat.composer.a11yMessage", { title: channelTitle })
           }
           rows={2}
           className="min-h-[48px] w-full resize-none bg-transparent text-base text-foreground placeholder:text-foreground/40 focus:outline-none sm:min-h-[44px] sm:text-sm"

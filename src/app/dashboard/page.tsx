@@ -36,16 +36,31 @@
 
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SovereignOnboardingTour } from "@/components/sovereign-onboarding-tour";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { ACTIVITY_EVENTS } from "@/core/activity-events";
 import { formatAmount, KRONA_SYMBOL } from "@/components/wallet";
+
+const PulseVisualizations = dynamic(
+  () => import("@/components/pulse/pulse-visualizations"),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mb-6 h-36 w-full animate-pulse rounded-lg bg-muted/40"
+        aria-busy="true"
+      />
+    ),
+  },
+);
 
 // ------------------------------------------------------------
 // Wire types
@@ -740,6 +755,8 @@ function BroadcastModal({
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trapRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(true, trapRef, { onEscape: onClose });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -761,15 +778,19 @@ function BroadcastModal({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm"
+      aria-labelledby="pulse-broadcast-title"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm motion-reduce:transition-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <Card className="w-full max-w-lg border-crown/40 shadow-2xl shadow-crown/10">
-        <CardTitle>{t("pulse.broadcast.title")}</CardTitle>
+        <CardTitle id="pulse-broadcast-title">
+          {t("pulse.broadcast.title")}
+        </CardTitle>
         <CardDescription>{t("pulse.broadcast.subtitle")}</CardDescription>
         <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
           <label className="flex flex-col gap-1 text-xs">
@@ -804,7 +825,10 @@ function BroadcastModal({
           </label>
 
           {error && (
-            <p className="rounded-md bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/5 px-3 py-2 text-xs text-destructive"
+            >
               {error}
             </p>
           )}
@@ -850,6 +874,8 @@ function NodeDetailDrawer({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const trapRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(true, trapRef, { onEscape: onClose });
 
   const children = useMemo(
     () =>
@@ -874,20 +900,25 @@ function NodeDetailDrawer({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-40 flex justify-end bg-background/70 backdrop-blur-sm"
+      aria-labelledby="pulse-node-drawer-title"
+      className="fixed inset-0 z-40 flex justify-end bg-background/70 backdrop-blur-sm motion-reduce:transition-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <aside className="flex h-full w-full max-w-md flex-col border-l border-border/60 bg-background/95 shadow-2xl">
+      <aside className="flex h-full w-full max-w-md flex-col border-l border-border/60 bg-background/95 shadow-2xl motion-reduce:transition-none">
         <header className="flex items-start justify-between gap-3 border-b border-border/40 px-6 py-5">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.3em] text-crown">
               {nodeTypeLabel(node.type, t)}
             </p>
-            <h2 className="mt-1 truncate text-xl font-semibold">
+            <h2
+              id="pulse-node-drawer-title"
+              className="mt-1 truncate text-xl font-semibold"
+            >
               {node.title}
             </h2>
             <p className="mt-1 text-xs text-foreground/50">

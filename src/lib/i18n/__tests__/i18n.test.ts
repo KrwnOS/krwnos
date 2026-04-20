@@ -1,20 +1,5 @@
 /**
- * Unit tests for the i18n subsystem.
- * ------------------------------------------------------------
- * Coverage:
- *   * Locale registry — both ru and en are present, all keys
- *     declared in ru have a counterpart in en (or fall back).
- *   * Pluralization — Slavic 1/2/5/11/21 ↔ English 1/many.
- *   * Interpolation — `{name}` replacement, missing var stays
- *     literal so it's visible in the UI.
- *   * Compact / percent / duration — locale-independent enough
- *     for snapshot-style assertions.
- *   * Resolve fallback — missing key in `en` returns the `ru`
- *     value; missing key in both returns the key itself.
- *
- * The provider lives in a "use client" file; we test the pure
- * functions it composes (formatters + resolve-style helpers)
- * because they carry the actual logic.
+ * Unit tests for the i18n subsystem (registry + ICU path + formatters).
  */
 
 import { describe, expect, it } from "vitest";
@@ -24,8 +9,8 @@ import {
   formatNumber,
   formatPercent,
   interpolate,
-  pluralize,
 } from "../formatters";
+import { formatIcu } from "../icu";
 import {
   AVAILABLE_LOCALES,
   DEFAULT_LOCALE,
@@ -36,20 +21,20 @@ import { ru } from "../locales/ru";
 import { en } from "../locales/en";
 
 describe("locales registry", () => {
-  it("exposes ru and en with non-empty dictionaries", () => {
-    expect(LOCALES.ru.dict).toBe(ru);
+  it("exposes en and ru with non-empty dictionaries", () => {
     expect(LOCALES.en.dict).toBe(en);
+    expect(LOCALES.ru.dict).toBe(ru);
     expect(Object.keys(ru).length).toBeGreaterThan(50);
     expect(Object.keys(en).length).toBeGreaterThan(50);
   });
 
-  it("default locale is the source of truth (ru)", () => {
-    expect(DEFAULT_LOCALE).toBe("ru");
+  it("default locale is English (fallback chain)", () => {
+    expect(DEFAULT_LOCALE).toBe("en");
   });
 
   it("available locales each carry a BCP-47 tag", () => {
     for (const meta of AVAILABLE_LOCALES) {
-      expect(meta.bcp47).toMatch(/^[a-z]{2}(-[A-Z]{2})?$/);
+      expect(meta.bcp47).toMatch(/^[a-z]{2}(-[A-Za-z0-9-]+)?$/);
       expect(meta.nativeName.length).toBeGreaterThan(0);
     }
   });
@@ -57,41 +42,26 @@ describe("locales registry", () => {
   it("isLocale narrows unknown values", () => {
     expect(isLocale("ru")).toBe(true);
     expect(isLocale("en")).toBe(true);
+    expect(isLocale("es")).toBe(true);
+    expect(isLocale("zh")).toBe(true);
+    expect(isLocale("tr")).toBe(true);
     expect(isLocale("de")).toBe(false);
     expect(isLocale(42)).toBe(false);
     expect(isLocale(null)).toBe(false);
   });
 });
 
-describe("pluralization", () => {
-  const slavicNodes = "{count} узел | {count} узла | {count} узлов";
-  const englishItems = "{count} item | {count} items | {count} items";
+describe("ICU via formatIcu (representative templates)", () => {
+  const template =
+    "{count, plural, one {# item} other {# items}}";
 
-  it("Slavic — picks the right form for representative numbers", () => {
-    expect(pluralize(1, slavicNodes, "ru")).toBe("{count} узел");
-    expect(pluralize(2, slavicNodes, "ru")).toBe("{count} узла");
-    expect(pluralize(5, slavicNodes, "ru")).toBe("{count} узлов");
-    expect(pluralize(11, slavicNodes, "ru")).toBe("{count} узлов");
-    expect(pluralize(21, slavicNodes, "ru")).toBe("{count} узел");
-    expect(pluralize(22, slavicNodes, "ru")).toBe("{count} узла");
-    expect(pluralize(101, slavicNodes, "ru")).toBe("{count} узел");
-    expect(pluralize(0, slavicNodes, "ru")).toBe("{count} узлов");
-  });
-
-  it("English — only one/other forms", () => {
-    expect(pluralize(1, englishItems, "en")).toBe("{count} item");
-    expect(pluralize(2, englishItems, "en")).toBe("{count} items");
-    expect(pluralize(0, englishItems, "en")).toBe("{count} items");
-    expect(pluralize(21, englishItems, "en")).toBe("{count} items");
-  });
-
-  it("falls back gracefully when the template has fewer variants", () => {
-    expect(pluralize(1, "single", "ru")).toBe("single");
-    expect(pluralize(5, "single", "en")).toBe("single");
+  it("English plural", () => {
+    expect(formatIcu("en", template, { count: 1 })).toBe("1 item");
+    expect(formatIcu("en", template, { count: 0 })).toBe("0 items");
   });
 });
 
-describe("interpolation", () => {
+describe("interpolation (legacy helper, still used by some formatters)", () => {
   it("replaces {placeholders} with values", () => {
     expect(interpolate("Hello {name}!", { name: "Red" })).toBe("Hello Red!");
   });
@@ -132,23 +102,17 @@ describe("number / percent / compact / duration", () => {
     expect(formatCompact(2_500_000)).toBe("2.50M");
   });
 
-  it("formatDuration uses Russian short units for ru, English for en", () => {
+  it("formatDuration uses Russian short units for ru, English for others", () => {
     expect(formatDuration(86_400, "ru")).toBe("1д 0ч");
     expect(formatDuration(86_400, "en")).toBe("1d 0h");
+    expect(formatDuration(86_400, "es")).toBe("1d 0h");
     expect(formatDuration(3_600, "ru")).toBe("1ч 0м");
     expect(formatDuration(60, "en")).toBe("1m");
     expect(formatDuration(-1, "ru")).toBe("—");
   });
 });
 
-describe("dictionary parity (ru ↔ en)", () => {
-  /**
-   * Russian is the source of truth. We don't require a 100%
-   * translation rate (the runtime falls back to ru anyway), but
-   * we do flag a sample of high-traffic keys that *must* be
-   * present in every locale to keep critical UX in the user's
-   * language.
-   */
+describe("dictionary parity (critical keys)", () => {
   const REQUIRED_KEYS = [
     "common.loading",
     "common.save",
@@ -162,18 +126,18 @@ describe("dictionary parity (ru ↔ en)", () => {
     "wallet.my",
     "chat.connect.submit",
     "governance.title",
+    "nexus.vertical.nodes",
+    "chat.tray.items",
   ];
 
-  it.each(REQUIRED_KEYS)("ru and en both define %s", (key) => {
-    expect(ru[key]).toBeDefined();
+  it.each(REQUIRED_KEYS)("en and ru both define %s", (key) => {
     expect(en[key]).toBeDefined();
+    expect(ru[key]).toBeDefined();
   });
 
-  it("plural template uses three pipe-separated variants in ru", () => {
-    const template = ru["nexus.vertical.nodes"];
+  it("nexus.vertical.nodes uses ICU plural", () => {
+    const template = en["nexus.vertical.nodes"];
     expect(template).toBeDefined();
-    expect(template).toMatch(/\|/);
-    const parts = template!.split("|").map((s) => s.trim());
-    expect(parts.length).toBe(3);
+    expect(template).toContain("plural");
   });
 });

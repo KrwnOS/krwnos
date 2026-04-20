@@ -34,9 +34,8 @@ import {
   formatNumber,
   formatPercent,
   formatTimeHM,
-  interpolate,
-  pluralize,
 } from "./formatters";
+import { formatIcu } from "./icu";
 import { AVAILABLE_LOCALES, DEFAULT_LOCALE, LOCALES, isLocale } from "./locales";
 import type { LocaleCode, LocaleMeta, TranslationVars } from "./types";
 
@@ -76,11 +75,16 @@ function resolve(
   key: string,
   vars?: TranslationVars,
 ): string {
-  const primary = LOCALES[locale].dict[key];
-  if (primary !== undefined) return interpolate(primary, vars);
-  const fallback = LOCALES[DEFAULT_LOCALE].dict[key];
-  if (fallback !== undefined) return interpolate(fallback, vars);
-  return key;
+  let pattern: string | undefined;
+  for (const loc of [locale, DEFAULT_LOCALE, "ru"] as const) {
+    const hit = LOCALES[loc].dict[key];
+    if (hit !== undefined) {
+      pattern = hit;
+      break;
+    }
+  }
+  if (pattern === undefined) return key;
+  return formatIcu(locale, pattern, vars);
 }
 
 function writeCookie(locale: LocaleCode) {
@@ -138,11 +142,8 @@ export function I18nProvider({
   const value = useMemo<I18nContextValue>(() => {
     const t = (key: string, vars?: TranslationVars) =>
       resolve(locale, key, vars);
-    const tp = (key: string, count: number, vars?: TranslationVars) => {
-      const template = resolve(locale, key);
-      const merged: TranslationVars = { count, ...vars };
-      return interpolate(pluralize(count, template, locale), merged);
-    };
+    const tp = (key: string, count: number, vars?: TranslationVars) =>
+      resolve(locale, key, { count, ...vars });
     return {
       locale,
       meta: LOCALES[locale].meta,

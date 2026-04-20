@@ -43,11 +43,19 @@ API `/api/cli/tokens`). Каждый токен привязан к одному
 krwn module install finance
 krwn module install treasury --version 1.2.0
 krwn module list
+krwn module validate ./path/to/module-or-krwn.module.json
 ```
 
-Под капотом: `POST /api/cli/modules` с проверкой scope
-`modules.write`. Модуль должен быть зарегистрирован в
-Registry билда (`src/modules/index.ts`) — иначе 404.
+`validate` читает `krwn.module.json` (или каталог, в котором он лежит)
+и проверяет его против JSON Schema из `@krwnos/sdk` — без сети и без
+профиля CLI. Удобно перед публикацией пакета модуля.
+
+Под капотом установки: `POST /api/cli/modules` с проверкой scope
+`modules.write`. Тело запроса может включать поле `manifest` с
+содержимым `krwn.module.json`; сервер отклонит установку с `400`, если
+манифест невалиден или `slug` в манифесте не совпадает с `slug` в
+запросе. Модуль должен быть зарегистрирован в Registry билда
+(`src/modules/index.ts`) — иначе 404.
 
 ### `krwn vertical <sub>`
 

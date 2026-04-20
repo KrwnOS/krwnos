@@ -8,6 +8,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
+import { validateKrwnModuleManifest } from "@krwnos/sdk";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
@@ -18,6 +19,8 @@ const installSchema = z.object({
   slug: z.string().min(1),
   version: z.string().optional(),
   config: z.record(z.unknown()).optional(),
+  /** Optional `krwn.module.json` payload — validated when present (install / admin flows). */
+  manifest: z.record(z.unknown()).optional(),
 });
 
 const lookup = {
@@ -83,6 +86,27 @@ export async function POST(req: NextRequest) {
     }
 
     const body = installSchema.parse(await req.json());
+
+    let manifestVersion: string | undefined;
+    if (body.manifest !== undefined) {
+      const v = validateKrwnModuleManifest(body.manifest);
+      if (!v.ok) {
+        return NextResponse.json(
+          { error: "Invalid krwn.module.json", details: v.errors },
+          { status: 400 },
+        );
+      }
+      if (v.manifest.slug !== body.slug) {
+        return NextResponse.json(
+          {
+            error: `Manifest slug "${v.manifest.slug}" does not match request slug "${body.slug}"`,
+          },
+          { status: 400 },
+        );
+      }
+      manifestVersion = v.manifest.version;
+    }
+
     const mod = registry.get(body.slug);
     if (!mod) {
       return NextResponse.json(
@@ -96,13 +120,13 @@ export async function POST(req: NextRequest) {
       create: {
         stateId: ctx.stateId,
         slug: body.slug,
-        version: body.version ?? mod.version,
+        version: body.version ?? manifestVersion ?? mod.version,
         config: (body.config ?? {}) as Prisma.InputJsonValue,
         dbSchema: `krwn_${body.slug.replace(/\./g, "_")}_${ctx.stateId.slice(0, 8)}`,
       },
       update: {
         enabled: true,
-        version: body.version ?? mod.version,
+        version: body.version ?? manifestVersion ?? mod.version,
         config: (body.config ?? {}) as Prisma.InputJsonValue,
       },
     });

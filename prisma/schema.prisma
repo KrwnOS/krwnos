@@ -50,6 +50,13 @@ model User {
   // --- Role tax (ежемесячные списания по StateSettings.roleTaxRate) ---
   roleTaxPeriodCharges RoleTaxPeriodCharge[]
 
+  // --- Payroll (автовыплаты из корневой Казны) ---
+  payrollPeriodPayouts PayrollPeriodPayout[]
+
+  // --- Wallet fines (штрафы с личного кошелька: указ или исполненное предложение) ---
+  walletFinesAsDebtor WalletFine[] @relation("WalletFineDebtor")
+  walletFinesDecreed  WalletFine[] @relation("WalletFineDecreeBy")
+
   // --- Core Governance (Парламент) ---
   proposalsCreated Proposal[] @relation("ProposalCreator")
   votesCast        Vote[]     @relation("VoteAuthor")
@@ -69,7 +76,33 @@ model User {
   // Per-state ban (блокировка повторного входа / доступа к State).
   stateUserBans StateUserBan[]
 
+  // Web Push (PWA) — до `endpoint` на пользователя; см. `WebPushSubscription`.
+  webPushSubscriptions WebPushSubscription[]
+
+  // Telegram bot linking — одноразовые токены `TelegramLinkToken`.
+  telegramLinkTokens TelegramLinkToken[]
+
+  // Email digest (BullMQ) — opt-in; см. `docs/DEPLOYMENT.md`, `src/jobs/email-digest.ts`.
+  emailDigestDaily        Boolean             @default(false)
+  emailDigestWeekly       Boolean             @default(false)
+  // Подсекция «упоминания в чате» (@handle) в дайджесте — минимальный substring-match.
+  emailDigestChatMentions Boolean             @default(false)
+  emailDigestSends        EmailDigestSend[]
+
   @@index([handle])
+}
+
+/// Idempotency ledger: один send на `(user, kind, periodKey)` — см. `runEmailDigestJob`.
+model EmailDigestSend {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  periodKey String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, kind, periodKey])
+  @@index([kind, periodKey])
 }
 
 // Passkey / Web3 wallet / OAuth credentials for passwordless auth.
@@ -80,6 +113,7 @@ enum AuthCredentialKind {
   oauth_github
   oauth_google
   magic_email
+  telegram
 }
 
 model AuthCredential {
@@ -100,6 +134,19 @@ model AuthCredential {
   revokedAt  DateTime?
 
   @@unique([kind, identifier])
+  @@index([userId])
+}
+
+/// Одноразовый токен для привязки Telegram ↔ User (выдаётся после `beginEnrollment` провайдера `telegram`).
+model TelegramLinkToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime  @default(now())
+
   @@index([userId])
 }
 
@@ -203,7 +250,46 @@ model State {
   // --- Role tax (ежемесячный налог на статус) ---
   roleTaxPeriodCharges RoleTaxPeriodCharge[]
 
+  // --- Payroll (BullMQ: казна → PERSONAL по периоду) ---
+  payrollPeriodPayouts PayrollPeriodPayout[]
+
+  // --- Подписки узлов (казна дочернего → казна родителя) + штрафы ---
+  nodeSubscriptions              NodeSubscription[]
+  nodeSubscriptionPeriodCharges  NodeSubscriptionPeriodCharge[]
+  walletFines                    WalletFine[]
+
+  // Web Push (PWA): подписки браузеров, привязанные к этому State.
+  webPushSubscriptions WebPushSubscription[]
+
   @@index([ownerId])
+}
+
+// ---------------- Web Push (PWA notifications) ----------------
+
+model WebPushSubscription {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateId   String
+  state     State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  /// Push service URL (дублируем из `subscription` для уникального индекса).
+  endpoint String
+
+  /// Полный JSON `PushSubscription` (endpoint + keys), как от браузера.
+  subscription Json
+
+  /// Уведомлять о «Принято к исполнению» по директивам (адресату — автору директивы).
+  notifyDirectiveAcks Boolean @default(true)
+
+  /// Уведомлять о новых голосах в Парламенте (автору предложения).
+  notifyProposalVotes Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, endpoint])
+  @@index([stateId, userId])
 }
 
 // ---------------- State Settings (Палата Указов) ----------------
@@ -250,12 +336,17 @@ model StateSettings {
   //   (первичный актив) с **active** Membership; списывается ежемесячно
   //   воркером BullMQ (`role-tax-monthly`), идемпотентность по паре
   //   (гражданин, YYYY-MM UTC) в `RoleTaxPeriodCharge`.
+  // `payrollEnabled` / `payrollAmountPerCitizen` — автозарплата из
+  //   корневой Казны (первичный актив) каждому активному члену;
+  //   BullMQ `payroll-periodic`, идемпотентность `PayrollPeriodPayout`.
   // `currencyDisplayName`— опциональная «парадная» витрина названия
   //   валюты (влияет только на UI; единицей учёта остаётся
   //   `StateAsset.symbol` первичного актива).
   transactionTaxRate Float   @default(0)
   incomeTaxRate      Float   @default(0)
   roleTaxRate        Float   @default(0)
+  payrollEnabled            Boolean @default(false)
+  payrollAmountPerCitizen   Float   @default(0)
   currencyDisplayName String?
 
   // ---- Правила входа/выхода (Entry/exit rules) ----
@@ -325,6 +416,11 @@ model StateSettings {
   // становиться колонкой. Читается руками каждого модуля.
   extras Json @default("{}")
 
+  // ---- Локализация (i18n) ----
+  // Код интерфейса по умолчанию для гостей и первого SSR (`en`, `ru`, `es`, …).
+  // Персональный выбор в браузере (cookie) по-прежнему может переопределить.
+  uiLocale String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -369,6 +465,12 @@ model VerticalNode {
   chatChannels   ChatChannel[]
   // Optional dedicated treasury wallet (budget) for this node.
   treasuryWallet Wallet?       @relation("TreasuryWallet")
+  /// Подписка «вверх по вертикали» (этот узел — ребёнок).
+  subscriptionAsChild NodeSubscription? @relation("NodeSubscriptionChild")
+  /// Подписки дочерних узлов, платящих в казну этого узла.
+  subscriptionsFromChildren NodeSubscription[] @relation("NodeSubscriptionParent")
+  /// Штрафы, зачисленные в казну этого узла.
+  walletFinesCredited WalletFine[] @relation("WalletFineBeneficiary")
   // Invitations whose Magic Link drops the invitee directly at this node.
   invitations    Invitation[]  @relation("InvitationTarget")
   // Pulse rows scoped to this node (budget changes, directives, etc.).
@@ -776,6 +878,9 @@ model StateAsset {
   crossTxsFrom CrossStateTransaction[] @relation("CrossTxFromAsset")
   crossTxsTo   CrossStateTransaction[] @relation("CrossTxToAsset")
 
+  walletFines        WalletFine[]
+  nodeSubscriptions NodeSubscription[]
+
   @@unique([stateId, symbol])
   @@index([stateId])
   @@index([stateId, isPrimary])
@@ -950,7 +1055,126 @@ model Transaction {
   @@index([assetId])
   @@index([externalTxHash])
 
-  roleTaxPeriodCharge RoleTaxPeriodCharge?
+  roleTaxPeriodCharge         RoleTaxPeriodCharge?
+  payrollPeriodPayout         PayrollPeriodPayout?
+  walletFine                  WalletFine?
+  nodeSubscriptionPeriodCharge NodeSubscriptionPeriodCharge?
+}
+
+// ---------------- Node subscriptions & wallet fines ----------------
+//
+// Подписка узла: фиксированный перевод из казны дочернего узла в казну
+// родителя по расписанию (см. `NodeSubscriptionPeriodCharge` — защита от
+// двойного списания). Штраф: списание с личного кошелька в казну узла
+// по указу Суверена или после исполнения предложения Парламента с ключом
+// `walletFine` (см. `core.governance` + `applyWalletFineFromProposal`).
+
+enum NodeSubscriptionSchedule {
+  MONTHLY
+  WEEKLY
+}
+
+enum WalletFineSource {
+  governance
+  decree
+}
+
+model NodeSubscription {
+  id         String @id @default(cuid())
+  stateId    String
+  state      State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  childNodeId  String @unique
+  childNode    VerticalNode @relation("NodeSubscriptionChild", fields: [childNodeId], references: [id], onDelete: Cascade)
+  parentNodeId String
+  parentNode   VerticalNode @relation("NodeSubscriptionParent", fields: [parentNodeId], references: [id], onDelete: Cascade)
+
+  amount Decimal @db.Decimal(38, 18)
+  assetId String?
+  asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  schedule NodeSubscriptionSchedule @default(MONTHLY)
+  enabled  Boolean                  @default(true)
+  metadata Json                     @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  periodCharges NodeSubscriptionPeriodCharge[]
+
+  @@index([stateId])
+  @@index([parentNodeId])
+}
+
+model NodeSubscriptionPeriodCharge {
+  id                 String @id @default(cuid())
+  stateId            String
+  state              State           @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  nodeSubscriptionId String
+  nodeSubscription   NodeSubscription @relation(fields: [nodeSubscriptionId], references: [id], onDelete: Cascade)
+  /// MONTHLY: `YYYY-MM` (UTC). WEEKLY: `YYYY-Www` (ISO week, UTC).
+  periodKey   String
+  amount      Decimal @db.Decimal(38, 18)
+  transactionId String? @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([nodeSubscriptionId, periodKey])
+  @@index([stateId, periodKey])
+}
+
+model WalletFine {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  debtorUserId String
+  debtor       User   @relation("WalletFineDebtor", fields: [debtorUserId], references: [id], onDelete: Cascade)
+
+  amount Decimal @db.Decimal(38, 18)
+  assetId String?
+  asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  /// Казна этого узла получает перевод (после налога на перевод — см. сервис).
+  beneficiaryNodeId String
+  beneficiaryNode   VerticalNode @relation("WalletFineBeneficiary", fields: [beneficiaryNodeId], references: [id], onDelete: Restrict)
+
+  source WalletFineSource
+
+  proposalId String? @unique
+  proposal   Proposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  decreeByUserId String?
+  decreeBy       User?   @relation("WalletFineDecreeBy", fields: [decreeByUserId], references: [id], onDelete: SetNull)
+
+  transactionId String? @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([stateId, createdAt])
+  @@index([debtorUserId])
+}
+
+/// Идемпотентная выплата зарплаты за период UTC `YYYY-MM` (см. `runPayrollPeriodicTick`).
+model PayrollPeriodPayout {
+  id            String @id @default(cuid())
+  stateId       String
+  userId        String
+  /// Календарный месяц UTC в формате YYYY-MM.
+  periodKey     String
+  /// Валовая сумма списания с Казны (до удержания income tax в ledger).
+  amount        Decimal @db.Decimal(38, 18)
+  transactionId String? @unique
+  createdAt     DateTime @default(now())
+
+  state       State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([stateId, userId, periodKey])
+  @@index([stateId, periodKey])
 }
 
 /// Идемпотентное начисление ежемесячного «налога на роль» (StateSettings.roleTaxRate).
@@ -1204,6 +1428,8 @@ model Proposal {
   metadata Json @default("{}")
 
   votes Vote[]
+
+  walletFine WalletFine?
 
   @@index([stateId, status])
   @@index([stateId, createdAt])

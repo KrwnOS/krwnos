@@ -1,0 +1,12 @@
+{
+  "$schema": "https://krwnos.com/schemas/krwn-module-manifest.json",
+  "slug": "example.good",
+  "version": "0.1.0",
+  "permissions": ["example.good.read", "example.good.write"],
+  "migrations": "prisma/migrations",
+  "peerDeps": {
+    "@krwnos/sdk": "^0.1.0"
+  },
+  "ui": "src/ui/index.tsx",
+  "schemaName": "krwn_example_good"
+}

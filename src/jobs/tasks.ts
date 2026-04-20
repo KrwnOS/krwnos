@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { createPrismaWatcherPersistence } from "@/modules/wallet/repo";
 import { TreasuryWatcher, type WatcherTickReport } from "@/modules/wallet/watcher";
 import { runRoleTaxMonthlyTick } from "@/modules/wallet/role-tax-tick";
+import { runNodeSubscriptionTick } from "@/modules/wallet/node-subscription-tick";
+import { runPayrollPeriodicTick } from "@/modules/wallet/payroll-tick";
 import { buildGovernanceServiceForJobs } from "./governance-factory";
 
 export interface TreasuryWatchTaskOptions {
@@ -65,6 +67,24 @@ export async function runRoleTaxMonthlyJob(data: {
   });
 }
 
+/** Подписки узлов (казна ребёнка → родитель); идемпотентность по периоду. */
+export async function runNodeSubscriptionJob(data: { nowIso?: string } = {}) {
+  return runNodeSubscriptionTick({
+    now: data.nowIso ? new Date(data.nowIso) : undefined,
+  });
+}
+
+/** Автозарплата TREASURY → PERSONAL (`StateSettings.payroll*`) — см. `runPayrollPeriodicTick`. */
+export async function runPayrollPeriodicJob(data: {
+  payrollPeriodKey?: string;
+  payrollNowIso?: string;
+} = {}) {
+  return runPayrollPeriodicTick({
+    periodKey: data.payrollPeriodKey,
+    now: data.payrollNowIso ? new Date(data.payrollNowIso) : undefined,
+  });
+}
+
 /** Marks expired but still `active` invitations as `expired`. */
 export async function runInvitationReaper(): Promise<{ expired: number }> {
   const now = new Date();
@@ -90,3 +110,5 @@ export async function runActivityLogReaper(): Promise<{ deleted: number }> {
   });
   return { deleted: result.count };
 }
+
+export { runEmailDigestJob } from "./email-digest";

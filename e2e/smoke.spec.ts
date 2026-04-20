@@ -46,6 +46,38 @@ test("invite page loads for token from setup", async ({ page }) => {
   await expect(page.getByRole("button", { name: /accept invitation/i })).toBeVisible();
 });
 
+/** One invite-page smoke per UI locale: `html[lang]` + localized CTA where overridden. */
+const localeSmoke = [
+  { code: "en", htmlLang: "en-US", cta: /accept invitation/i },
+  { code: "es", htmlLang: "es-ES", cta: /aceptar invitación/i },
+  { code: "zh", htmlLang: "zh-CN", cta: /接受邀请/ },
+  { code: "tr", htmlLang: "tr-TR", cta: /daveti kabul et/i },
+] as const;
+
+for (const { code, htmlLang, cta } of localeSmoke) {
+  test(`invite flow: locale ${code} (${htmlLang})`, async ({ browser, baseURL }) => {
+    const origin = baseURL ?? "http://127.0.0.1:3000";
+    const u = new URL(origin);
+    const context = await browser.newContext({ locale: "en-US" });
+    const page = await context.newPage();
+    try {
+      await context.addCookies([
+        {
+          name: "krwnos_locale",
+          value: code,
+          domain: u.hostname,
+          path: "/",
+        },
+      ]);
+      await page.goto(invitePageUrl);
+      await expect(page.locator("html")).toHaveAttribute("lang", htmlLang);
+      await expect(page.getByRole("button", { name: cta })).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("/setup redirects when already initialised", async ({ page }) => {
   await page.goto("/setup");
   await expect(page).toHaveURL(/\/$/);

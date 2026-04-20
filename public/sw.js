@@ -107,3 +107,40 @@ async function networkFirstStatic(request, cacheName) {
     throw new Error("offline");
   }
 }
+
+// --- Web Push (payload JSON: { title, body, data }) ---
+self.addEventListener("push", (event) => {
+  let payload = { title: "KrwnOS", body: "", data: {} };
+  try {
+    const text = event.data?.text?.() ?? "";
+    if (text) payload = JSON.parse(text);
+  } catch {
+    /* keep defaults */
+  }
+  const title = typeof payload.title === "string" ? payload.title : "KrwnOS";
+  const body = typeof payload.body === "string" ? payload.body : "";
+  const data =
+    payload.data && typeof payload.data === "object" ? payload.data : {};
+  const icon = "/icons/icon-192.png";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      data,
+      icon,
+      badge: icon,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const raw = event.notification.data && event.notification.data.url;
+  const path =
+    typeof raw === "string" && raw.startsWith("/") ? raw : "/dashboard";
+  const target = new URL(path, self.location.origin).href;
+  event.waitUntil(
+    self.clients.openWindow
+      ? self.clients.openWindow(target)
+      : Promise.resolve(),
+  );
+});

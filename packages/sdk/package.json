@@ -1,0 +1,37 @@
+{
+  "name": "@krwnos/sdk",
+  "version": "0.1.0",
+  "description": "KrwnOS module SDK — types, prisma-per-schema helpers, and test harness.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KrwnOS/krwnos.git",
+    "directory": "packages/sdk"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schemas/krwn-module-manifest.schema.json": "./dist/schemas/krwn-module-manifest.schema.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}

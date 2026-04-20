@@ -62,6 +62,7 @@ import {
 } from "../exchange";
 import { stateConfigPermissionDescriptors } from "../state-config";
 import { membershipAdminPermissionDescriptors } from "../membership-admin-permissions";
+import { credentialsPermissionDescriptors } from "../credentials-permissions";
 import { ExchangeService } from "../exchange";
 import type {
   KrwnModule,
@@ -215,7 +216,7 @@ describe("registry + registerCorePermissions", () => {
     expect(registry).toBeInstanceOf(ModuleRegistry);
   });
 
-  it("registerCorePermissions installs exchange + state-config + members.* keys idempotently", () => {
+  it("registerCorePermissions installs exchange + state-config + members.* + credentials.* keys idempotently", () => {
     registerCorePermissions();
     // Second call must not throw — registerCorePermission is a no-op on dup.
     expect(() => registerCorePermissions()).not.toThrow();
@@ -227,6 +228,9 @@ describe("registry + registerCorePermissions", () => {
       expect(registry.describePermission(p.key)).toBe(p);
     }
     for (const p of membershipAdminPermissionDescriptors) {
+      expect(registry.describePermission(p.key)).toBe(p);
+    }
+    for (const p of credentialsPermissionDescriptors) {
       expect(registry.describePermission(p.key)).toBe(p);
     }
   });

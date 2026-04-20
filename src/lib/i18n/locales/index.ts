@@ -1,21 +1,13 @@
 /**
- * Locale registry.
- * ------------------------------------------------------------
- * To add a new language:
- *   1. Copy `ru.ts` → `<code>.ts`, translate the values.
- *   2. Register it in `LOCALES` below with its metadata.
- * That's it — the `<LanguageSwitcher />` will pick it up, users
- * can persist it via cookie/localStorage, and `useT()` will
- * start returning its strings for any caller inside the provider.
- *
- * `ru` is the canonical source. Missing keys in other locales
- * silently fall back to the Russian value so a partial
- * translation never renders as empty.
+ * Locale registry. English is the canonical fallback for missing keys.
  */
 
 import type { Dict, LocaleCode, LocaleMeta } from "../types";
-import { ru } from "./ru";
 import { en } from "./en";
+import { es } from "./es";
+import { ru } from "./ru";
+import { tr } from "./tr";
+import { zh } from "./zh";
 
 export type { LocaleCode, LocaleMeta, Dict };
 
@@ -25,15 +17,6 @@ interface LocaleEntry {
 }
 
 export const LOCALES: Readonly<Record<LocaleCode, LocaleEntry>> = {
-  ru: {
-    meta: {
-      code: "ru",
-      nativeName: "Русский",
-      bcp47: "ru-RU",
-      plural: "slavic",
-    },
-    dict: ru,
-  },
   en: {
     meta: {
       code: "en",
@@ -43,9 +26,45 @@ export const LOCALES: Readonly<Record<LocaleCode, LocaleEntry>> = {
     },
     dict: en,
   },
+  ru: {
+    meta: {
+      code: "ru",
+      nativeName: "Русский",
+      bcp47: "ru-RU",
+      plural: "slavic",
+    },
+    dict: ru,
+  },
+  es: {
+    meta: {
+      code: "es",
+      nativeName: "Español",
+      bcp47: "es-ES",
+      plural: "english",
+    },
+    dict: es,
+  },
+  zh: {
+    meta: {
+      code: "zh",
+      nativeName: "简体中文",
+      bcp47: "zh-CN",
+      plural: "english",
+    },
+    dict: zh,
+  },
+  tr: {
+    meta: {
+      code: "tr",
+      nativeName: "Türkçe",
+      bcp47: "tr-TR",
+      plural: "english",
+    },
+    dict: tr,
+  },
 };
 
-export const DEFAULT_LOCALE: LocaleCode = "ru";
+export const DEFAULT_LOCALE: LocaleCode = "en";
 
 export const AVAILABLE_LOCALES: LocaleMeta[] = Object.values(LOCALES).map(
   (l) => l.meta,

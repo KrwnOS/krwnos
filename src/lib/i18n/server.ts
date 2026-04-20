@@ -15,6 +15,8 @@ import "server-only";
 
 import { cookies, headers } from "next/headers";
 
+import { prisma } from "@/lib/prisma";
+
 import {
   formatCompact,
   formatDateShort,
@@ -23,12 +25,31 @@ import {
   formatNumber,
   formatPercent,
   formatTimeHM,
-  interpolate,
-  pluralize,
 } from "./formatters";
+import { formatIcu } from "./icu";
 import { DEFAULT_LOCALE, LOCALES, isLocale } from "./locales";
 import { LOCALE_COOKIE } from "./provider";
 import type { LocaleCode, TranslationVars } from "./types";
+
+async function loadPersistedStateUiLocale(): Promise<LocaleCode | null> {
+  try {
+    const state = await prisma.state.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    if (!state) return null;
+    const row = await prisma.stateSettings.findUnique({
+      where: { stateId: state.id },
+      select: { uiLocale: true },
+    });
+    const raw = row?.uiLocale;
+    if (typeof raw !== "string") return null;
+    const code = raw.trim().toLowerCase();
+    return isLocale(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function getServerLocale(): Promise<LocaleCode> {
   try {
@@ -38,6 +59,8 @@ export async function getServerLocale(): Promise<LocaleCode> {
   } catch {
     // Not available outside a request scope — fall through.
   }
+  const fromState = await loadPersistedStateUiLocale();
+  if (fromState) return fromState;
   try {
     const hdrs = await headers();
     const accept = hdrs.get("accept-language") ?? "";
@@ -52,19 +75,19 @@ export async function getServerLocale(): Promise<LocaleCode> {
 export async function getServerT() {
   const locale = await getServerLocale();
   const t = (key: string, vars?: TranslationVars) => {
-    const primary = LOCALES[locale].dict[key];
-    if (primary !== undefined) return interpolate(primary, vars);
-    const fallback = LOCALES[DEFAULT_LOCALE].dict[key];
-    if (fallback !== undefined) return interpolate(fallback, vars);
-    return key;
+    let pattern: string | undefined;
+    for (const loc of [locale, DEFAULT_LOCALE, "ru"] as const) {
+      const hit = LOCALES[loc].dict[key];
+      if (hit !== undefined) {
+        pattern = hit;
+        break;
+      }
+    }
+    if (pattern === undefined) return key;
+    return formatIcu(locale, pattern, vars);
   };
-  const tp = (key: string, count: number, vars?: TranslationVars) => {
-    const template = t(key);
-    return interpolate(pluralize(count, template, locale), {
-      count,
-      ...vars,
-    });
-  };
+  const tp = (key: string, count: number, vars?: TranslationVars) =>
+    t(key, { count, ...vars });
   return {
     locale,
     meta: LOCALES[locale].meta,

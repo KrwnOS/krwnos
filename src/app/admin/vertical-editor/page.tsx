@@ -769,7 +769,7 @@ function Canvas({
 // ------------------------------------------------------------
 
 function VerticalFlowNode({ data }: NodeProps<VerticalFlowNodeData>) {
-  const { t, tp } = useI18n();
+  const { t } = useI18n();
   const { node, members, selected, onAddChild, dropMark } = data;
   return (
     <div
@@ -800,7 +800,7 @@ function VerticalFlowNode({ data }: NodeProps<VerticalFlowNodeData>) {
           className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-foreground/60"
           title={t("verticalEditor.node.memberCount")}
         >
-          {tp("verticalEditor.members", members)}
+          {t("verticalEditor.members", { count: members })}
         </span>
       </div>
       <p className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -809,7 +809,9 @@ function VerticalFlowNode({ data }: NodeProps<VerticalFlowNodeData>) {
       <p className="mt-0.5 text-[11px] text-foreground/50">
         {node.permissions.length === 0
           ? t("verticalEditor.node.noPerms")
-          : tp("verticalEditor.node.permCount", node.permissions.length)}
+          : t("verticalEditor.node.permCount", {
+              count: node.permissions.length,
+            })}
       </p>
       <button
         type="button"
@@ -862,7 +864,7 @@ function EditPanel({
   onDelete,
   onClose,
 }: EditPanelProps) {
-  const { t, tp } = useI18n();
+  const { t } = useI18n();
   const [title, setTitle] = useState(node.title);
   const [type, setType] = useState<VerticalNodeType>(node.type);
   const [perms, setPerms] = useState<string[]>(node.permissions);
@@ -926,7 +928,7 @@ function EditPanel({
           </p>
           <CardTitle className="mt-1 truncate">{node.title}</CardTitle>
           <CardDescription>
-            {tp("verticalEditor.members", memberCount)}
+            {t("verticalEditor.members", { count: memberCount })}
             {" · "}
             <code className="text-[10px]">{node.id}</code>
           </CardDescription>

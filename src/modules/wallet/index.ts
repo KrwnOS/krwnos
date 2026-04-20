@@ -95,6 +95,20 @@ export {
   createPrismaWatcherPersistence,
 } from "./repo";
 
+export {
+  applyWalletFine,
+  parseWalletFinePayload,
+  type WalletFinePayload,
+  type ApplyWalletFineInput,
+} from "./wallet-fine";
+
+export {
+  runNodeSubscriptionTick,
+  periodKeyForSubscription,
+  utcMondayWeekPeriodKey,
+  type NodeSubscriptionTickResult,
+} from "./node-subscription-tick";
+
 // --- Currency Factory (Финансовый суверенитет) ---
 export {
   CurrencyFactoryService,

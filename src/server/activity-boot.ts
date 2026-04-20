@@ -24,6 +24,8 @@ import {
   subscribeActivityFeed,
 } from "@/core";
 import { prisma } from "@/lib/prisma";
+// Web Push bus handlers (directive ACK, governance votes).
+import "@/server/push-boot";
 
 interface CachedFeed {
   service: ActivityFeedService;

@@ -34,3 +34,4 @@ export {
   interpolate,
   pluralize,
 } from "./formatters";
+export { formatIcu } from "./icu";

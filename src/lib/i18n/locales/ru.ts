@@ -1,19 +1,7 @@
 /**
- * Russian dictionary — source of truth.
- * ------------------------------------------------------------
- * Every translatable string in the UI must have a key here first.
- * Other locales (en.ts, …) mirror this shape; missing keys fall
- * back to the Russian value at runtime.
- *
- * Conventions for keys:
- *   * Dotted path mirrors where the string is used.
- *     `admin.nexus.title`, `chat.sidebar.general`, …
- *   * Shared fragments live under `common.*`.
- *   * Placeholders use `{name}` / `{count}` / etc.
- *   * For plurals, use three variants separated by ` | `:
- *     "{count} узел | {count} узла | {count} узлов"
- *     The order is: one | few | many (Slavic rule).
- *     English uses only the last variant when plural.
+ * Russian dictionary — full translation set. English is the runtime
+ * fallback for missing keys in other locales; Russian is maintained in
+ * parallel for first-class RU UX. Prefer ICU plurals in new strings.
  */
 
 import type { Dict } from "../types";
@@ -68,6 +56,7 @@ export const ru: Dict = {
   "home.chat.open": "Открыть чат",
   "home.chat.close": "Скрыть чат",
   "home.chat.float": "Чат",
+  "home.chat.closeOverlay": "Закрыть панель чата",
   "home.chat.preparing": "Подготавливаем канал связи…",
   "home.cta.coronate": "Coronate",
   "home.hero.eyebrow": "Community OS",
@@ -127,6 +116,7 @@ export const ru: Dict = {
   // Multi-step Coronation wizard
   "setup.nav.back": "← Назад",
   "setup.nav.next": "Далее →",
+  "setup.stepper.a11yNav": "Прогресс настройки",
   "setup.step1.nav": "Государство",
   "setup.step1.title": "Нарекаем государство",
   "setup.step1.desc":
@@ -214,9 +204,10 @@ export const ru: Dict = {
     "Узлы, должности и ранги — графовая структура, по которой распределяются права.",
   "nexus.vertical.addNode": "Добавить узел",
   "nexus.vertical.openTree": "Открыть дерево",
-  "nexus.vertical.nodes": "{count} узел | {count} узла | {count} узлов",
+  "nexus.vertical.nodes":
+    "{count, plural, one {# узел} few {# узла} many {# узлов} other {# узлов}}",
   "nexus.vertical.citizens":
-    "{count} гражданин | {count} гражданина | {count} граждан",
+    "{count, plural, one {# гражданин} few {# гражданина} many {# граждан} other {# граждан}}",
   "nexus.vertical.citizensLabel": "Граждан в системе",
   "nexus.vertical.nodesLabel": "Узлов власти",
 
@@ -320,7 +311,7 @@ export const ru: Dict = {
   "verticalEditor.empty.desc":
     "Вертикаль пуста. Начните с корневого узла — позже от него вырастут министерства и ранги.",
   "verticalEditor.members":
-    "{count} человек | {count} человека | {count} человек",
+    "{count, plural, one {# человек} few {# человека} many {# человек} other {# человек}}",
   "verticalEditor.type.position": "Должность",
   "verticalEditor.type.department": "Отдел",
   "verticalEditor.type.rank": "Ранг",
@@ -329,7 +320,7 @@ export const ru: Dict = {
   "verticalEditor.node.memberCount": "Активных членов узла",
   "verticalEditor.node.noPerms": "без явных прав",
   "verticalEditor.node.permCount":
-    "{count} право | {count} права | {count} прав",
+    "{count, plural, one {# право} few {# права} many {# прав} other {# прав}}",
   "verticalEditor.prompt.childTitle": "Название нового узла",
   "verticalEditor.defaults.childTitle": "Новый узел",
   "verticalEditor.panel.eyebrow": "Редактирование узла",
@@ -522,6 +513,14 @@ export const ru: Dict = {
   "citizen.roleMarket.notLobbyOnly":
     "У вас уже есть активная роль вне Прихожей. Перевод — через управление или офицера; рынок только для пути из Прихожей.",
 
+  "constitution.locale.eyebrow": "Локализация",
+  "constitution.locale.title": "Официальный язык интерфейса",
+  "constitution.locale.desc":
+    "Язык по умолчанию для этого государства при первой загрузке. Гражданин может выбрать другой в шапке — cookie браузера важнее для его сессии.",
+  "constitution.locale.field": "Основная локаль",
+  "constitution.locale.hint":
+    "Хранится в StateSettings (не только cookie). Если не задано — английский.",
+
   "constitution.dirty": "Есть несохранённые изменения",
   "constitution.clean": "Все поля синхронизированы с БД",
   "constitution.sign": "Подписать указ",
@@ -540,6 +539,12 @@ export const ru: Dict = {
   "constitution.ch1.roleTax": "Налог на роль (%/мес)",
   "constitution.ch1.roleTaxHint":
     "Месячная подписка на удержание высокой позиции.",
+  "constitution.ch1.payrollEnabled": "Автоматическая зарплата",
+  "constitution.ch1.payrollEnabledHint":
+    "Если включено, воркер BullMQ по расписанию выплачивает каждому активному члену из корневой Казны.",
+  "constitution.ch1.payrollAmount": "Сумма зарплаты (на гражданина)",
+  "constitution.ch1.payrollAmountHint":
+    "Валовая сумма в единицах первичного актива на гражданина за период. Подоходный налог применяется отдельно. 0 — выплат нет, даже при включённом флаге.",
   "constitution.ch1.display": "Витрина названия валюты",
   "constitution.ch1.displayHint":
     "Необязательная подпись для UI. Настоящая единица учёта остаётся в Фабрике Валют (тикер первичного актива).",
@@ -617,6 +622,8 @@ export const ru: Dict = {
   "constitution.keys.transactionTaxRate": "Налог на перевод",
   "constitution.keys.incomeTaxRate": "Подоходный налог",
   "constitution.keys.roleTaxRate": "Налог на роль",
+  "constitution.keys.payrollEnabled": "Автоматическая зарплата",
+  "constitution.keys.payrollAmountPerCitizen": "Зарплата на гражданина",
   "constitution.keys.currencyDisplayName": "Витрина валюты",
   "constitution.keys.citizenshipFeeAmount": "Плата за гражданство",
   "constitution.keys.rolesPurchasable": "Выкуп ролей",
@@ -627,6 +634,7 @@ export const ru: Dict = {
   "constitution.keys.autoPromotionMinDays": "Авто-продвижение: стаж",
   "constitution.keys.autoPromotionTargetNodeId": "Авто-продвижение: узел",
   "constitution.keys.treasuryTransparency": "Прозрачность казны",
+  "constitution.keys.walletFine": "Штраф с кошелька (исполнение в Парламенте)",
 
   // ------------------------------------------------------------
   // Styling Hub — Визуальный конструктор (/admin/styling)
@@ -816,6 +824,7 @@ export const ru: Dict = {
   "governance.token.title": "Вход в Парламент",
   "governance.token.desc":
     "Голосование и подача предложений требуют CLI-токен гражданина. Получите его через {cmd}.",
+  "governance.token.fieldLabel": "CLI-токен",
   "governance.hint.rate": "Например: 0.05 (=5%). Диапазон 0..1.",
   "governance.hint.amount": "Целое или дробное число ≥ 0. Пусто → null.",
   "governance.hint.bool": "true или false",
@@ -853,6 +862,7 @@ export const ru: Dict = {
   "wallet.source.noTreasuries.suffix": ".",
   "wallet.personalOnly.prefix": "Перевод со своего личного кошелька. Баланс:",
   "wallet.recipient": "Получатель",
+  "wallet.recipientValueLabel": "Идентификатор или адрес получателя",
   "wallet.recipient.user": "Пользователь",
   "wallet.recipient.userModal": "Пользователь (userId)",
   "wallet.recipient.treasury": "Казна",
@@ -890,6 +900,7 @@ export const ru: Dict = {
   "chat.connect.title": "Подключение к чату",
   "chat.connect.desc":
     "Вставьте CLI-токен с scope'ами {read}, {write} (и опционально {admin}). Его можно сгенерировать командой {cmd}.",
+  "chat.connect.fieldLabel": "CLI-токен",
   "chat.connect.submit": "Войти в канал",
   "chat.connect.noToken": "Ещё не короновали Государство?",
   "chat.connect.goSetup": "Открыть визард коронации →",
@@ -915,6 +926,8 @@ export const ru: Dict = {
   "chat.ack.submitting": "...",
   "chat.composer.sendMessage":
     "Сообщение в #{title}… (Markdown поддерживается)",
+  "chat.composer.a11yMessage": "Текст сообщения, канал {title}",
+  "chat.composer.a11yDirective": "Текст приказа, канал {title}",
   "chat.composer.sendDirective":
     "Приказ в #{title}… (Markdown поддерживается)",
   "chat.composer.sendAsDirective": "Отправить как Приказ",
@@ -926,8 +939,7 @@ export const ru: Dict = {
   "chat.directive.ackedAria": "Приказ выполнен",
   "chat.directive.badgeAria": "Системный приказ",
   "chat.tray.items":
-    "У вас {count} {word} без подтверждения.",
-  "chat.tray.word": "приказ | приказа | приказов",
+    "{count, plural, one {У вас # неподтверждённый приказ.} few {У вас # неподтверждённых приказа.} many {У вас # неподтверждённых приказов.} other {У вас # неподтверждённых приказов.}}",
 
   // ------------------------------------------------------------
   // Dashboard / State Pulse (/dashboard)
@@ -974,7 +986,7 @@ export const ru: Dict = {
   "pulse.sidebar.emptyTree":
     "Государство ещё не построено. Создайте первый узел в редакторе Вертикали.",
   "pulse.sidebar.onlineTotal":
-    "Онлайн: {count} | Онлайн: {count} | Онлайн: {count}",
+    "{count, plural, other {Онлайн: #}}",
   "pulse.sidebar.footnote":
     "Онлайн — активность за последние {seconds} с.",
 
@@ -1045,6 +1057,33 @@ export const ru: Dict = {
 
   // --- Header actions ---
   "pulse.header.audit": "Журнал аудита",
+
+  // --- Визуализации Пульса (видимая лента + дерево Вертикали) ---
+  "pulse.viz.title": "Срез Пульса",
+  "pulse.viz.scopeNote":
+    "Цифры считаются только по событиям, которые вы видите в ленте и уже загрузили — нажмите «Показать ещё», чтобы расширить окно. Правила видимости те же, что у ленты (включая строки только для Суверена и адресные).",
+  "pulse.viz.transfersTitle": "Объём кошелька",
+  "pulse.viz.transfersDesc":
+    "Сумма движений по кошельку по дням (UTC) из видимой вам ленты.",
+  "pulse.viz.taxTitle": "Налоговые поступления в казну",
+  "pulse.viz.taxDesc":
+    "Налог штата с переводов, если в событии есть `stateTax.amount` из журнала.",
+  "pulse.viz.votesTitle": "Явка на голосования",
+  "pulse.viz.votesDesc":
+    "Доля электората, отметившая бюллетень к моменту закрытия предложения (по сохранённым итогам).",
+  "pulse.viz.verticalMapTitle": "Карта Вертикали",
+  "pulse.viz.verticalMapDesc":
+    "Иерархия из контекста Пульса — состав и онлайн по узлам (не география).",
+  "pulse.viz.noData": "В загруженной истории нет событий кошелька.",
+  "pulse.viz.taxNoData":
+    "В загруженных событиях пока нет сумм налога — они появятся на облагаемых переводах после этого обновления.",
+  "pulse.viz.votesNoData":
+    "В загруженной истории нет закрытых предложений с итогами.",
+  "pulse.viz.treeEmpty": "Дерево Вертикали появится после загрузки Пульса.",
+  "pulse.viz.participationPct": "явка {pct}%",
+  "pulse.viz.participationNA": "н/д",
+  "pulse.viz.quorumOk": "кворум",
+  "pulse.viz.nodeFootnote": "{members} участников · {online} онлайн",
 
   // ------------------------------------------------------------
   // /admin/audit — Audit Log

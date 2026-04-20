@@ -6,7 +6,8 @@
  */
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
@@ -29,6 +30,8 @@ export function SovereignOnboardingTour({
   const { t } = useI18n();
   const [dismissing, setDismissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trapRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, trapRef, { onEscape: onSnooze });
 
   const complete = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -94,10 +97,11 @@ export function SovereignOnboardingTour({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="sovereign-onboarding-title"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm motion-reduce:transition-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) onSnooze();
       }}

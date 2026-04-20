@@ -12,7 +12,11 @@ export type RateLimitScope =
   | "api_invite_accept"
   | "api_setup_get"
   | "api_setup_post"
-  | "api_cli";
+  | "api_cli"
+  | "api_push_subscribe"
+  | "api_push_unsubscribe"
+  | "api_telegram_link_start"
+  | "api_telegram_webhook";
 
 const LIMITS: Record<RateLimitScope, { windowSec: number; max: number }> = {
   api_register: { windowSec: 60, max: 20 },
@@ -20,6 +24,10 @@ const LIMITS: Record<RateLimitScope, { windowSec: number; max: number }> = {
   api_setup_get: { windowSec: 60, max: 120 },
   api_setup_post: { windowSec: 60, max: 5 },
   api_cli: { windowSec: 60, max: 200 },
+  api_push_subscribe: { windowSec: 60, max: 30 },
+  api_push_unsubscribe: { windowSec: 60, max: 30 },
+  api_telegram_link_start: { windowSec: 60, max: 20 },
+  api_telegram_webhook: { windowSec: 60, max: 600 },
 };
 
 /** Atomic: INCR, set TTL on first hit, return 1 if allowed else 0. */

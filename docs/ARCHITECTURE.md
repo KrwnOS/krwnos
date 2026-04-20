@@ -225,7 +225,14 @@ HMR в dev.
 сети по-прежнему недоступны — MVP охватывает только снимок Pulse + статику
 `/_next/static/*`.
 
-**Web Push** (подписки в БД, доставка) — в дорожной карте; заглушка
-`POST /api/push/subscribe` и переменные VAPID описаны в `docs/DEPLOYMENT.md`.
-При включении отправки уведомлений в CSP для `connect-src` понадобятся
-эндпоинты провайдера (например FCM).
+**Web Push:** браузер подписывается через `pushManager.subscribe` (ключ
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`) после `ServiceWorkerRegister`; токен CLI из
+`localStorage` уходит на `POST /api/push/subscribe`, строка в
+`WebPushSubscription` (per `userId` + `endpoint`, поля prefs см.
+`docs/DATABASE.md`). Сервер подписывает payload библиотекой `web-push`
+(`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) и шлёт уведомления на события шины:
+`core.chat.directive.acknowledged` (получатель — автор директивы, если prefs)
+и `core.governance.proposal.vote_cast` (получатель — автор предложения).
+Service worker (`public/sw.js`) обрабатывает `push` и `notificationclick`.
+Маршруты подписки rate-limited (`api_push_subscribe` / `api_push_unsubscribe`).
+Подробнее env: `docs/DEPLOYMENT.md`.

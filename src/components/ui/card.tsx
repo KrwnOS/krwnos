@@ -31,7 +31,7 @@ export const CardDescription = ({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) => (
   <p
-    className={cn("mt-2 text-sm text-foreground/60 leading-relaxed", className)}
+    className={cn("mt-2 text-sm text-foreground/70 leading-relaxed", className)}
     {...props}
   />
 );

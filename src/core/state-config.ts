@@ -40,6 +40,7 @@ import {
   validateGovernanceRulesPatch,
   type GovernanceRules,
 } from "./governance-rules";
+import { isLocale } from "@/lib/i18n/locales";
 
 // ------------------------------------------------------------
 // Permissions
@@ -118,6 +119,8 @@ export interface StateSettings {
   transactionTaxRate: number;
   incomeTaxRate: number;
   roleTaxRate: number;
+  payrollEnabled: boolean;
+  payrollAmountPerCitizen: number;
   currencyDisplayName: string | null;
 
   // Entry / exit
@@ -138,6 +141,9 @@ export interface StateSettings {
 
   // Extras
   extras: Record<string, unknown>;
+
+  /** BCP-style UI locale code (`en`, `ru`, `es`, …). Null = use platform default (English). */
+  uiLocale: string | null;
 
   createdAt: Date;
   updatedAt: Date;
@@ -178,6 +184,8 @@ export interface UpdateStateSettingsPatch {
   transactionTaxRate?: number;
   incomeTaxRate?: number;
   roleTaxRate?: number;
+  payrollEnabled?: boolean;
+  payrollAmountPerCitizen?: number;
   currencyDisplayName?: string | null;
 
   citizenshipFeeAmount?: number;
@@ -194,6 +202,8 @@ export interface UpdateStateSettingsPatch {
   governanceRules?: Partial<GovernanceRules>;
 
   extras?: Record<string, unknown>;
+
+  uiLocale?: string | null;
 }
 
 /**
@@ -205,6 +215,8 @@ export const DEFAULT_STATE_SETTINGS: UpdateStateSettingsPatch = {
   transactionTaxRate: 0,
   incomeTaxRate: 0,
   roleTaxRate: 0,
+  payrollEnabled: false,
+  payrollAmountPerCitizen: 0,
   currencyDisplayName: null,
 
   citizenshipFeeAmount: 0,
@@ -221,6 +233,8 @@ export const DEFAULT_STATE_SETTINGS: UpdateStateSettingsPatch = {
   governanceRules: DEFAULT_GOVERNANCE_RULES,
 
   extras: {},
+
+  uiLocale: null,
 };
 
 // ------------------------------------------------------------
@@ -409,6 +423,15 @@ export function validatePatch(
   if (patch.roleTaxRate !== undefined) {
     out.roleTaxRate = validateRate(patch.roleTaxRate, "roleTaxRate");
   }
+  if (patch.payrollEnabled !== undefined) {
+    out.payrollEnabled = Boolean(patch.payrollEnabled);
+  }
+  if (patch.payrollAmountPerCitizen !== undefined) {
+    out.payrollAmountPerCitizen = validateNonNegative(
+      patch.payrollAmountPerCitizen,
+      "payrollAmountPerCitizen",
+    );
+  }
   if (patch.exitRefundRate !== undefined) {
     out.exitRefundRate = validateRate(patch.exitRefundRate, "exitRefundRate");
   }
@@ -523,6 +546,26 @@ export function validatePatch(
       );
     }
     out.extras = patch.extras;
+  }
+
+  if (patch.uiLocale !== undefined) {
+    if (patch.uiLocale === null) {
+      out.uiLocale = null;
+    } else if (typeof patch.uiLocale !== "string") {
+      throw new StateConfigError("uiLocale must be a string or null.", "invalid_input");
+    } else {
+      const trimmed = patch.uiLocale.trim().toLowerCase();
+      if (trimmed.length === 0) {
+        out.uiLocale = null;
+      } else if (!isLocale(trimmed)) {
+        throw new StateConfigError(
+          `uiLocale must be a supported language code.`,
+          "invalid_input",
+        );
+      } else {
+        out.uiLocale = trimmed;
+      }
+    }
   }
 
   return out;

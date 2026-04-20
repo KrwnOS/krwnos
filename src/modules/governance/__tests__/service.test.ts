@@ -21,7 +21,7 @@
  *     electorate and empty-vote edge cases.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GOVERNANCE_EVENTS,
   GovernanceError,
@@ -52,6 +52,19 @@ import type {
   VerticalNode,
   VerticalSnapshot,
 } from "@/types/kernel";
+
+vi.mock("@/modules/wallet/wallet-fine", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/modules/wallet/wallet-fine")>();
+  return {
+    ...mod,
+    applyWalletFine: vi.fn().mockResolvedValue({
+      walletFineId: "wf-test",
+      transactionId: "tx-test",
+    }),
+  };
+});
+
+import { applyWalletFine } from "@/modules/wallet/wallet-fine";
 
 // ------------------------------------------------------------
 // Fixtures
@@ -328,6 +341,8 @@ function createStateConfig(
     transactionTaxRate: 0.05,
     incomeTaxRate: 0,
     roleTaxRate: 0,
+    payrollEnabled: false,
+    payrollAmountPerCitizen: 0,
     currencyDisplayName: null,
     citizenshipFeeAmount: 0,
     rolesPurchasable: false,
@@ -340,6 +355,7 @@ function createStateConfig(
     treasuryTransparency: "council",
     governanceRules: { ...DEFAULT_GOVERNANCE_RULES, ...rules },
     extras: {},
+    uiLocale: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -597,6 +613,23 @@ describe("GovernanceService.createProposal", () => {
         description: "???",
         targetConfigKey: "madeUpKey",
         newValue: 1,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_input" });
+  });
+
+  it("rejects malformed walletFine payload", async () => {
+    const { service } = build({
+      rulesOverride: {
+        mode: "consultation",
+        allowedConfigKeys: ["walletFine"],
+      },
+    });
+    await expect(
+      service.createProposal(STATE_ID, buildCtx(CITIZEN_ID), {
+        title: "Fine",
+        description: "bad payload",
+        targetConfigKey: "walletFine",
+        newValue: { foo: 1 },
       }),
     ).rejects.toMatchObject({ code: "invalid_input" });
   });
@@ -1109,5 +1142,85 @@ describe("GovernanceService reads", () => {
     expect(detail.votes).toHaveLength(1);
     expect(detail.tally.electorateSize).toBe(10);
     expect(detail.tally.forWeight).toBe(1);
+  });
+});
+
+// ------------------------------------------------------------
+// walletFine proposals (mocked ledger)
+// ------------------------------------------------------------
+
+describe("GovernanceService walletFine", () => {
+  const rules: Partial<GovernanceRules> = {
+    mode: "consultation",
+    allowedConfigKeys: ["walletFine"],
+    quorumBps: 5_000,
+    thresholdBps: 5_000,
+    votingDurationSeconds: 3600,
+  };
+
+  beforeEach(() => {
+    vi.mocked(applyWalletFine).mockClear();
+  });
+
+  it("execute() calls applyWalletFine for a passed walletFine proposal", async () => {
+    const env = build({
+      rulesOverride: rules,
+      repoSeed: {
+        electorate: { one_person_one_vote: 1, by_node_weight: 1, by_balance: 1 },
+      },
+    });
+    const p = await env.service.createProposal(STATE_ID, buildCtx(CITIZEN_ID), {
+      title: "Fine X",
+      description: "Penalty",
+      targetConfigKey: "walletFine",
+      newValue: {
+        debtorUserId: CITIZEN_ID,
+        beneficiaryNodeId: ROOT_NODE_ID,
+        amount: 5,
+      },
+    });
+    await env.service.castVote(p.id, buildCtx(CITIZEN_ID), { choice: "for" });
+    env.clock.now = new Date(p.expiresAt.getTime() + 1000);
+    await env.service.closeAndMaybeExecute(p.id);
+
+    const passed = await env.repo.findProposal(p.id);
+    expect(passed?.status).toBe("passed");
+
+    await env.service.execute(p.id, buildCtx(OWNER_ID, { isOwner: true }));
+    expect(applyWalletFine).toHaveBeenCalledTimes(1);
+    expect(applyWalletFine).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stateId: STATE_ID,
+        source: "governance",
+        proposalId: p.id,
+      }),
+    );
+  });
+
+  it("veto on passed walletFine does not call applyWalletFine", async () => {
+    const env = build({
+      rulesOverride: rules,
+      repoSeed: {
+        electorate: { one_person_one_vote: 1, by_node_weight: 1, by_balance: 1 },
+      },
+    });
+    const p = await env.service.createProposal(STATE_ID, buildCtx(CITIZEN_ID), {
+      title: "Fine Y",
+      description: "Penalty",
+      targetConfigKey: "walletFine",
+      newValue: {
+        debtorUserId: CITIZEN_ID,
+        beneficiaryNodeId: ROOT_NODE_ID,
+        amount: 3,
+      },
+    });
+    await env.service.castVote(p.id, buildCtx(CITIZEN_ID), { choice: "for" });
+    env.clock.now = new Date(p.expiresAt.getTime() + 1000);
+    await env.service.closeAndMaybeExecute(p.id);
+
+    await env.service.veto(p.id, buildCtx(OWNER_ID, { isOwner: true }), {
+      reason: "mercy",
+    });
+    expect(applyWalletFine).not.toHaveBeenCalled();
   });
 });

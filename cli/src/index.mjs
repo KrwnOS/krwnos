@@ -4,6 +4,7 @@
  * Usage:
  *   krwn login --host https://my.krwnos.app --token <raw>
  *   krwn module install <slug>
+ *   krwn module validate <path>
  *   krwn module list
  *   krwn vertical add "<title>" [--parent <nodeId>] [--type position|department|rank]
  *   krwn vertical list

@@ -9,6 +9,11 @@ export async function register(): Promise<void> {
   const { startNodeOtel } = await import("@/lib/otel/start-node-sdk");
   startNodeOtel();
 
+  const { registerTelegramCredentialProviderIfConfigured } = await import(
+    "@/lib/auth/register-telegram-credentials"
+  );
+  registerTelegramCredentialProviderIfConfigured();
+
   const { configureRedisEventBusIfAvailable } = await import(
     "@/lib/redis-event-bootstrap"
   );

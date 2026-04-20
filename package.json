@@ -13,14 +13,15 @@
   },
   "license": "MIT",
   "workspaces": [
-    "cli"
+    "cli",
+    "packages/sdk"
   ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run build -w @krwnos/sdk && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -33,12 +34,14 @@
     "watcher:treasury": "tsx scripts/treasury-watcher.ts",
     "worker:jobs": "tsx scripts/job-worker.ts",
     "ws:gateway": "tsx scripts/ws-gateway.ts",
+    "telegram:poll": "tsx scripts/telegram-polling.ts",
     "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "compose:logs": "docker compose -f deploy/docker-compose.yml logs -f app"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1032.0",
+    "@krwnos/sdk": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.215.0",
     "@opentelemetry/instrumentation": "^0.215.0",
@@ -51,6 +54,7 @@
     "bullmq": "^5.74.1",
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
+    "intl-messageformat": "^10.7.0",
     "ioredis": "^5.4.1",
     "next": "14.2.15",
     "nodemailer": "^8.0.5",
@@ -60,6 +64,7 @@
     "reactflow": "^11.11.4",
     "tailwind-merge": "^2.5.4",
     "viem": "^2.21.0",
+    "web-push": "^3.6.7",
     "ws": "^8.20.0",
     "zod": "^3.23.8"
   },
@@ -69,11 +74,13 @@
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.15",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "postcss": "^8.4.47",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.13",

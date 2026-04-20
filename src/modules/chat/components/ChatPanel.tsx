@@ -115,14 +115,23 @@ function ConnectForm({
           }),
         )}
       </p>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="krwn_live_…"
-        className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-crown"
-        autoFocus
-      />
+      <label
+        className="flex flex-col gap-1 text-xs text-foreground/70"
+        htmlFor="chat-connect-token"
+      >
+        <span className="font-medium text-foreground/80">
+          {t("chat.connect.fieldLabel")}
+        </span>
+        <input
+          id="chat-connect-token"
+          type="password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="krwn_live_…"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-crown"
+          autoFocus
+        />
+      </label>
       <button
         type="submit"
         disabled={!value.trim()}
@@ -176,7 +185,7 @@ function PendingTray({
   onJump: (channelId: string) => void;
   items: ReturnType<typeof useChat>["pendingDirectives"];
 }) {
-  const { t, tp } = useI18n();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-crown/40 bg-crown/[0.06]">
@@ -187,9 +196,7 @@ function PendingTray({
       >
         <DirectiveBadge />
         <span>
-          {tp("chat.tray.items", count, {
-            word: tp("chat.tray.word", count),
-          })}
+          {t("chat.tray.items", { count })}
         </span>
         <span className="ml-auto text-[10px] uppercase tracking-widest">
           {open ? t("common.hide") : t("common.show")}

@@ -61,6 +61,8 @@ function makeRepo(): StateConfigRepository & {
       transactionTaxRate: 0,
       incomeTaxRate: 0,
       roleTaxRate: 0,
+      payrollEnabled: false,
+      payrollAmountPerCitizen: 0,
       currencyDisplayName: null,
       citizenshipFeeAmount: 0,
       rolesPurchasable: false,
@@ -73,6 +75,7 @@ function makeRepo(): StateConfigRepository & {
       treasuryTransparency: "council",
       governanceRules: { ...DEFAULT_GOVERNANCE_RULES },
       extras: {},
+      uiLocale: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -335,6 +338,13 @@ describe("validatePatch (pure)", () => {
     const res = validatePatch({ transactionTaxRate: 0.1 });
     expect(res).toEqual({ transactionTaxRate: 0.1 });
     expect(Object.keys(res)).toEqual(["transactionTaxRate"]);
+  });
+
+  it("normalises uiLocale", () => {
+    expect(validatePatch({ uiLocale: "  ES " }).uiLocale).toBe("es");
+    expect(validatePatch({ uiLocale: "   " }).uiLocale).toBeNull();
+    expect(validatePatch({ uiLocale: null }).uiLocale).toBeNull();
+    expect(() => validatePatch({ uiLocale: "xx" })).toThrow(StateConfigError);
   });
 });
 

@@ -7,8 +7,11 @@
  *   - invitation-reaper     — `Invitation` rows past `expiresAt` → `expired`
  *   - auto-promotion        — `StateSettings` thresholds → `Membership.nodeId`
  *   - role-tax-monthly      — `StateSettings.roleTaxRate` → root treasury (cron)
+ *   - payroll-periodic      — `StateSettings.payroll*` → root treasury → PERSONAL (cron)
  *   - backup-daily          — `BackupService` snapshot → S3/R2 + manifest retention
  *   - activity-log-reaper   — prune `ActivityLog` older than `KRWN_ACTIVITY_LOG_RETENTION_DAYS`
+ *   - email-digest-daily    — Pulse + open proposals (+ optional @mentions); SMTP
+ *   - email-digest-weekly     (same content window: 7d rolling)
  *
  * Usage:
  *   npm run worker:jobs
@@ -22,11 +25,16 @@
  *   KRWN_JOB_AUTO_PROMOTION_EVERY_MS auto-promotion (default 300000)
  *   KRWN_JOB_ROLE_TAX_CRON        cron for role tax (default `0 0 1 * *`, 1st 00:00)
  *   KRWN_JOB_ROLE_TAX_TZ          IANA tz for cron (default UTC)
+ *   KRWN_JOB_PAYROLL_CRON         payroll job (default `0 8 15 * *` — 15th, 08:00)
+ *   KRWN_JOB_PAYROLL_TZ           IANA tz for payroll cron (default UTC)
  *   KRWN_JOB_BACKUP_CRON          daily backup (default `0 3 * * *`)
  *   KRWN_JOB_BACKUP_TZ            IANA tz for backup cron (default UTC)
  *   KRWN_JOB_ACTIVITY_REAPER_CRON activity log retention (default `30 4 * * *`)
  *   KRWN_JOB_ACTIVITY_REAPER_TZ   IANA tz (default UTC)
  *   KRWN_ACTIVITY_LOG_RETENTION_DAYS  days to keep Pulse rows (default 365; 0 = off)
+ *   KRWN_EMAIL_DIGEST_ENABLED     `1` to send digests (see docs/DEPLOYMENT.md)
+ *   KRWN_EMAIL_DIGEST_DRY_RUN     default dry-run in development
+ *   KRWN_JOB_EMAIL_DIGEST_*_CRON / _TZ  schedules + idempotency TZ hints
  *   KRWN_BACKUP_S3_*              bucket, keys, endpoint — see `.env.example`
  *
  * The process handles SIGINT / SIGTERM and closes the worker cleanly.

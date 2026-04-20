@@ -1,176 +1,70 @@
-# Разработка модуля для KrwnOS
+# Руководство по модулям KrwnOS
 
-Плагин — это автономное приложение, которое расширяет возможности
-конкретного State. Ядру известно про модуль только то, что он сам о себе
-объявил через интерфейс `KrwnModule`.
+Модули — это плагины с контрактом `KrwnModule`, которые регистрируются в `ModuleRegistry` и получают минимальный контекст `ModuleContext` от ядра.
 
----
+## Пакет `@krwnos/sdk`
 
-## 1. Минимальный модуль: «Hello, Vertical»
+Код: `packages/sdk`. После сборки публикуется как `@krwnos/sdk`.
+
+### Типы
+
+`KrwnModule`, `ModuleContext`, `ModuleEventBus`, `ModuleLogger`, `ModuleWidget`, `ModuleSettingsPanel`, `PermissionKey`, `PermissionDescriptor`.
+
+В монорепозитории приложения те же типы доступны из `@/types/kernel` (реэкспорт из SDK — обратная совместимость).
+
+### Manifest (`krwn.module.json`)
+
+- Тип: `KrwnModuleManifest`.
+- Валидация JSON: `validateKrwnModuleManifest(unknown)` и схема `krwnModuleManifestJsonSchema` (Ajv, draft 2020-12).
+
+### Postgres: схема на модуль / per-state
+
+Хелперы в `prisma-per-schema.ts`:
+
+- `normalizeSchemaToken`, `modulePostgresSchemaName(moduleSlug, stateIdPrefix)` — изолированное имя схемы `krwn_<slug>_<prefix>` с лимитом 63 символа.
+- `quotePostgresIdentifier`, `formatPostgresSearchPath` — для `search_path` и DDL.
+
+Отдельный файл Prisma на модуль и multi-schema datasource — в Roadmap (Horizon 3); хелперы задают соглашение об именах заранее.
+
+### Тест-harness
+
+- `createTestModuleContext` — контекст с in-memory bus и noop-логгером (дефолты: `stateId`, `userId`, wildcard `*` в permissions).
+- `createMemoryEventBus`, `createNoopModuleLogger` — если нужны отдельно.
+- `runModuleHarness(mod, options?)` — `await init()`, затем `getWidget` / `getSettings` с тестовым контекстом.
+
+Пример:
 
 ```ts
-// src/modules/hello/index.ts
-import type { KrwnModule } from "@/types/kernel";
+import type { KrwnModule, PermissionKey } from "@krwnos/sdk";
+import { runModuleHarness } from "@krwnos/sdk";
 
-export const helloModule: KrwnModule = {
-  slug: "hello",
+const myModule: KrwnModule = {
+  slug: "acme.hello",
   name: "Hello",
-  version: "0.1.0",
-  description: "Простейший модуль для проверки интеграции.",
-
+  version: "1.0.0",
   init() {
     return {
       permissions: [
         {
-          key: "hello.view",
-          owner: "hello",
-          label: "Видеть виджет Hello",
-          description: "Разрешает показывать приветственный виджет.",
+          key: "acme.hello.read" as PermissionKey,
+          owner: "acme.hello",
+          label: "Read hello",
         },
       ],
     };
   },
-
-  getWidget(ctx) {
-    if (!ctx.permissions.has("hello.view")) return null;
-    return {
-      id: "greeting",
-      title: "Hello, Vertical",
-      component: () => null, // подключите свой React-компонент
-      defaultSize: "sm",
-    };
-  },
-
-  getSettings() {
-    return null;
-  },
+  getWidget: () => null,
+  getSettings: () => null,
 };
-```
 
-Регистрация в `src/modules/index.ts`:
-
-```ts
-import { registry } from "@/core";
-import { helloModule } from "./hello";
-
-export async function bootstrapModules() {
-  await registry.register(helloModule);
-}
-```
-
----
-
-## 2. Правила слага
-
-- Глобально уникален.
-- Нижний регистр, dot-разделитель: `treasury`, `treasury.reports`,
-  `core.chat`.
-- Префикс `core.*` зарезервирован за первопартийными модулями ядра.
-
----
-
-## 3. Permissions
-
-Каждое право, которое модуль собирается проверять, **обязано** быть
-задекларировано в `init()`:
-
-```ts
-{
-  key: "treasury.transaction.create",
-  owner: "treasury",        // равен slug модуля
-  label: "Создавать транзакции",
-  description: "Разрешает списание и зачисление средств."
-}
-```
-
-Формат ключа: `<domain>.<action>` (допускается вложенность
-`<domain>.<subdomain>.<action>`). Суверен может использовать wildcard
-`treasury.*` или `*` (super-power).
-
-Проверка на сервере:
-
-```ts
-import { permissionsEngine } from "@/core";
-
-const granted = permissionsEngine.can(
-  { stateId, userId, isOwner, snapshot },
-  "treasury.transaction.create",
-);
-if (!granted) throw new Error("Forbidden");
-```
-
----
-
-## 4. Event Bus
-
-Модуль публикует события в формате `"<slug>.<action>"`:
-
-```ts
-await ctx.bus.emit("treasury.transaction.created", {
-  stateId: ctx.stateId,
-  amount: 100,
-  currency: "KRW",
-  actorId: ctx.userId,
+const { initResult, widget, settings } = await runModuleHarness(myModule, {
+  stateId: "state_123",
+  userId: null,
 });
 ```
 
-Другие модули подписываются:
+Правила permissions: ключи вида `domain.action`; `owner` в дескрипторе должен совпадать со slug модуля (или `"core"` для общих ключей ядра).
 
-```ts
-ctx.bus.on<TreasuryTxPayload>("treasury.transaction.created", async (evt) => {
-  await sendChatMessage(`Перевод ${evt.amount} ${evt.currency}`);
-});
-```
+## Дальнейшие шаги
 
-Канонические события ядра — в `KernelEvents` (см. `core/event-bus.ts`).
-
----
-
-## 5. UI: Widget vs Settings
-
-| Метод | Назначение | Кому показывается |
-|-------|-----------|-------------------|
-| `getWidget(ctx)` | Виджет на рабочем столе пользователя. | Всем, кто прошёл `requiredPermission`. |
-| `getSettings(ctx)` | Панель конфигурации модуля. | Суверен + держатели `requiredPermission`. |
-
-Оба метода вызываются **на каждый рендер** shell'а — держите их
-дешёвыми и без сайд-эффектов.
-
----
-
-## 6. Жизненный цикл
-
-```
-register() ──► init() ──► (установка в State) ──► getWidget/getSettings...
-                                                        │
-                                        ┌───────────────┘
-                                        ▼
-                           ModuleContext ({stateId, userId, permissions, bus, logger})
-```
-
-Модуль никогда не хранит глобальное состояние, привязанное к
-конкретному State — всё идёт через `ModuleContext`.
-
----
-
-## 7. Чего делать **нельзя**
-
-- ❌ Импортировать из другого модуля напрямую. Общение только через
-  Event Bus и публичные контракты.
-- ❌ Импортировать Prisma / Redis из `/src/lib`. Модуль получает API
-  ядра через `ModuleContext`.
-- ❌ Хардкодить права — только через `PermissionDescriptor`.
-- ❌ Проверять роль пользователя по имени узла. Используйте
-  `PermissionKey`.
-
----
-
-## 8. Чек-лист перед мержем модуля
-
-- [ ] `slug` уникален и следует конвенции.
-- [ ] Все проверяемые `PermissionKey` задекларированы в `init()`.
-- [ ] Есть README с описанием что модуль делает и какие права вводит.
-- [ ] Нет импортов из других модулей / `lib/prisma` / `lib/redis`.
-- [ ] Виджет корректно возвращает `null`, когда нет прав.
-- [ ] Документирована схема payload-ов событий, которые модуль
-      публикует.
+См. `docs/ROADMAP.md`, Horizon 3: песочница БД, подписанные пакеты, маркетплейс.

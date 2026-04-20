@@ -60,6 +60,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build @krwnos/sdk
+        run: npm run build -w @krwnos/sdk
+
+      - name: SDK tests (@krwnos/sdk harness)
+        run: npm run test -w @krwnos/sdk
+
       - name: Prisma validate
         run: npx prisma validate
 

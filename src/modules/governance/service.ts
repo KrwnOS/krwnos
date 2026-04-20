@@ -56,6 +56,7 @@ import type {
   PermissionKey,
   VerticalSnapshot,
 } from "@/types/kernel";
+import { applyWalletFine, parseWalletFinePayload } from "@/modules/wallet/wallet-fine";
 import { GovernancePermissions } from "./permissions";
 
 // ------------------------------------------------------------
@@ -893,22 +894,58 @@ export class GovernanceService {
           permissions: new Set<PermissionKey>(["state.configure"]),
         };
 
-    const patch = buildSettingsPatch(proposal.targetConfigKey, proposal.newValue);
-
-    try {
-      await this.stateConfig.update(proposal.stateId, access, patch);
-    } catch (err) {
-      // Если StateConfigService отказал (валидация), переводим
-      // предложение в `rejected`, а не в `executed` — это спасает
-      // audit trail и явно сигналит UI, что Executor не смог.
-      if (err instanceof StateConfigError) {
+    if (proposal.targetConfigKey === "walletFine") {
+      let payload;
+      try {
+        payload = parseWalletFinePayload(proposal.newValue);
+      } catch {
         const rejected = await this.repo.updateProposalStatus(proposal.id, {
           status: "rejected",
           closedAt: this.now(),
         });
         return rejected;
       }
-      throw err;
+      try {
+        await applyWalletFine({
+          stateId: proposal.stateId,
+          payload,
+          source: "governance",
+          proposalId: proposal.id,
+          initiatedById: executedById,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (
+          msg === "wallet_fine_no_wallet" ||
+          msg === "insufficient_funds" ||
+          msg.includes("insufficient_funds")
+        ) {
+          const rejected = await this.repo.updateProposalStatus(proposal.id, {
+            status: "rejected",
+            closedAt: this.now(),
+          });
+          return rejected;
+        }
+        throw err;
+      }
+    } else {
+      const patch = buildSettingsPatch(proposal.targetConfigKey, proposal.newValue);
+
+      try {
+        await this.stateConfig.update(proposal.stateId, access, patch);
+      } catch (err) {
+        // Если StateConfigService отказал (валидация), переводим
+        // предложение в `rejected`, а не в `executed` — это спасает
+        // audit trail и явно сигналит UI, что Executor не смог.
+        if (err instanceof StateConfigError) {
+          const rejected = await this.repo.updateProposalStatus(proposal.id, {
+            status: "rejected",
+            closedAt: this.now(),
+          });
+          return rejected;
+        }
+        throw err;
+      }
     }
 
     const executed = await this.repo.updateProposalStatus(proposal.id, {
@@ -1020,6 +1057,7 @@ function validateNewValueShape(
       return;
     }
     case "citizenshipFeeAmount":
+    case "payrollAmountPerCitizen":
     case "autoPromotionMinBalance": {
       if (value === null) return;
       if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
@@ -1047,7 +1085,8 @@ function validateNewValueShape(
     }
     case "rolesPurchasable":
     case "permissionInheritance":
-    case "autoPromotionEnabled": {
+    case "autoPromotionEnabled":
+    case "payrollEnabled": {
       if (typeof value !== "boolean") {
         throw new GovernanceError(
           `"${key}" must be a boolean.`,
@@ -1071,6 +1110,17 @@ function validateNewValueShape(
       if (value !== "public" && value !== "council" && value !== "sovereign") {
         throw new GovernanceError(
           `"${key}" must be one of public|council|sovereign.`,
+          "invalid_input",
+        );
+      }
+      return;
+    }
+    case "walletFine": {
+      try {
+        parseWalletFinePayload(value);
+      } catch {
+        throw new GovernanceError(
+          `"walletFine" payload must include debtorUserId, beneficiaryNodeId, and a positive amount.`,
           "invalid_input",
         );
       }

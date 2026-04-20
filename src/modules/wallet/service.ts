@@ -695,6 +695,7 @@ export class WalletService {
           taxSplit = { toWalletId: rootTreasury.id, amount: taxAmount };
           metadata.stateTax = {
             rate: effectiveTaxRate,
+            amount: moneyToNumber(taxAmount),
             breakdown: {
               asset: assetTaxRate,
               transaction: stateTxTaxRate,

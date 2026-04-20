@@ -18,6 +18,7 @@
  */
 
 import * as React from "react";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,9 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const trapRef = React.useRef<HTMLDivElement>(null);
+  useFocusTrap(open, trapRef, { onEscape: onClose });
 
   React.useEffect(() => {
     if (!open) {
@@ -139,9 +143,11 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      aria-labelledby="wallet-transfer-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm motion-reduce:transition-none"
       onClick={onClose}
     >
       <form
@@ -150,7 +156,10 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
         className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl"
       >
         <div className="flex items-start justify-between">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2
+            id="wallet-transfer-title"
+            className="text-lg font-semibold text-foreground"
+          >
             {t("wallet.transferTitle")}
           </h2>
           <button
@@ -212,11 +221,15 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
         )}
 
         <div className="mt-5">
-          <label className="block text-xs uppercase tracking-widest text-foreground/50">
+          <label
+            htmlFor="wallet-transfer-recipient-kind"
+            className="block text-xs uppercase tracking-widest text-foreground/50"
+          >
             {t("wallet.recipient")}
           </label>
           <div className="mt-2 flex gap-2">
             <select
+              id="wallet-transfer-recipient-kind"
               value={destKind}
               onChange={(e) => setDestKind(e.target.value as DestinationKind)}
               className="rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground"
@@ -228,20 +241,26 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
               <option value="walletId">{t("wallet.recipient.walletId")}</option>
             </select>
             <input
+              id="wallet-transfer-recipient-value"
               type="text"
               value={destValue}
               onChange={(e) => setDestValue(e.target.value)}
               placeholder={placeholderFor(destKind)}
               className="flex-1 rounded-md border border-border bg-background px-3 py-2 font-mono text-sm text-foreground"
+              aria-label={t("wallet.recipientValueLabel")}
             />
           </div>
         </div>
 
         <div className="mt-5">
-          <label className="block text-xs uppercase tracking-widest text-foreground/50">
+          <label
+            htmlFor="wallet-transfer-amount"
+            className="block text-xs uppercase tracking-widest text-foreground/50"
+          >
             {t("wallet.amount")}
           </label>
           <input
+            id="wallet-transfer-amount"
             type="text"
             inputMode="decimal"
             value={amount}
@@ -255,10 +274,14 @@ export function TransferModal(props: TransferModalProps): React.ReactElement | n
         </div>
 
         <div className="mt-5">
-          <label className="block text-xs uppercase tracking-widest text-foreground/50">
+          <label
+            htmlFor="wallet-transfer-memo"
+            className="block text-xs uppercase tracking-widest text-foreground/50"
+          >
             {t("wallet.memo")}
           </label>
           <input
+            id="wallet-transfer-memo"
             type="text"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}

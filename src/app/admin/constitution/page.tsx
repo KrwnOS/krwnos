@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type LocaleCode } from "@/lib/i18n";
 
 type TreasuryTransparency = "public" | "council" | "sovereign";
 type GovernanceMode = "decree" | "consultation" | "auto_dao";
@@ -44,9 +44,12 @@ interface GovernanceRulesDto {
 interface StateSettingsDto {
   id: string;
   stateId: string;
+  uiLocale: string | null;
   transactionTaxRate: number;
   incomeTaxRate: number;
   roleTaxRate: number;
+  payrollEnabled: boolean;
+  payrollAmountPerCitizen: number;
   currencyDisplayName: string | null;
   citizenshipFeeAmount: number;
   rolesPurchasable: boolean;
@@ -67,6 +70,8 @@ const GOVERNANCE_MANAGEABLE_KEYS: ReadonlyArray<string> = [
   "transactionTaxRate",
   "incomeTaxRate",
   "roleTaxRate",
+  "payrollEnabled",
+  "payrollAmountPerCitizen",
   "currencyDisplayName",
   "citizenshipFeeAmount",
   "rolesPurchasable",
@@ -77,12 +82,15 @@ const GOVERNANCE_MANAGEABLE_KEYS: ReadonlyArray<string> = [
   "autoPromotionMinDays",
   "autoPromotionTargetNodeId",
   "treasuryTransparency",
+  "walletFine",
 ];
 
 interface FormState {
   transactionTaxPct: string;
   incomeTaxPct: string;
   roleTaxPct: string;
+  payrollEnabled: boolean;
+  payrollAmountPerCitizen: string;
   currencyDisplayName: string;
   citizenshipFeeAmount: string;
   rolesPurchasable: boolean;
@@ -102,6 +110,8 @@ interface FormState {
   governanceWeightStrategy: WeightStrategy;
   governanceMinProposerBalance: string;
   governanceAllowedKeys: Record<string, boolean>;
+
+  uiLocale: string;
 }
 
 const TOKEN_STORAGE_KEY = "krwn.token";
@@ -115,9 +125,12 @@ function toForm(settings: StateSettingsDto): FormState {
     allowed[key] = wildcard || allowedSet.has(key);
   }
   return {
+    uiLocale: settings.uiLocale ?? "en",
     transactionTaxPct: (settings.transactionTaxRate * 100).toString(),
     incomeTaxPct: (settings.incomeTaxRate * 100).toString(),
     roleTaxPct: (settings.roleTaxRate * 100).toString(),
+    payrollEnabled: settings.payrollEnabled,
+    payrollAmountPerCitizen: settings.payrollAmountPerCitizen.toString(),
     currencyDisplayName: settings.currencyDisplayName ?? "",
     citizenshipFeeAmount: settings.citizenshipFeeAmount.toString(),
     rolesPurchasable: settings.rolesPurchasable,
@@ -150,7 +163,7 @@ function toForm(settings: StateSettingsDto): FormState {
 }
 
 export default function AdminConstitutionPage() {
-  const { t } = useI18n();
+  const { t, availableLocales } = useI18n();
   const [token, setToken] = useState<string | null>(null);
   const [settings, setSettings] = useState<StateSettingsDto | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -315,6 +328,26 @@ export default function AdminConstitutionPage() {
       {form && (
         <form className="space-y-6" onSubmit={onSubmit}>
           <Section
+            id="constitution-locale"
+            eyebrow={t("constitution.locale.eyebrow")}
+            title={t("constitution.locale.title")}
+            description={t("constitution.locale.desc")}
+          >
+            <SelectField
+              label={t("constitution.locale.field")}
+              hint={t("constitution.locale.hint")}
+              value={form.uiLocale}
+              onChange={(v) =>
+                setForm({ ...form, uiLocale: v as LocaleCode })
+              }
+              options={availableLocales.map((m) => ({
+                value: m.code,
+                label: `${m.nativeName} (${m.code})`,
+              }))}
+            />
+          </Section>
+
+          <Section
             id="constitution-fiscal"
             eyebrow={t("constitution.ch1.eyebrow")}
             title={t("constitution.ch1.title")}
@@ -347,6 +380,22 @@ export default function AdminConstitutionPage() {
                 min={0}
                 max={100}
                 step={0.1}
+              />
+              <ToggleField
+                label={t("constitution.ch1.payrollEnabled")}
+                hint={t("constitution.ch1.payrollEnabledHint")}
+                checked={form.payrollEnabled}
+                onChange={(v) => setForm({ ...form, payrollEnabled: v })}
+              />
+              <NumberField
+                label={t("constitution.ch1.payrollAmount")}
+                hint={t("constitution.ch1.payrollAmountHint")}
+                value={form.payrollAmountPerCitizen}
+                onChange={(v) =>
+                  setForm({ ...form, payrollAmountPerCitizen: v })
+                }
+                min={0}
+                step={0.01}
               />
             </Grid3>
             <div className="mt-4">
@@ -700,9 +749,12 @@ function buildPatch(form: FormState): Record<string, unknown> {
   }
 
   return {
+    uiLocale: form.uiLocale.trim().toLowerCase() || null,
     transactionTaxRate: toFraction(form.transactionTaxPct),
     incomeTaxRate: toFraction(form.incomeTaxPct),
     roleTaxRate: toFraction(form.roleTaxPct),
+    payrollEnabled: form.payrollEnabled,
+    payrollAmountPerCitizen: toNonNegNumber(form.payrollAmountPerCitizen),
     currencyDisplayName: nullableText(form.currencyDisplayName),
 
     citizenshipFeeAmount: toNonNegNumber(form.citizenshipFeeAmount),

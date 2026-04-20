@@ -106,7 +106,7 @@ export function formatDuration(seconds: number, locale: LocaleCode): string {
   const units =
     locale === "ru"
       ? { d: "д", h: "ч", m: "м" }
-      : { d: "d", h: "h", m: "m" };
+      : { d: "d", h: "h", m: "m" }; // es/zh/tr use compact Latin for now
   if (days > 0) return `${days}${units.d} ${hours}${units.h}`;
   if (hours > 0) return `${hours}${units.h} ${mins}${units.m}`;
   return `${mins}${units.m}`;

@@ -38,6 +38,8 @@ interface PrismaStateSettingsRow {
   transactionTaxRate: number;
   incomeTaxRate: number;
   roleTaxRate: number;
+  payrollEnabled: boolean;
+  payrollAmountPerCitizen: number;
   currencyDisplayName: string | null;
   citizenshipFeeAmount: number;
   rolesPurchasable: boolean;
@@ -50,6 +52,7 @@ interface PrismaStateSettingsRow {
   treasuryTransparency: TreasuryTransparency;
   governanceRules: unknown;
   extras: unknown;
+  uiLocale: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,6 +118,8 @@ function mapRow(row: PrismaStateSettingsRow): StateSettings {
     transactionTaxRate: row.transactionTaxRate,
     incomeTaxRate: row.incomeTaxRate,
     roleTaxRate: row.roleTaxRate,
+    payrollEnabled: row.payrollEnabled ?? false,
+    payrollAmountPerCitizen: row.payrollAmountPerCitizen ?? 0,
     currencyDisplayName: row.currencyDisplayName,
     citizenshipFeeAmount: row.citizenshipFeeAmount,
     rolesPurchasable: row.rolesPurchasable,
@@ -130,6 +135,7 @@ function mapRow(row: PrismaStateSettingsRow): StateSettings {
       row.extras && typeof row.extras === "object" && !Array.isArray(row.extras)
         ? (row.extras as Record<string, unknown>)
         : {},
+    uiLocale: row.uiLocale ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -146,6 +152,8 @@ function toPrismaUpdate(
     "transactionTaxRate",
     "incomeTaxRate",
     "roleTaxRate",
+    "payrollEnabled",
+    "payrollAmountPerCitizen",
     "currencyDisplayName",
     "citizenshipFeeAmount",
     "rolesPurchasable",
@@ -156,6 +164,7 @@ function toPrismaUpdate(
     "autoPromotionMinDays",
     "autoPromotionTargetNodeId",
     "treasuryTransparency",
+    "uiLocale",
   ];
   for (const key of keys) {
     const value = patch[key];
