@@ -110,6 +110,8 @@ interface PulseContext {
     displayName: string | null;
     isOwner: boolean;
     isLobbyOnly: boolean;
+    /** Present on newer API; fall back to isOwner. */
+    canAuditLog?: boolean;
   };
   state: { id: string; slug: string; name: string };
   role: {
@@ -1017,7 +1019,7 @@ function HeaderBar({
               {t("pulse.broadcast.trigger")}
             </Button>
           )}
-          {viewer?.isOwner && (
+          {(viewer?.canAuditLog ?? viewer?.isOwner) && (
             <Link href="/admin/audit">
               <Button variant="outline" size="sm">
                 {t("pulse.header.audit")}

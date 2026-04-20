@@ -88,6 +88,18 @@ Per-State установка плагина с собственным `config` J
 - `@@unique([stateId, slug])`.
 - Удаление State каскадно удаляет записи.
 
+### `ActivityLog`
+Агрегированная лента (Пульс / аудит): одна строка на заметное событие модулей.
+
+| Поле | Заметки |
+|------|---------|
+| `visibility` | `public` / `node` / `audience` / `sovereign` — кто видит строку в обычной ленте. |
+| `createdAt` | Индекс `(stateId, createdAt)` для хвостовых запросов. |
+
+**Ретенция:** переменная окружения `KRWN_ACTIVITY_LOG_RETENTION_DAYS` (по умолчанию `365`; `0` — не ограничивать и не удалять фоном). API `/api/activity` и `ActivityFeedService.listForViewer` отсекают строки старше порога; фоновая задача BullMQ `activity-log-reaper` удаляет просроченные строки из БД (см. `src/jobs/worker.ts`, `.env.example`).
+
+**Полный журнал аудита:** `GET /api/activity?audit=1` — только Суверен или эффективный `system.admin`; снимает фильтр видимости, но ретенция по дате остаётся.
+
 ---
 
 ## 3. Типовые запросы

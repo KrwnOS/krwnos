@@ -15,19 +15,19 @@
  * использует `isVisibleTo`, а Суверен всегда проходит).
  *
  * Данные:
- *   * `GET /api/activity?limit=100&category=...&event=...&actorId=...&before=...`
- *     — Сервис уже поддерживает все эти фильтры (см. патч
- *     `ActivityRepository`).
- *   * `GET /api/state/pulse` — тянем только ради списка
- *     граждан: чтобы показывать handle/displayName вместо cuid.
+ *   * `GET /api/activity?audit=1&limit=100&category=...&event=...&actorId=...&before=...`
+ *     — `audit=1`: полный журнал без фильтра видимости (только Суверен /
+ *       `system.admin`). Плюс отсечка ретенции (`KRWN_ACTIVITY_LOG_RETENTION_DAYS`,
+ *       см. `docs/DATABASE.md`).
+ *   * `GET /api/state/pulse` — контекст Пульса; `viewer.canAuditLog` гейтит страницу.
  *
  * UX:
  *   * Row = компактная строка: `timestamp · category · event ·
  *     actor · title · visibility`.
  *   * Поля фильтров сверху — live: меняешь значение, подгружается
  *     страница заново с начала.
- *   * «Экспорт JSON» / «Экспорт CSV» выгружают текущую пачку,
- *     чтобы Суверен мог передать следователю файл.
+ *   * Экспорт JSON/CSV подтягивает все строки, совпадающие с фильтрами
+ *     (до 10k), в UTF-8; CSV с BOM для Excel. Семантика колонок — в UI.
  */
 
 "use client";
@@ -65,7 +65,11 @@ interface FeedPage {
   viewer: { userId: string; isOwner: boolean; scopeNodeIds: string[] };
   entries: AuditEntry[];
   nextBefore: string | null;
+  auditMode?: boolean;
+  activityRetentionDays?: number | null;
 }
+
+const MAX_AUDIT_EXPORT_ROWS = 10_000;
 
 interface PulseMember {
   userId: string;
@@ -82,6 +86,7 @@ interface PulseContext {
     handle: string;
     displayName: string | null;
     isOwner: boolean;
+    canAuditLog: boolean;
   };
   state: { id: string; slug: string; name: string };
   tree: { members: PulseMember[] };
@@ -116,6 +121,10 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retentionDays, setRetentionDays] = useState<number | null | undefined>(
+    undefined,
+  );
+  const [exportBusy, setExportBusy] = useState(false);
 
   // Filters
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -193,10 +202,10 @@ export default function AuditPage() {
     void loadCtx();
   }, [loadCtx]);
 
-  // Gate: non-sovereign users → redirect.
+  // Gate: only Sovereign or effective system.admin.
   useEffect(() => {
     if (!ctx) return;
-    if (!ctx.viewer.isOwner) {
+    if (!ctx.viewer.canAuditLog) {
       router.replace("/");
     }
   }, [ctx, router]);
@@ -207,6 +216,7 @@ export default function AuditPage() {
       if (!token) return null;
       const qs = new URLSearchParams();
       qs.set("limit", "100");
+      qs.set("audit", "1");
       if (category !== "all") qs.set("category", category);
       if (eventName.trim()) qs.set("event", eventName.trim());
       if (resolvedActorId) qs.set("actorId", resolvedActorId);
@@ -239,6 +249,9 @@ export default function AuditPage() {
       if (!body) return;
       setEntries(body.entries);
       setNextBefore(body.nextBefore);
+      if (body.activityRetentionDays !== undefined) {
+        setRetentionDays(body.activityRetentionDays);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "unknown error");
     } finally {
@@ -278,44 +291,122 @@ export default function AuditPage() {
     }
   }, [token, nextBefore, fetchPage]);
 
-  // --- Exports ---
-  const exportJSON = useCallback(() => {
-    const blob = new Blob([JSON.stringify(entries, null, 2)], {
-      type: "application/json",
-    });
-    triggerDownload(blob, `audit-${Date.now()}.json`);
-  }, [entries]);
+  const fetchAllForExport = useCallback(async (): Promise<AuditEntry[]> => {
+    if (!token) return [];
+    const out: AuditEntry[] = [];
+    let before: string | null = null;
+    while (out.length < MAX_AUDIT_EXPORT_ROWS) {
+      const qs = new URLSearchParams();
+      qs.set("limit", "100");
+      qs.set("audit", "1");
+      if (category !== "all") qs.set("category", category);
+      if (eventName.trim()) qs.set("event", eventName.trim());
+      if (resolvedActorId) qs.set("actorId", resolvedActorId);
+      if (before) qs.set("before", before);
+      const res = await fetch(`/api/activity?${qs.toString()}`, {
+        headers: { authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const body = (await res.json()) as FeedPage | { error: unknown };
+      if (!res.ok || !("entries" in body)) {
+        throw new Error(
+          "error" in body
+            ? typeof body.error === "string"
+              ? body.error
+              : JSON.stringify(body.error)
+            : `HTTP ${res.status}`,
+        );
+      }
+      if (body.entries.length === 0) break;
+      out.push(...body.entries);
+      before = body.nextBefore;
+      if (!before) break;
+    }
+    return out;
+  }, [token, category, eventName, resolvedActorId]);
 
-  const exportCSV = useCallback(() => {
-    const head = [
-      "createdAt",
-      "category",
-      "event",
-      "actorId",
-      "actorHandle",
-      "nodeId",
-      "visibility",
-      "titleKey",
-    ];
-    const rows = entries.map((e) => {
-      const actor = e.actorId ? actorIndex.byId.get(e.actorId) : null;
-      return [
-        e.createdAt,
-        e.category,
-        e.event,
-        e.actorId ?? "",
-        actor?.handle ?? "",
-        e.nodeId ?? "",
-        e.visibility,
-        e.titleKey,
+  // --- Exports (all rows matching current filters, capped) ---
+  const exportJSON = useCallback(async () => {
+    if (!token) return;
+    setExportBusy(true);
+    setError(null);
+    try {
+      const rows = await fetchAllForExport();
+      const blob = new Blob(
+        [
+          JSON.stringify(
+            {
+              exportedAt: new Date().toISOString(),
+              rowCount: rows.length,
+              cap: MAX_AUDIT_EXPORT_ROWS,
+              entries: rows,
+            },
+            null,
+            2,
+          ),
+        ],
+        { type: "application/json" },
+      );
+      triggerDownload(blob, `audit-${Date.now()}.json`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setExportBusy(false);
+    }
+  }, [token, fetchAllForExport]);
+
+  const exportCSV = useCallback(async () => {
+    if (!token) return;
+    setExportBusy(true);
+    setError(null);
+    try {
+      const rows = await fetchAllForExport();
+      const head = [
+        "id",
+        "createdAt",
+        "category",
+        "event",
+        "actorId",
+        "actorHandle",
+        "nodeId",
+        "visibility",
+        "titleKey",
+        "titleRendered",
+        "titleParamsJson",
+        "metadataJson",
+        "audienceUserIds",
       ];
-    });
-    const csv = [head, ...rows]
-      .map((r) => r.map(csvCell).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    triggerDownload(blob, `audit-${Date.now()}.csv`);
-  }, [entries, actorIndex]);
+      const lines = [head.join(",")];
+      for (const e of rows) {
+        const actor = e.actorId ? actorIndex.byId.get(e.actorId) : null;
+        const titleRendered = safeTitle(e, t);
+        lines.push(
+          [
+            csvCell(e.id),
+            csvCell(e.createdAt),
+            csvCell(e.category),
+            csvCell(e.event),
+            csvCell(e.actorId ?? ""),
+            csvCell(actor?.handle ?? ""),
+            csvCell(e.nodeId ?? ""),
+            csvCell(e.visibility),
+            csvCell(e.titleKey),
+            csvCell(titleRendered),
+            csvCell(JSON.stringify(e.titleParams ?? {})),
+            csvCell(JSON.stringify(e.metadata ?? {})),
+            csvCell((e.audienceUserIds ?? []).join("|")),
+          ].join(","),
+        );
+      }
+      const csv = `\uFEFF${lines.join("\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      triggerDownload(blob, `audit-${Date.now()}.csv`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setExportBusy(false);
+    }
+  }, [token, fetchAllForExport, actorIndex, t]);
 
   // --- Render ---
   if (!token) {
@@ -369,18 +460,18 @@ export default function AuditPage() {
           <Button
             variant="outline"
             size="sm"
-            disabled={entries.length === 0}
-            onClick={exportJSON}
+            disabled={exportBusy}
+            onClick={() => void exportJSON()}
           >
-            JSON
+            {exportBusy ? t("common.loadingDots") : "JSON"}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            disabled={entries.length === 0}
-            onClick={exportCSV}
+            disabled={exportBusy}
+            onClick={() => void exportCSV()}
           >
-            CSV
+            {exportBusy ? t("common.loadingDots") : "CSV"}
           </Button>
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">
@@ -389,6 +480,36 @@ export default function AuditPage() {
           </Link>
         </div>
       </header>
+
+      {retentionDays !== undefined && (
+        <Card className="mb-4 border-border/60 bg-foreground/[0.02] py-3 text-xs text-foreground/70">
+          {retentionDays === null
+            ? t("audit.retention.unlimited")
+            : t("audit.retention.policy", { days: retentionDays })}
+        </Card>
+      )}
+
+      <details className="mb-4 rounded-lg border border-border/50 bg-background/30 px-3 py-2 text-xs text-foreground/70">
+        <summary className="cursor-pointer font-medium text-foreground/80">
+          {t("audit.export.legendTitle")}
+        </summary>
+        <ul className="mt-2 list-inside list-disc space-y-1">
+          <li>{t("audit.export.col.id")}</li>
+          <li>{t("audit.export.col.createdAt")}</li>
+          <li>{t("audit.export.col.category")}</li>
+          <li>{t("audit.export.col.event")}</li>
+          <li>{t("audit.export.col.actorId")}</li>
+          <li>{t("audit.export.col.actorHandle")}</li>
+          <li>{t("audit.export.col.nodeId")}</li>
+          <li>{t("audit.export.col.visibility")}</li>
+          <li>{t("audit.export.col.titleKey")}</li>
+          <li>{t("audit.export.col.titleRendered")}</li>
+          <li>{t("audit.export.col.titleParamsJson")}</li>
+          <li>{t("audit.export.col.metadataJson")}</li>
+          <li>{t("audit.export.col.audienceUserIds")}</li>
+          <li>{t("audit.export.cap", { max: MAX_AUDIT_EXPORT_ROWS })}</li>
+        </ul>
+      </details>
 
       {/* Filters */}
       <Card className="mb-4 py-4">

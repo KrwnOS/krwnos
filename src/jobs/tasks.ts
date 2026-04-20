@@ -2,6 +2,7 @@
  * Task bodies invoked by the BullMQ worker and (where noted) by legacy CLIs.
  */
 import { InMemoryEventBus } from "@/core/event-bus";
+import { getActivityLogRetentionCutoff } from "@/lib/activity-retention";
 import { prisma } from "@/lib/prisma";
 import { createPrismaWatcherPersistence } from "@/modules/wallet/repo";
 import { TreasuryWatcher, type WatcherTickReport } from "@/modules/wallet/watcher";
@@ -75,4 +76,17 @@ export async function runInvitationReaper(): Promise<{ expired: number }> {
     data: { status: "expired" },
   });
   return { expired: result.count };
+}
+
+/**
+ * Deletes `ActivityLog` rows older than `KRWN_ACTIVITY_LOG_RETENTION_DAYS`.
+ * No-op when retention is unlimited (`0`).
+ */
+export async function runActivityLogReaper(): Promise<{ deleted: number }> {
+  const cutoff = getActivityLogRetentionCutoff();
+  if (!cutoff) return { deleted: 0 };
+  const result = await prisma.activityLog.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+  return { deleted: result.count };
 }

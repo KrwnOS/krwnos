@@ -14,8 +14,13 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { ActivityFeedService, ActivityViewerContext } from "@/core";
+import {
+  permissionsEngine,
+  type ActivityFeedService,
+  type ActivityViewerContext,
+} from "@/core";
 import { getActivityFeed } from "@/server/activity-boot";
+import type { PermissionKey, VerticalNode, VerticalSnapshot } from "@/types/kernel";
 import {
   authenticateCli,
   CliAuthError,
@@ -57,6 +62,8 @@ export interface ActivityRouteContext {
   stateId: string;
   service: ActivityFeedService;
   viewer: ActivityViewerContext;
+  /** Sovereign or effective `system.admin` — can use `audit=1` (full log). */
+  canSeeFullAuditLog: boolean;
 }
 
 export async function loadActivityContext(
@@ -71,18 +78,32 @@ export async function loadActivityContext(
   }
   const stateId = cli.stateId;
 
-  const [state, nodes, memberships] = await Promise.all([
+  const [state, nodes, memberships, membershipsForSnapshot] = await Promise.all([
     prisma.state.findUnique({
       where: { id: stateId },
       select: { id: true, ownerId: true },
     }),
     prisma.verticalNode.findMany({
       where: { stateId },
-      select: { id: true, parentId: true },
+      select: {
+        id: true,
+        stateId: true,
+        parentId: true,
+        title: true,
+        type: true,
+        permissions: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
     prisma.membership.findMany({
       where: { node: { stateId }, userId: cli.userId, status: "active" },
       select: { nodeId: true },
+    }),
+    prisma.membership.findMany({
+      where: { node: { stateId }, status: "active" },
+      select: { userId: true, nodeId: true },
     }),
   ]);
 
@@ -91,6 +112,37 @@ export async function loadActivityContext(
   }
 
   const isOwner = state.ownerId === cli.userId;
+
+  const snapshot: VerticalSnapshot = {
+    stateId,
+    nodes: new Map<string, VerticalNode>(
+      nodes.map((n) => [
+        n.id,
+        { ...n, permissions: n.permissions as PermissionKey[] },
+      ]),
+    ),
+    membershipsByUser: new Map(),
+  };
+  for (const m of membershipsForSnapshot) {
+    let set = snapshot.membershipsByUser.get(m.userId);
+    if (!set) {
+      set = new Set();
+      snapshot.membershipsByUser.set(m.userId, set);
+    }
+    set.add(m.nodeId);
+  }
+
+  const canSeeFullAuditLog = isOwner
+    ? true
+    : permissionsEngine.can(
+        {
+          stateId,
+          userId: cli.userId,
+          isOwner,
+          snapshot,
+        },
+        "system.admin",
+      );
 
   // Build a parentId index so `walkAncestors` is O(depth) per node.
   const parentOf = new Map<string, string | null>();
@@ -118,6 +170,7 @@ export async function loadActivityContext(
     stateId,
     service: getActivityFeed(),
     viewer,
+    canSeeFullAuditLog,
   };
 }
 

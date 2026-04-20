@@ -29,6 +29,7 @@ import {
 } from "./exchange";
 import { createPrismaExchangeRepository } from "./exchange-prisma";
 import { stateConfigPermissionDescriptors } from "./state-config";
+import { membershipAdminPermissionDescriptors } from "./membership-admin-permissions";
 
 interface RegistryEntry {
   module: KrwnModule;
@@ -150,6 +151,9 @@ export function registerCorePermissions(): void {
   // Сами настройки живут в `src/core/state-config.ts`, но ключи
   // нужны Vertical editor-у наравне с остальными core-правами.
   for (const perm of stateConfigPermissionDescriptors) {
+    registry.registerCorePermission(perm);
+  }
+  for (const perm of membershipAdminPermissionDescriptors) {
     registry.registerCorePermission(perm);
   }
 }

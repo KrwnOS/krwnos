@@ -59,6 +59,7 @@ class MemRepo implements ActivityRepository {
       category: string | null;
       event?: string | null;
       actorId?: string | null;
+      minCreatedAt?: Date | null;
     },
   ): Promise<ActivityLog[]> {
     let rows = this.rows.filter((r) => r.stateId === stateId);
@@ -67,6 +68,10 @@ class MemRepo implements ActivityRepository {
     if (opts.actorId) rows = rows.filter((r) => r.actorId === opts.actorId);
     if (opts.before)
       rows = rows.filter((r) => r.createdAt.getTime() < opts.before!.getTime());
+    if (opts.minCreatedAt)
+      rows = rows.filter(
+        (r) => r.createdAt.getTime() >= opts.minCreatedAt!.getTime(),
+      );
     // newest-first, like a real index-backed query.
     rows = rows.slice().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return rows.slice(0, opts.limit);
@@ -286,6 +291,53 @@ describe("ActivityFeedService.listForViewer", () => {
     expect(onlyA.map((r) => r.event)).toEqual(["a"]);
     const before = await svc.listForViewer(viewer(), { before: new Date(0) });
     expect(before).toHaveLength(0);
+  });
+
+  it("auditFullAccess bypasses visibility for non-owner viewers", async () => {
+    const repo = new MemRepo();
+    const svc = new ActivityFeedService({ repo });
+    await svc.record({
+      stateId: "state_alpha",
+      event: "secret",
+      category: "state",
+      titleKey: "k",
+      visibility: "sovereign",
+      actorId: "u_other",
+    });
+    expect(await svc.listForViewer(viewer({ userId: "u_alice" }))).toHaveLength(
+      0,
+    );
+    const rows = await svc.listForViewer(
+      viewer({ userId: "u_alice", auditFullAccess: true }),
+      { limit: 10 },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.event).toBe("secret");
+  });
+
+  it("minCreatedAt excludes older rows at the repository layer", async () => {
+    const repo = new MemRepo();
+    const svc = new ActivityFeedService({ repo });
+    await svc.record({
+      stateId: "state_alpha",
+      event: "old",
+      category: "state",
+      titleKey: "k",
+    });
+    await svc.record({
+      stateId: "state_alpha",
+      event: "new",
+      category: "state",
+      titleKey: "k",
+    });
+    repo.rows[0]!.createdAt = new Date("2020-01-01T00:00:00.000Z");
+    repo.rows[1]!.createdAt = new Date("2025-01-01T00:00:00.000Z");
+    const floor = new Date("2024-06-01T00:00:00.000Z");
+    const rows = await svc.listForViewer(viewer({ isOwner: true }), {
+      limit: 10,
+      minCreatedAt: floor,
+    });
+    expect(rows.map((r) => r.event)).toEqual(["new"]);
   });
 
   it("isVisibleTo is exposed for SSE reuse", async () => {

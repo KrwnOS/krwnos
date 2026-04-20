@@ -175,6 +175,10 @@ export const KernelEvents = {
   NodeDeleted: "kernel.node.deleted",
   MembershipGranted: "kernel.membership.granted",
   MembershipRevoked: "kernel.membership.revoked",
+  MembershipMoved: "kernel.membership.moved",
+  UserBannedInState: "kernel.user.banned_in_state",
+  UserUnbannedInState: "kernel.user.unbanned_in_state",
+  UsersMergedInState: "kernel.users.merged_in_state",
   ModuleInstalled: "kernel.module.installed",
   ModuleUninstalled: "kernel.module.uninstalled",
 } as const;

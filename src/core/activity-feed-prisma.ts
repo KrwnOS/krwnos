@@ -44,12 +44,18 @@ export function createPrismaActivityRepository(
         category: string | null;
         event?: string | null;
         actorId?: string | null;
+        minCreatedAt?: Date | null;
       },
     ): Promise<ActivityLog[]> {
+      const createdAtFilter: { lt?: Date; gte?: Date } = {};
+      if (opts.before) createdAtFilter.lt = opts.before;
+      if (opts.minCreatedAt) createdAtFilter.gte = opts.minCreatedAt;
       const rows = await prisma.activityLog.findMany({
         where: {
           stateId,
-          ...(opts.before ? { createdAt: { lt: opts.before } } : {}),
+          ...(Object.keys(createdAtFilter).length > 0
+            ? { createdAt: createdAtFilter }
+            : {}),
           ...(opts.category ? { category: opts.category } : {}),
           ...(opts.event ? { event: opts.event } : {}),
           ...(opts.actorId ? { actorId: opts.actorId } : {}),

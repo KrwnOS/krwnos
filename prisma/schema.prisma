@@ -66,6 +66,9 @@ model User {
   // Activity rows where this user was the actor (initiator).
   activityEmitted ActivityLog[] @relation("ActivityActor")
 
+  // Per-state ban (блокировка повторного входа / доступа к State).
+  stateUserBans StateUserBan[]
+
   @@index([handle])
 }
 
@@ -193,6 +196,9 @@ model State {
 
   // --- State Pulse (Пульс Государства / Activity Feed) ---
   activityLog ActivityLog[]
+
+  // --- Citizen moderation (Sovereign / delegated admins) ---
+  userBans StateUserBan[]
 
   // --- Role tax (ежемесячный налог на статус) ---
   roleTaxPeriodCharges RoleTaxPeriodCharge[]
@@ -400,6 +406,24 @@ model Membership {
   @@index([nodeId])
   @@index([userId])
   @@index([status])
+}
+
+/// Блокировка пользователя в рамках одного State: удаляет право на
+/// членство и повторную регистрацию, пока запись активна (`revokedAt IS NULL`).
+model StateUserBan {
+  id        String @id @default(cuid())
+  stateId   String
+  state     State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String?
+  createdAt DateTime @default(now())
+  createdById String?
+  revokedAt DateTime?
+
+  @@unique([stateId, userId])
+  @@index([userId])
+  @@index([stateId])
 }
 
 // ---------------- Modules (плагины) ----------------

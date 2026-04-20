@@ -22,7 +22,7 @@
  * гражданство — это намеренное ограничение анти-спам-фильтра.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
@@ -33,6 +33,7 @@ import {
 } from "@/core/invitations";
 import { getAuth, UnauthorizedError } from "@/core";
 import { ledgerDecimal, moneyToNumber } from "@/modules/wallet/money";
+import { isUserBannedFromState } from "@/server/state-ban";
 
 class InsufficientCitizenshipFeeError extends Error {
   constructor(
@@ -92,6 +93,10 @@ const repo: InvitationsRepository = {
     });
     if (!node) {
       throw new Error(`Invitation target node ${nodeId} not found`);
+    }
+
+    if (await isUserBannedFromState(node.stateId, userId)) {
+      throw new Error("banned_from_state");
     }
 
     await prisma.$transaction(async (tx) => {
@@ -287,6 +292,21 @@ export async function POST(
 
   try {
     const user = await getAuth().requireUser();
+
+    const tokenHash = createHash("sha256").update(params.token).digest("hex");
+    const invPreview = await prisma.invitation.findUnique({
+      where: { tokenHash },
+      select: { stateId: true },
+    });
+    if (
+      invPreview?.stateId &&
+      (await isUserBannedFromState(invPreview.stateId, user.id))
+    ) {
+      return NextResponse.json(
+        { error: "banned_from_state", code: "banned" },
+        { status: 403 },
+      );
+    }
 
     const result = await service.consume({ token: params.token, user });
 

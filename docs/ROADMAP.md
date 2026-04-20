@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-19 — Realtime (WS gateway, Redis bus, presence)
+**Обновлено:** 2026-04-20 — /admin/audit retention + CSV hardening
 **Актуальный горизонт:** Horizon 0 — Стабилизация фундамента
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -149,7 +149,6 @@
       дерева (смена parent и order соседей), одно атомарное сохранение
       `PUT /api/admin/vertical/tree`, подсветка конфликтов до сохранения,
       доступ через `permissionsEngine.can(system.admin)`.
-- [ ] `/admin/audit` — фильтры, экспорт CSV, ретенция.
 - [ ] Единый экран «Граждане»: kick, ban, перевод между узлами,
       `pending → active`, смена `title`, merge дубликатов.
 
@@ -354,6 +353,9 @@
       через `OTEL_EXPORTER_OTLP_*` и опционально `OTEL_EXPORTER_OTLP_HEADERS`;
       `experimental.instrumentationHook` в `next.config.mjs`; переменные в
       `docs/DEPLOYMENT.md`. (#PR)
+
+### 2026-04 — Horizon 1 · UX админки (Audit)
+- [x] 2026-04-20 (#—) `/admin/audit` — фильтры, экспорт CSV/JSON по текущим фильтрам (до 10k строк, UTF-8 BOM), семантика колонок в UI; `GET /api/activity?audit=1` для полного журнала (Суверен / `system.admin`) с сохранением ретенции; `KRWN_ACTIVITY_LOG_RETENTION_DAYS` + BullMQ `activity-log-reaper`; `viewer.canAuditLog` в `GET /api/state/pulse` (`docs/DATABASE.md`).
 
 ### 2026-04 — Horizon 1 · UX админки (Vertical Editor)
 - [x] 2026-04-19 (#—) `/admin/vertical-editor`: React Flow — перетаскивание узлов,

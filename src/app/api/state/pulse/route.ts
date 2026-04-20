@@ -23,7 +23,9 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { permissionsEngine } from "@/core";
 import { prisma } from "@/lib/prisma";
+import type { PermissionKey, VerticalNode, VerticalSnapshot } from "@/types/kernel";
 import {
   authenticateCli,
   CliAuthError,
@@ -36,6 +38,7 @@ import {
 import { moneyToNumber } from "@/modules/wallet/money";
 import { eventBus } from "@/core";
 import * as presence from "@/server/presence";
+import { isUserBannedFromState } from "@/server/state-ban";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +96,8 @@ interface PulseContextDto {
     displayName: string | null;
     isOwner: boolean;
     isLobbyOnly: boolean;
+    /** Sovereign or effective `system.admin` — may open `/admin/audit`. */
+    canAuditLog: boolean;
   };
   state: {
     id: string;
@@ -125,6 +130,13 @@ export async function GET(req: NextRequest) {
     }
     const stateId = cli.stateId;
 
+    if (await isUserBannedFromState(stateId, cli.userId)) {
+      return NextResponse.json(
+        { error: "banned_from_state", code: "banned" },
+        { status: 403 },
+      );
+    }
+
     // Всё одним параллельным залпом — Pulse дёргается часто, хочется
     // один round-trip на Postgres, не десять.
     const [state, me, nodes, memberships] = await Promise.all([
@@ -141,10 +153,14 @@ export async function GET(req: NextRequest) {
         orderBy: [{ parentId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
         select: {
           id: true,
+          stateId: true,
           parentId: true,
           title: true,
           type: true,
+          permissions: true,
           order: true,
+          createdAt: true,
+          updatedAt: true,
           isLobby: true,
         },
       }),
@@ -174,6 +190,37 @@ export async function GET(req: NextRequest) {
     }
 
     const isOwner = state.ownerId === me.id;
+
+    const snapshot: VerticalSnapshot = {
+      stateId,
+      nodes: new Map<string, VerticalNode>(
+        nodes.map((n) => [
+          n.id,
+          { ...n, permissions: n.permissions as PermissionKey[] },
+        ]),
+      ),
+      membershipsByUser: new Map(),
+    };
+    for (const m of memberships) {
+      let set = snapshot.membershipsByUser.get(m.userId);
+      if (!set) {
+        set = new Set();
+        snapshot.membershipsByUser.set(m.userId, set);
+      }
+      set.add(m.nodeId);
+    }
+
+    const canAuditLog =
+      isOwner ||
+      permissionsEngine.can(
+        {
+          stateId,
+          userId: me.id,
+          isOwner,
+          snapshot,
+        },
+        "system.admin",
+      );
 
     // --- Presence snapshot for everyone we're about to return ---
     // `touch` самого себя — pulse-endpoint пулится клиентом каждые
@@ -298,6 +345,7 @@ export async function GET(req: NextRequest) {
         displayName: me.displayName,
         isOwner,
         isLobbyOnly,
+        canAuditLog,
       },
       state: {
         id: state.id,

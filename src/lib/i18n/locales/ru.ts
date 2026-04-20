@@ -412,6 +412,44 @@ export const ru: Dict = {
   "constitution.token.title": "Вход в Палату Указов",
   "constitution.token.desc":
     "Редактирование конституции требует CLI-токен Суверена (или держателя права {perm}). Получите его через {cmd}.",
+
+  "citizens.admin.eyebrow": "Граждане",
+  "citizens.admin.title": "Граждане",
+  "citizens.admin.subtitle":
+    "Поиск по членствам, приём из прихожей, перевод между узлами, исключение, бан, слияние дубликатов. Права проверяются на сервере через Permissions Engine.",
+  "citizens.admin.token.title": "Вход в зал Граждан",
+  "citizens.admin.token.desc":
+    "Нужен CLI-токен, привязанный к государству, с правами members.* / invitations.create / system.admin (или статус Суверена). Выпуск: {cmd}.",
+  "citizens.admin.filter.node": "Узел",
+  "citizens.admin.filter.nodeAll": "Все узлы",
+  "citizens.admin.filter.status": "Статус",
+  "citizens.admin.filter.statusAll": "Все",
+  "citizens.admin.filter.statusActive": "Активные",
+  "citizens.admin.filter.statusPending": "Ожидание",
+  "citizens.admin.search": "Поиск по @handle / имени",
+  "citizens.admin.col.user": "Гражданин",
+  "citizens.admin.col.node": "Узел",
+  "citizens.admin.col.title": "Титул",
+  "citizens.admin.col.status": "Статус",
+  "citizens.admin.col.banned": "Бан",
+  "citizens.admin.empty": "Нет записей по фильтрам.",
+  "citizens.admin.action.kick": "Исключить",
+  "citizens.admin.action.ban": "Заблокировать",
+  "citizens.admin.action.unban": "Снять бан",
+  "citizens.admin.action.move": "Перевести…",
+  "citizens.admin.action.admit": "Принять",
+  "citizens.admin.action.title": "Титул…",
+  "citizens.admin.merge.title": "Слияние дубликатов (Суверен)",
+  "citizens.admin.merge.hint":
+    "Идемпотентно: если исходного пользователя уже нет — сервер вернёт успех. Объединяет членства и кошельки; исходная учётная запись удаляется.",
+  "citizens.admin.merge.source": "Исходный user id (дубликат)",
+  "citizens.admin.merge.target": "Целевой user id (оставить)",
+  "citizens.admin.merge.run": "Слить",
+  "citizens.admin.prompt.moveTo": "Id целевого узла",
+  "citizens.admin.prompt.title": "Новый титул (пусто = сбросить)",
+  "citizens.admin.prompt.banReason": "Причина бана (необязательно)",
+  "citizens.admin.err": "Ошибка запроса",
+
   "constitution.dirty": "Есть несохранённые изменения",
   "constitution.clean": "Все поля синхронизированы с БД",
   "constitution.sign": "Подписать указ",
@@ -894,6 +932,12 @@ export const ru: Dict = {
     "Государство основано",
   "pulse.event.kernel.membership_granted":
     "Новое членство в узле Вертикали",
+  "pulse.event.kernel.membership_revoked":
+    "Членство в узле Вертикали снято",
+  "pulse.event.kernel.membership_moved": "Гражданин переведён между узлами",
+  "pulse.event.kernel.user_banned": "Гражданин заблокирован в государстве",
+  "pulse.event.kernel.user_unbanned": "Блокировка снята — можно вернуться",
+  "pulse.event.kernel.users_merged": "Дубликаты учётных записей объединены Сувереном",
 
   // --- Broadcast (Суверенский указ) ---
   "pulse.broadcast.trigger": "Огласить указ",
@@ -938,7 +982,7 @@ export const ru: Dict = {
   "audit.backToPulse": "Назад в Пульс",
   "audit.forbidden.title": "Доступ ограничен",
   "audit.forbidden.body":
-    "Журнал аудита доступен только Суверену. Если вам нужен доступ — получите мандат system.admin.",
+    "Журнал аудита доступен только Суверену и держателям system.admin.",
   "audit.forbidden.back": "На главную",
   "audit.filter.category": "Категория",
   "audit.filter.event": "Событие",
@@ -954,8 +998,40 @@ export const ru: Dict = {
   "audit.col.title": "Описание",
   "audit.col.visibility": "Видимость",
   "audit.actor.system": "система",
+  "audit.retention.unlimited":
+    "Ретенция событий: без ограничения (KRWN_ACTIVITY_LOG_RETENTION_DAYS=0). Фоновая задача не удаляет старые строки.",
+  "audit.retention.policy":
+    "Ретенция: на сервере хранятся события не старше {days} суток (переменная KRWN_ACTIVITY_LOG_RETENTION_DAYS, по умолчанию 365). Более старые строки удаляет задача activity-log-reaper.",
+  "audit.export.legendTitle": "Семантика колонок CSV",
+  "audit.export.col.id": "id — стабильный идентификатор строки (cuid).",
+  "audit.export.col.createdAt":
+    "createdAt — метка времени UTC в ISO-8601, когда событие записано.",
+  "audit.export.col.category":
+    "category — группа для UI (wallet, chat, governance, …).",
+  "audit.export.col.event":
+    "event — каноническое имя на шине (напр. core.wallet.transaction.created).",
+  "audit.export.col.actorId":
+    "actorId — id пользователя-инициатора; пусто для системных задач.",
+  "audit.export.col.actorHandle":
+    "actorHandle — handle из снимка членства Пульса на момент экспорта (может быть пустым).",
+  "audit.export.col.nodeId":
+    "nodeId — узел Вертикали, к которому привязано событие, если есть.",
+  "audit.export.col.visibility":
+    "visibility — public | node | audience | sovereign (кто видел бы событие в Пульсе без режима аудита).",
+  "audit.export.col.titleKey":
+    "titleKey — ключ i18n для заголовка (в БД не локализуется).",
+  "audit.export.col.titleRendered":
+    "titleRendered — заголовок на текущей локали UI в момент экспорта.",
+  "audit.export.col.titleParamsJson":
+    "titleParamsJson — JSON параметров для интерполяции titleKey.",
+  "audit.export.col.metadataJson":
+    "metadataJson — JSON контекста (модульные поля, id, суммы).",
+  "audit.export.col.audienceUserIds":
+    "audienceUserIds — список user id через «|» для visibility=audience.",
+  "audit.export.cap":
+    "В выгрузку попадают все строки по текущим фильтрам, не более {max}.",
   "audit.footnote":
-    "Записи не удаляются автоматически. Для экспорта используйте JSON / CSV выше.",
+    "Экспорт JSON/CSV использует те же фильтры, что и таблица, и серверное окно ретенции.",
 
   // --- Broadcast as an Activity entry title ---
   "pulse.event.broadcast.sovereign": "Указ Суверена: {title}",

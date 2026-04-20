@@ -8,6 +8,7 @@
  *   - auto-promotion
  *   - role-tax-monthly
  *   - backup-daily
+ *   - activity-log-reaper
  */
 import { Queue, Worker } from "bullmq";
 import type { Job } from "bullmq";
@@ -20,6 +21,7 @@ import {
   runInvitationReaper,
   runProposalExpirer,
   runRoleTaxMonthlyJob,
+  runActivityLogReaper,
   runTreasuryWatchTick,
 } from "./tasks";
 
@@ -30,6 +32,7 @@ export const JOB_NAMES = {
   autoPromotion: "auto-promotion",
   roleTaxMonthly: "role-tax-monthly",
   backupDaily: "backup-daily",
+  activityLogReaper: "activity-log-reaper",
 } as const;
 
 export interface KrwnJobPayload {
@@ -115,6 +118,18 @@ export async function registerJobSchedulers(queue: Queue): Promise<void> {
       data: {} satisfies KrwnJobPayload,
     },
   );
+  const activityReaperCron =
+    process.env.KRWN_JOB_ACTIVITY_REAPER_CRON?.trim() || "30 4 * * *";
+  const activityReaperTz =
+    process.env.KRWN_JOB_ACTIVITY_REAPER_TZ?.trim() || "UTC";
+  await queue.upsertJobScheduler(
+    "krwn-sched:activity-log-reaper",
+    { pattern: activityReaperCron, tz: activityReaperTz },
+    {
+      name: JOB_NAMES.activityLogReaper,
+      data: {} satisfies KrwnJobPayload,
+    },
+  );
 }
 
 async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
@@ -134,6 +149,8 @@ async function processJob(job: Job<KrwnJobPayload>): Promise<unknown> {
       });
     case JOB_NAMES.backupDaily:
       return runDailyBackup(prisma);
+    case JOB_NAMES.activityLogReaper:
+      return runActivityLogReaper();
     default:
       throw new Error(`Unknown job name: ${job.name}`);
   }

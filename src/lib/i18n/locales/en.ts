@@ -376,6 +376,44 @@ export const en: Dict = {
   "constitution.token.title": "Enter the Decree hall",
   "constitution.token.desc":
     "Editing the constitution requires a Sovereign's CLI token (or a holder of {perm}). Mint one with {cmd}.",
+
+  "citizens.admin.eyebrow": "Citizens",
+  "citizens.admin.title": "Citizens",
+  "citizens.admin.subtitle":
+    "Search memberships, admit from the lobby, move roles, kick, ban, merge duplicates. Actions are enforced on the server via the Permissions Engine.",
+  "citizens.admin.token.title": "Enter the Citizens hall",
+  "citizens.admin.token.desc":
+    "Requires a state-scoped CLI token with members.* / invitations.create / system.admin (or be the Sovereign). Mint with {cmd}.",
+  "citizens.admin.filter.node": "Node",
+  "citizens.admin.filter.nodeAll": "All nodes",
+  "citizens.admin.filter.status": "Status",
+  "citizens.admin.filter.statusAll": "All",
+  "citizens.admin.filter.statusActive": "Active",
+  "citizens.admin.filter.statusPending": "Pending",
+  "citizens.admin.search": "Search handle / name",
+  "citizens.admin.col.user": "Citizen",
+  "citizens.admin.col.node": "Node",
+  "citizens.admin.col.title": "Title",
+  "citizens.admin.col.status": "Status",
+  "citizens.admin.col.banned": "Banned",
+  "citizens.admin.empty": "No memberships match the filters.",
+  "citizens.admin.action.kick": "Kick",
+  "citizens.admin.action.ban": "Ban",
+  "citizens.admin.action.unban": "Unban",
+  "citizens.admin.action.move": "Move…",
+  "citizens.admin.action.admit": "Admit",
+  "citizens.admin.action.title": "Set title…",
+  "citizens.admin.merge.title": "Merge duplicates (Sovereign)",
+  "citizens.admin.merge.hint":
+    "Idempotent: if the source account no longer exists, the server returns success. Merges memberships and wallets; deletes the source user.",
+  "citizens.admin.merge.source": "Source user id (duplicate)",
+  "citizens.admin.merge.target": "Target user id (keep)",
+  "citizens.admin.merge.run": "Merge",
+  "citizens.admin.prompt.moveTo": "Target node id",
+  "citizens.admin.prompt.title": "New title (empty = clear)",
+  "citizens.admin.prompt.banReason": "Ban reason (optional)",
+  "citizens.admin.err": "Request failed",
+
   "constitution.dirty": "Unsaved changes",
   "constitution.clean": "All fields are in sync with the DB",
   "constitution.sign": "Sign the decree",
@@ -848,6 +886,12 @@ export const en: Dict = {
     "State was founded",
   "pulse.event.kernel.membership_granted":
     "New membership in the Vertical",
+  "pulse.event.kernel.membership_revoked":
+    "Membership removed from the Vertical",
+  "pulse.event.kernel.membership_moved": "Member moved between nodes",
+  "pulse.event.kernel.user_banned": "Citizen banned from the state",
+  "pulse.event.kernel.user_unbanned": "Ban lifted — citizen may return",
+  "pulse.event.kernel.users_merged": "Duplicate accounts merged by the Sovereign",
 
   // --- Broadcast (sovereign decree) ---
   "pulse.broadcast.trigger": "Broadcast",
@@ -892,7 +936,7 @@ export const en: Dict = {
   "audit.backToPulse": "Back to Pulse",
   "audit.forbidden.title": "Access denied",
   "audit.forbidden.body":
-    "The audit log is restricted to the Sovereign. If you need access, request a system.admin mandate.",
+    "The audit log is only available to the Sovereign and holders of system.admin.",
   "audit.forbidden.back": "Home",
   "audit.filter.category": "Category",
   "audit.filter.event": "Event",
@@ -908,8 +952,39 @@ export const en: Dict = {
   "audit.col.title": "Description",
   "audit.col.visibility": "Visibility",
   "audit.actor.system": "system",
+  "audit.retention.unlimited":
+    "Activity retention: unlimited (KRWN_ACTIVITY_LOG_RETENTION_DAYS=0). Old rows are not purged by the reaper.",
+  "audit.retention.policy":
+    "Activity retention: only entries from the last {days} days are kept (server env KRWN_ACTIVITY_LOG_RETENTION_DAYS, default 365). Older rows are removed by the scheduled activity-log-reaper job.",
+  "audit.export.legendTitle": "CSV column semantics",
+  "audit.export.col.id": "id — stable row id (cuid).",
+  "audit.export.col.createdAt":
+    "createdAt — ISO-8601 UTC timestamp when the event was recorded.",
+  "audit.export.col.category":
+    "category — UI bucket (wallet, chat, governance, …).",
+  "audit.export.col.event":
+    "event — canonical bus name (e.g. core.wallet.transaction.created).",
+  "audit.export.col.actorId": "actorId — initiating user id, or empty for system jobs.",
+  "audit.export.col.actorHandle":
+    "actorHandle — handle from Pulse membership snapshot at export time (best-effort; empty if unknown).",
+  "audit.export.col.nodeId":
+    "nodeId — Vertical node the event is scoped to, if any.",
+  "audit.export.col.visibility":
+    "visibility — public | node | audience | sovereign (who could see this in Pulse before audit bypass).",
+  "audit.export.col.titleKey":
+    "titleKey — i18n key for the human title (not translated in DB).",
+  "audit.export.col.titleRendered":
+    "titleRendered — title in the current UI locale at export time.",
+  "audit.export.col.titleParamsJson":
+    "titleParamsJson — JSON map interpolated into titleKey.",
+  "audit.export.col.metadataJson":
+    "metadataJson — JSON payload (module-specific context, ids, amounts).",
+  "audit.export.col.audienceUserIds":
+    "audienceUserIds — pipe-separated user ids for visibility=audience.",
+  "audit.export.cap":
+    "Exports include all rows matching the current filters up to {max} rows.",
   "audit.footnote":
-    "Entries are not deleted automatically. Use JSON / CSV export above.",
+    "JSON/CSV exports respect the same filters as the table and the server retention window.",
 
   // --- Broadcast as an Activity entry title ---
   "pulse.event.broadcast.sovereign": "Sovereign decree: {title}",

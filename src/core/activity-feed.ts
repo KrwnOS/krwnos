@@ -100,6 +100,12 @@ export interface ActivityViewerContext {
    * для фильтрации `visibility = 'node'`.
    */
   scopeNodeIds: ReadonlySet<string>;
+  /**
+   * When true (Sovereign or `system.admin` with `audit=1` on
+   * `GET /api/activity`), visibility rules are bypassed — full
+   * `ActivityLog` tail for the State.
+   */
+  auditFullAccess?: boolean;
 }
 
 export interface ListActivityOptions {
@@ -114,6 +120,11 @@ export interface ListActivityOptions {
   event?: string | null;
   /** Фильтр по инициатору — тоже для Audit Log. */
   actorId?: string | null;
+  /**
+   * Inclusive lower bound on `createdAt` (retention). When set, older
+   * rows are excluded at the repository layer.
+   */
+  minCreatedAt?: Date | null;
 }
 
 // ------------------------------------------------------------
@@ -138,6 +149,7 @@ export interface ActivityRepository {
       category: ActivityCategory | null;
       event?: string | null;
       actorId?: string | null;
+      minCreatedAt?: Date | null;
     },
   ): Promise<ActivityLog[]>;
 }
@@ -213,6 +225,8 @@ export class ActivityFeedService {
     const category = opts.category ?? null;
     const event = opts.event ?? null;
     const actorId = opts.actorId ?? null;
+    const minCreatedAt = opts.minCreatedAt ?? null;
+    const auditFull = viewer.auditFullAccess === true;
 
     // Overfetch — ранее отфильтрованные строки уменьшают видимую
     // пачку. Хватит 3× лимита для практических нагрузок.
@@ -223,9 +237,12 @@ export class ActivityFeedService {
       category,
       event,
       actorId,
+      minCreatedAt,
     });
 
-    const visible = rows.filter((row) => isVisibleTo(row, viewer));
+    const visible = auditFull
+      ? rows
+      : rows.filter((row) => isVisibleTo(row, viewer));
     return visible.slice(0, limit);
   }
 
@@ -626,6 +643,110 @@ export function subscribeActivityFeed(
         });
       },
     ),
+  );
+  offs.push(
+    bus.on<{
+      stateId: string;
+      userId: string;
+      nodeId: string;
+      actorId?: string | null;
+    }>(KernelEvents.MembershipRevoked, (evt) => {
+      if (!evt) return;
+      void service.record({
+        stateId: evt.stateId,
+        event: KernelEvents.MembershipRevoked,
+        category: "kernel",
+        titleKey: "pulse.event.kernel.membership_revoked",
+        titleParams: {},
+        actorId: evt.actorId ?? null,
+        nodeId: evt.nodeId,
+        audienceUserIds: [evt.userId],
+        visibility: "node",
+      });
+    }),
+  );
+  offs.push(
+    bus.on<{
+      stateId: string;
+      userId: string;
+      fromNodeId: string;
+      toNodeId: string;
+      actorId?: string | null;
+    }>(KernelEvents.MembershipMoved, (evt) => {
+      if (!evt) return;
+      void service.record({
+        stateId: evt.stateId,
+        event: KernelEvents.MembershipMoved,
+        category: "kernel",
+        titleKey: "pulse.event.kernel.membership_moved",
+        titleParams: {},
+        actorId: evt.actorId ?? null,
+        nodeId: evt.toNodeId,
+        audienceUserIds: [evt.userId],
+        visibility: "public",
+      });
+    }),
+  );
+  offs.push(
+    bus.on<{
+      stateId: string;
+      userId: string;
+      actorId?: string | null;
+      reason?: string | null;
+    }>(KernelEvents.UserBannedInState, (evt) => {
+      if (!evt) return;
+      void service.record({
+        stateId: evt.stateId,
+        event: KernelEvents.UserBannedInState,
+        category: "kernel",
+        titleKey: "pulse.event.kernel.user_banned",
+        titleParams: { reason: evt.reason ?? "" },
+        actorId: evt.actorId ?? null,
+        audienceUserIds: [evt.userId],
+        visibility: "public",
+      });
+    }),
+  );
+  offs.push(
+    bus.on<{ stateId: string; userId: string; actorId?: string | null }>(
+      KernelEvents.UserUnbannedInState,
+      (evt) => {
+        if (!evt) return;
+        void service.record({
+          stateId: evt.stateId,
+          event: KernelEvents.UserUnbannedInState,
+          category: "kernel",
+          titleKey: "pulse.event.kernel.user_unbanned",
+          titleParams: {},
+          actorId: evt.actorId ?? null,
+          audienceUserIds: [evt.userId],
+          visibility: "public",
+        });
+      },
+    ),
+  );
+  offs.push(
+    bus.on<{
+      stateId: string;
+      sourceUserId: string;
+      targetUserId: string;
+      actorId?: string | null;
+    }>(KernelEvents.UsersMergedInState, (evt) => {
+      if (!evt) return;
+      void service.record({
+        stateId: evt.stateId,
+        event: KernelEvents.UsersMergedInState,
+        category: "kernel",
+        titleKey: "pulse.event.kernel.users_merged",
+        titleParams: {},
+        actorId: evt.actorId ?? null,
+        visibility: "sovereign",
+        metadata: {
+          sourceUserId: evt.sourceUserId,
+          targetUserId: evt.targetUserId,
+        },
+      });
+    }),
   );
 
   return () => {

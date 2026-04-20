@@ -24,6 +24,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { getActivityLogRetentionCutoff } from "@/lib/activity-retention";
 import { prisma } from "@/lib/prisma";
 import { ledgerDecimal } from "@/modules/wallet/money";
 import type { PermissionKey } from "@/types/kernel";
@@ -319,7 +320,10 @@ async function loadRecentActivity(
         isOwner: caller.isOwner,
         scopeNodeIds: new Set<string>(),
       },
-      { limit: ACTIVITY_RECENT_LIMIT },
+      {
+        limit: ACTIVITY_RECENT_LIMIT,
+        minCreatedAt: getActivityLogRetentionCutoff(),
+      },
     );
     return rows.map((row) => ({
       id: row.id,

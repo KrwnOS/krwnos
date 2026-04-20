@@ -8,6 +8,7 @@
  *   - auto-promotion        — `StateSettings` thresholds → `Membership.nodeId`
  *   - role-tax-monthly      — `StateSettings.roleTaxRate` → root treasury (cron)
  *   - backup-daily          — `BackupService` snapshot → S3/R2 + manifest retention
+ *   - activity-log-reaper   — prune `ActivityLog` older than `KRWN_ACTIVITY_LOG_RETENTION_DAYS`
  *
  * Usage:
  *   npm run worker:jobs
@@ -23,6 +24,9 @@
  *   KRWN_JOB_ROLE_TAX_TZ          IANA tz for cron (default UTC)
  *   KRWN_JOB_BACKUP_CRON          daily backup (default `0 3 * * *`)
  *   KRWN_JOB_BACKUP_TZ            IANA tz for backup cron (default UTC)
+ *   KRWN_JOB_ACTIVITY_REAPER_CRON activity log retention (default `30 4 * * *`)
+ *   KRWN_JOB_ACTIVITY_REAPER_TZ   IANA tz (default UTC)
+ *   KRWN_ACTIVITY_LOG_RETENTION_DAYS  days to keep Pulse rows (default 365; 0 = off)
  *   KRWN_BACKUP_S3_*              bucket, keys, endpoint — see `.env.example`
  *
  * The process handles SIGINT / SIGTERM and closes the worker cleanly.

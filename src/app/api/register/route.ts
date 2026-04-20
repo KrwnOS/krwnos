@@ -33,6 +33,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimitedResponse } from "@/lib/rate-limit";
 import { rejectIfCrossSiteMutation } from "@/lib/same-origin-mutation";
+import { isUserBannedFromState } from "@/server/state-ban";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,20 @@ export async function POST(req: NextRequest) {
       where: { handle },
       select: { id: true },
     });
+
+    if (
+      existingByHandle &&
+      (await isUserBannedFromState(state.id, existingByHandle.id))
+    ) {
+      return NextResponse.json(
+        {
+          error: "banned_from_state",
+          code: "banned",
+          message: "This account is banned from this state.",
+        },
+        { status: 403 },
+      );
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const user =
