@@ -36,12 +36,34 @@ export function createMemoryEventBus(): ModuleEventBus {
   };
 }
 
+export function createMemorySecretStore(initialSecrets: Record<string, string> = {}): import("./module-contract.js").ModuleSecretStore {
+  const store = new Map(Object.entries(initialSecrets));
+  return {
+    async get(key) {
+      return store.get(key) ?? null;
+    },
+  };
+}
+
+export function createNoopDatabase(): import("./module-contract.js").ModuleDatabase {
+  return {
+    async transaction(fn) {
+      return fn({
+        async queryRaw() { return []; },
+        async executeRaw() { return 0; },
+      });
+    },
+  };
+}
+
 export interface TestModuleContextOptions {
   stateId?: string;
   userId?: string | null;
   permissions?: Iterable<PermissionKey>;
   bus?: ModuleEventBus;
   logger?: ModuleLogger;
+  secrets?: Record<string, string>;
+  db?: import("./module-contract.js").ModuleDatabase;
 }
 
 export function createTestModuleContext(options: TestModuleContextOptions = {}): ModuleContext {
@@ -54,6 +76,8 @@ export function createTestModuleContext(options: TestModuleContextOptions = {}):
     permissions: new Set(perms),
     bus: options.bus ?? createMemoryEventBus(),
     logger: options.logger ?? createNoopModuleLogger(),
+    secrets: createMemorySecretStore(options.secrets),
+    db: options.db ?? createNoopDatabase(),
   };
 }
 

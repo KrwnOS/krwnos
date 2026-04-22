@@ -1,8 +1,11 @@
 export type {
   KrwnModule,
   ModuleContext,
+  ModuleDatabase,
+  ModuleDatabaseTransaction,
   ModuleEventBus,
   ModuleLogger,
+  ModuleSecretStore,
   ModuleSettingsPanel,
   ModuleWidget,
   PermissionDescriptor,

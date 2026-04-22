@@ -25,12 +25,43 @@ export interface ModuleEventBus {
   on<T = unknown>(event: string, handler: (payload: T) => void | Promise<void>): () => void;
 }
 
+export interface ModuleSecretStore {
+  /**
+   * Securely retrieve a secret value for this module in the current State.
+   * Returns null if the secret is not set.
+   */
+  get(key: string): Promise<string | null>;
+}
+
+export interface ModuleDatabaseTransaction {
+  /**
+   * Execute a raw SQL query within the module's sandboxed schema.
+   */
+  queryRaw<T = unknown>(sql: string, ...values: unknown[]): Promise<T[]>;
+  
+  /**
+   * Execute a raw SQL command within the module's sandboxed schema.
+   * Returns the number of affected rows.
+   */
+  executeRaw(sql: string, ...values: unknown[]): Promise<number>;
+}
+
+export interface ModuleDatabase {
+  /**
+   * Execute database operations within an interactive transaction that has
+   * the PostgreSQL search_path correctly set to the module's isolated schema.
+   */
+  transaction<T>(fn: (tx: ModuleDatabaseTransaction) => Promise<T>): Promise<T>;
+}
+
 export interface ModuleContext {
   stateId: string;
   userId: string | null;
   permissions: ReadonlySet<PermissionKey>;
   bus: ModuleEventBus;
   logger: ModuleLogger;
+  secrets: ModuleSecretStore;
+  db: ModuleDatabase;
 }
 
 export interface ModuleWidget {
