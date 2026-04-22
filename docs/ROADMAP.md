@@ -227,9 +227,9 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
       prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`,
       `packages/sdk/src/harness.test.ts`).
-- [ ] Sandboxing: модуль не дергает `prisma` напрямую, только через
+- [x] 2026-04-22 (#—) Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
-- [ ] Секреты модуля — только через `ctx.secrets.get()`.
+- [x] 2026-04-22 (#—) Секреты модуля — только через `ctx.secrets.get()`.
 - [ ] Signed modules: `.krwn`-архив = tarball + detached Ed25519.
       CLI: `krwn module install ./finance.krwn` проверяет подпись.
 - [ ] Marketplace (`modules.krwnos.com`): поиск, категории, отзывы,
@@ -240,7 +240,7 @@
 - [ ] `core.reports` — финансовая отчётность для инвесторов.
 - [ ] `core.changelog` — «Указы» / публичный лог изменений
       конституции.
-- [ ] `core.tasks` — Trello-like kanban с правами по узлам.
+- [x] 2026-04-22 (#—) `core.tasks` — Trello-like kanban с правами по узлам.
 - [ ] `core.elections` — циклические выборы на узлы (отдельно от
       ad-hoc `core.governance`).
 - [ ] `core.kyc` — опциональный gate на `/invite/accept`.
