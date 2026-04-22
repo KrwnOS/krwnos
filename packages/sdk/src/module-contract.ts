@@ -25,6 +25,19 @@ export interface ModuleEventBus {
   on<T = unknown>(event: string, handler: (payload: T) => void | Promise<void>): () => void;
 }
 
+/**
+ * Identifies the caller a module invocation is running on behalf of.
+ *
+ * `null` on `ModuleContext.auth` indicates a system-initiated call
+ * (background job, lifecycle hook, kernel-emitted event). User-initiated
+ * flows populate this with at least a `userId`; more fields
+ * (e.g. `sessionId`, delegation claims) may be added later without
+ * breaking the shape.
+ */
+export interface ModuleAuth {
+  userId: string;
+}
+
 export interface ModuleSecretStore {
   /**
    * Securely retrieve a secret value for this module in the current State.
@@ -57,6 +70,12 @@ export interface ModuleDatabase {
 export interface ModuleContext {
   stateId: string;
   userId: string | null;
+  /**
+   * The caller for this invocation. `null` for system-initiated calls
+   * (jobs, hooks). New module code should prefer `auth.userId` — the
+   * top-level `userId` is kept for backwards compatibility.
+   */
+  auth: ModuleAuth | null;
   permissions: ReadonlySet<PermissionKey>;
   bus: ModuleEventBus;
   logger: ModuleLogger;

@@ -98,6 +98,7 @@ export function createSandboxedContext(options: SandboxedContextOptions): Module
   return {
     stateId: options.stateId,
     userId: options.userId,
+    auth: options.userId ? { userId: options.userId } : null,
     permissions: options.permissions,
     bus: options.bus,
     logger: options.logger,

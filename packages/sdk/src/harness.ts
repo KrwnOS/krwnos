@@ -1,5 +1,6 @@
 import type {
   KrwnModule,
+  ModuleAuth,
   ModuleContext,
   ModuleEventBus,
   ModuleLogger,
@@ -59,6 +60,7 @@ export function createNoopDatabase(): import("./module-contract.js").ModuleDatab
 export interface TestModuleContextOptions {
   stateId?: string;
   userId?: string | null;
+  auth?: ModuleAuth | null;
   permissions?: Iterable<PermissionKey>;
   bus?: ModuleEventBus;
   logger?: ModuleLogger;
@@ -69,10 +71,17 @@ export interface TestModuleContextOptions {
 export function createTestModuleContext(options: TestModuleContextOptions = {}): ModuleContext {
   const stateId = options.stateId ?? "state_test";
   const userId = options.userId !== undefined ? options.userId : "user_test";
+  const auth =
+    options.auth !== undefined
+      ? options.auth
+      : userId
+        ? { userId }
+        : null;
   const perms = options.permissions ?? (["*"] as PermissionKey[]);
   return {
     stateId,
     userId,
+    auth,
     permissions: new Set(perms),
     bus: options.bus ?? createMemoryEventBus(),
     logger: options.logger ?? createNoopModuleLogger(),

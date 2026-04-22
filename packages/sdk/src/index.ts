@@ -1,5 +1,6 @@
 export type {
   KrwnModule,
+  ModuleAuth,
   ModuleContext,
   ModuleDatabase,
   ModuleDatabaseTransaction,
