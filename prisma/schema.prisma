@@ -66,7 +66,7 @@ model User {
   // `core.exchange.manage_pairs` holder) and cross-state swaps
   // they have initiated. Separate from the per-leg `Transaction`
   // rows — those stay scoped to their respective State.
-  exchangePairsCreated ExchangePair[]         @relation("ExchangePairCreator")
+  exchangePairsCreated ExchangePair[]          @relation("ExchangePairCreator")
   crossTxsInitiated    CrossStateTransaction[] @relation("CrossTxInitiator")
 
   // --- State Pulse (Пульс Государства / Activity Feed) ---
@@ -83,11 +83,15 @@ model User {
   telegramLinkTokens TelegramLinkToken[]
 
   // Email digest (BullMQ) — opt-in; см. `docs/DEPLOYMENT.md`, `src/jobs/email-digest.ts`.
-  emailDigestDaily        Boolean             @default(false)
-  emailDigestWeekly       Boolean             @default(false)
+  emailDigestDaily        Boolean           @default(false)
+  emailDigestWeekly       Boolean           @default(false)
   // Подсекция «упоминания в чате» (@handle) в дайджесте — минимальный substring-match.
-  emailDigestChatMentions Boolean             @default(false)
+  emailDigestChatMentions Boolean           @default(false)
   emailDigestSends        EmailDigestSend[]
+
+  // --- Tasks module ---
+  tasksAssigned Task[] @relation("TaskAssignee")
+  tasksCreated  Task[] @relation("TaskCreator")
 
   @@index([handle])
 }
@@ -139,13 +143,13 @@ model AuthCredential {
 
 /// Одноразовый токен для привязки Telegram ↔ User (выдаётся после `beginEnrollment` провайдера `telegram`).
 model TelegramLinkToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
   consumedAt DateTime?
-  createdAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
 }
@@ -212,8 +216,8 @@ model State {
   chatChannels     ChatChannel[]
 
   // --- Core Governance (Парламент) ---
-  proposals        Proposal[]
-  votes            Vote[]
+  proposals Proposal[]
+  votes     Vote[]
 
   // --- Палата Указов (Sovereign's Decree) ---
   // Единый свод конституциональных параметров государства:
@@ -254,12 +258,13 @@ model State {
   payrollPeriodPayouts PayrollPeriodPayout[]
 
   // --- Подписки узлов (казна дочернего → казна родителя) + штрафы ---
-  nodeSubscriptions              NodeSubscription[]
-  nodeSubscriptionPeriodCharges  NodeSubscriptionPeriodCharge[]
-  walletFines                    WalletFine[]
+  nodeSubscriptions             NodeSubscription[]
+  nodeSubscriptionPeriodCharges NodeSubscriptionPeriodCharge[]
+  walletFines                   WalletFine[]
 
   // Web Push (PWA): подписки браузеров, привязанные к этому State.
   webPushSubscriptions WebPushSubscription[]
+  TaskBoard            TaskBoard[]
 
   @@index([ownerId])
 }
@@ -267,11 +272,11 @@ model State {
 // ---------------- Web Push (PWA notifications) ----------------
 
 model WebPushSubscription {
-  id        String @id @default(cuid())
-  userId    String
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stateId   String
-  state     State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
 
   /// Push service URL (дублируем из `subscription` для уникального индекса).
   endpoint String
@@ -342,12 +347,12 @@ model StateSettings {
   // `currencyDisplayName`— опциональная «парадная» витрина названия
   //   валюты (влияет только на UI; единицей учёта остаётся
   //   `StateAsset.symbol` первичного актива).
-  transactionTaxRate Float   @default(0)
-  incomeTaxRate      Float   @default(0)
-  roleTaxRate        Float   @default(0)
-  payrollEnabled            Boolean @default(false)
-  payrollAmountPerCitizen   Float   @default(0)
-  currencyDisplayName String?
+  transactionTaxRate      Float   @default(0)
+  incomeTaxRate           Float   @default(0)
+  roleTaxRate             Float   @default(0)
+  payrollEnabled          Boolean @default(false)
+  payrollAmountPerCitizen Float   @default(0)
+  currencyDisplayName     String?
 
   // ---- Правила входа/выхода (Entry/exit rules) ----
   //
@@ -461,20 +466,21 @@ model VerticalNode {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships    Membership[]
-  chatChannels   ChatChannel[]
+  memberships               Membership[]
+  chatChannels              ChatChannel[]
   // Optional dedicated treasury wallet (budget) for this node.
-  treasuryWallet Wallet?       @relation("TreasuryWallet")
+  treasuryWallet            Wallet?            @relation("TreasuryWallet")
   /// Подписка «вверх по вертикали» (этот узел — ребёнок).
-  subscriptionAsChild NodeSubscription? @relation("NodeSubscriptionChild")
+  subscriptionAsChild       NodeSubscription?  @relation("NodeSubscriptionChild")
   /// Подписки дочерних узлов, платящих в казну этого узла.
   subscriptionsFromChildren NodeSubscription[] @relation("NodeSubscriptionParent")
   /// Штрафы, зачисленные в казну этого узла.
-  walletFinesCredited WalletFine[] @relation("WalletFineBeneficiary")
+  walletFinesCredited       WalletFine[]       @relation("WalletFineBeneficiary")
   // Invitations whose Magic Link drops the invitee directly at this node.
-  invitations    Invitation[]  @relation("InvitationTarget")
+  invitations               Invitation[]       @relation("InvitationTarget")
   // Pulse rows scoped to this node (budget changes, directives, etc.).
-  activityLog    ActivityLog[]
+  activityLog               ActivityLog[]
+  TaskBoard                 TaskBoard[]
 
   @@index([stateId])
   @@index([parentId])
@@ -513,15 +519,15 @@ model Membership {
 /// Блокировка пользователя в рамках одного State: удаляет право на
 /// членство и повторную регистрацию, пока запись активна (`revokedAt IS NULL`).
 model StateUserBan {
-  id        String @id @default(cuid())
-  stateId   String
-  state     State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reason    String?
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  stateId     String
+  state       State     @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  createdAt   DateTime  @default(now())
   createdById String?
-  revokedAt DateTime?
+  revokedAt   DateTime?
 
   @@unique([stateId, userId])
   @@index([userId])
@@ -873,12 +879,12 @@ model StateAsset {
 
   // Exchange pairs that reference this asset as either leg.
   // Populated by the Krwn Exchange Engine — see `ExchangePair`.
-  exchangeFrom ExchangePair[] @relation("ExchangePairFrom")
-  exchangeTo   ExchangePair[] @relation("ExchangePairTo")
+  exchangeFrom ExchangePair[]          @relation("ExchangePairFrom")
+  exchangeTo   ExchangePair[]          @relation("ExchangePairTo")
   crossTxsFrom CrossStateTransaction[] @relation("CrossTxFromAsset")
   crossTxsTo   CrossStateTransaction[] @relation("CrossTxToAsset")
 
-  walletFines        WalletFine[]
+  walletFines       WalletFine[]
   nodeSubscriptions NodeSubscription[]
 
   @@unique([stateId, symbol])
@@ -955,10 +961,10 @@ model Wallet {
   lastSyncedBlock BigInt?
 
   // Ledger balance (internal minor units / pegged display units).
-  balance Decimal @default(0) @db.Decimal(38, 18)
+  balance  Decimal @default(0) @db.Decimal(38, 18)
   // Denormalised asset symbol, kept in sync with `asset.symbol` by
   // the service layer. Convenient for queries / UI without a join.
-  currency String @default("KRN")
+  currency String  @default("KRN")
 
   // Free-form slot for display name, icon, treasury limits, etc.
   metadata Json @default("{}")
@@ -1047,6 +1053,11 @@ model Transaction {
 
   createdAt DateTime @default(now())
 
+  roleTaxPeriodCharge          RoleTaxPeriodCharge?
+  payrollPeriodPayout          PayrollPeriodPayout?
+  walletFine                   WalletFine?
+  nodeSubscriptionPeriodCharge NodeSubscriptionPeriodCharge?
+
   @@index([stateId, createdAt])
   @@index([fromWalletId])
   @@index([toWalletId])
@@ -1054,11 +1065,6 @@ model Transaction {
   @@index([kind])
   @@index([assetId])
   @@index([externalTxHash])
-
-  roleTaxPeriodCharge         RoleTaxPeriodCharge?
-  payrollPeriodPayout         PayrollPeriodPayout?
-  walletFine                  WalletFine?
-  nodeSubscriptionPeriodCharge NodeSubscriptionPeriodCharge?
 }
 
 // ---------------- Node subscriptions & wallet fines ----------------
@@ -1080,15 +1086,15 @@ enum WalletFineSource {
 }
 
 model NodeSubscription {
-  id         String @id @default(cuid())
-  stateId    String
-  state      State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
-  childNodeId  String @unique
+  id           String       @id @default(cuid())
+  stateId      String
+  state        State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  childNodeId  String       @unique
   childNode    VerticalNode @relation("NodeSubscriptionChild", fields: [childNodeId], references: [id], onDelete: Cascade)
   parentNodeId String
   parentNode   VerticalNode @relation("NodeSubscriptionParent", fields: [parentNodeId], references: [id], onDelete: Cascade)
 
-  amount Decimal @db.Decimal(38, 18)
+  amount  Decimal     @db.Decimal(38, 18)
   assetId String?
   asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: Restrict)
 
@@ -1106,17 +1112,17 @@ model NodeSubscription {
 }
 
 model NodeSubscriptionPeriodCharge {
-  id                 String @id @default(cuid())
+  id                 String           @id @default(cuid())
   stateId            String
-  state              State           @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  state              State            @relation(fields: [stateId], references: [id], onDelete: Cascade)
   nodeSubscriptionId String
   nodeSubscription   NodeSubscription @relation(fields: [nodeSubscriptionId], references: [id], onDelete: Cascade)
   /// MONTHLY: `YYYY-MM` (UTC). WEEKLY: `YYYY-Www` (ISO week, UTC).
-  periodKey   String
-  amount      Decimal @db.Decimal(38, 18)
-  transactionId String? @unique
-  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  periodKey          String
+  amount             Decimal          @db.Decimal(38, 18)
+  transactionId      String?          @unique
+  transaction        Transaction?     @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
 
   @@unique([nodeSubscriptionId, periodKey])
   @@index([stateId, periodKey])
@@ -1130,7 +1136,7 @@ model WalletFine {
   debtorUserId String
   debtor       User   @relation("WalletFineDebtor", fields: [debtorUserId], references: [id], onDelete: Cascade)
 
-  amount Decimal @db.Decimal(38, 18)
+  amount  Decimal     @db.Decimal(38, 18)
   assetId String?
   asset   StateAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
@@ -1140,13 +1146,13 @@ model WalletFine {
 
   source WalletFineSource
 
-  proposalId String? @unique
+  proposalId String?   @unique
   proposal   Proposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
 
   decreeByUserId String?
   decreeBy       User?   @relation("WalletFineDecreeBy", fields: [decreeByUserId], references: [id], onDelete: SetNull)
 
-  transactionId String? @unique
+  transactionId String?      @unique
   transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   metadata Json @default("{}")
@@ -1159,14 +1165,14 @@ model WalletFine {
 
 /// Идемпотентная выплата зарплаты за период UTC `YYYY-MM` (см. `runPayrollPeriodicTick`).
 model PayrollPeriodPayout {
-  id            String @id @default(cuid())
+  id            String   @id @default(cuid())
   stateId       String
   userId        String
   /// Календарный месяц UTC в формате YYYY-MM.
   periodKey     String
   /// Валовая сумма списания с Казны (до удержания income tax в ledger).
-  amount        Decimal @db.Decimal(38, 18)
-  transactionId String? @unique
+  amount        Decimal  @db.Decimal(38, 18)
+  transactionId String?  @unique
   createdAt     DateTime @default(now())
 
   state       State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
@@ -1179,13 +1185,13 @@ model PayrollPeriodPayout {
 
 /// Идемпотентное начисление ежемесячного «налога на роль» (StateSettings.roleTaxRate).
 model RoleTaxPeriodCharge {
-  id            String @id @default(cuid())
+  id            String   @id @default(cuid())
   stateId       String
   userId        String
   /// Календарный месяц UTC в формате YYYY-MM.
   periodKey     String
-  amount        Decimal @db.Decimal(38, 18)
-  transactionId String? @unique
+  amount        Decimal  @db.Decimal(38, 18)
+  transactionId String?  @unique
   createdAt     DateTime @default(now())
 
   state       State        @relation(fields: [stateId], references: [id], onDelete: Cascade)
@@ -1293,22 +1299,22 @@ model CrossStateTransaction {
   pair   ExchangePair? @relation("CrossTxPair", fields: [pairId], references: [id], onDelete: SetNull)
 
   // --- Source leg (debit) ---
-  fromStateId  String
-  fromState    State      @relation("CrossStateFrom", fields: [fromStateId], references: [id], onDelete: Cascade)
-  fromAssetId  String
-  fromAsset    StateAsset @relation("CrossTxFromAsset", fields: [fromAssetId], references: [id], onDelete: Cascade)
-  fromWalletId String
+  fromStateId       String
+  fromState         State      @relation("CrossStateFrom", fields: [fromStateId], references: [id], onDelete: Cascade)
+  fromAssetId       String
+  fromAsset         StateAsset @relation("CrossTxFromAsset", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  fromWalletId      String
   // The per-State `Transaction` row that actually moved balances in
   // the source ledger (kind=burn). `SetNull` so deleting history on
   // one side does not cascade into the cross-state log.
   fromTransactionId String?
 
   // --- Destination leg (credit) ---
-  toStateId  String
-  toState    State      @relation("CrossStateTo", fields: [toStateId], references: [id], onDelete: Cascade)
-  toAssetId  String
-  toAsset    StateAsset @relation("CrossTxToAsset", fields: [toAssetId], references: [id], onDelete: Cascade)
-  toWalletId String
+  toStateId       String
+  toState         State      @relation("CrossStateTo", fields: [toStateId], references: [id], onDelete: Cascade)
+  toAssetId       String
+  toAsset         StateAsset @relation("CrossTxToAsset", fields: [toAssetId], references: [id], onDelete: Cascade)
+  toWalletId      String
   toTransactionId String?
 
   // `fromAmount` is the quantity debited; `toAmount = fromAmount * rate`
@@ -1395,15 +1401,15 @@ model Proposal {
   // валидирует тип при применении через `StateConfigService.update()`.
   newValue        Json
 
-  status    ProposalStatus @default(active)
+  status ProposalStatus @default(active)
 
   // Snapshot правил на момент создания предложения. Суверен может
   // позже изменить `StateSettings.governanceRules`, но уже открытое
   // голосование продолжает жить по правилам времени публикации.
-  quorumBps       Int
-  thresholdBps    Int
-  weightStrategy  String // "one_person_one_vote" | "by_node_weight" | "by_balance"
-  modeAtCreation  String // "decree" | "consultation" | "auto_dao"
+  quorumBps               Int
+  thresholdBps            Int
+  weightStrategy          String // "one_person_one_vote" | "by_node_weight" | "by_balance"
+  modeAtCreation          String // "decree" | "consultation" | "auto_dao"
   sovereignVetoAtCreation Boolean @default(true)
 
   // Агрегаты пересчитываются при каждом `castVote` — так UI не
@@ -1535,4 +1541,69 @@ model ActivityLog {
   @@index([stateId, visibility])
   @@index([actorId])
   @@index([nodeId])
+}
+
+// ---------------- Core Tasks module (Kanban) ----------------
+
+model TaskBoard {
+  id      String @id @default(cuid())
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  nodeId String?
+  node   VerticalNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  title String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  columns TaskColumn[]
+  tasks   Task[]
+
+  @@index([stateId])
+  @@index([nodeId])
+}
+
+model TaskColumn {
+  id      String    @id @default(cuid())
+  boardId String
+  board   TaskBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  title String
+  order Float  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
+
+  @@index([boardId])
+}
+
+model Task {
+  id      String    @id @default(cuid())
+  boardId String
+  board   TaskBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  columnId String
+  column   TaskColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String @db.Text
+
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  order Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([boardId])
+  @@index([columnId])
+  @@index([assigneeId])
 }

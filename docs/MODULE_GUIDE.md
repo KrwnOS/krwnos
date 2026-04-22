@@ -8,7 +8,9 @@
 
 ### Типы
 
-`KrwnModule`, `ModuleContext`, `ModuleEventBus`, `ModuleLogger`, `ModuleWidget`, `ModuleSettingsPanel`, `PermissionKey`, `PermissionDescriptor`.
+`KrwnModule`, `ModuleContext`, `ModuleAuth`, `ModuleEventBus`, `ModuleLogger`, `ModuleWidget`, `ModuleSettingsPanel`, `PermissionKey`, `PermissionDescriptor`, `KrwnError`.
+
+`ModuleContext.auth` — опциональный объект `ModuleAuth = { userId: string }` с идентичностью вызывающего. `null` означает системный вызов (фоновая задача, хук жизненного цикла, событие ядра); при пользовательских вызовах модуль может рассчитывать на `ctx.auth.userId`. Поле `ctx.userId` сохранено ради обратной совместимости — новому коду следует предпочитать `ctx.auth?.userId`. `KrwnError` — базовый класс ошибок модуля с полями `message` и `code`, например `throw new KrwnError("Missing tasks.read permission", "FORBIDDEN")`; код используется роутами для маппинга на HTTP-статус.
 
 В монорепозитории приложения те же типы доступны из `@/types/kernel` (реэкспорт из SDK — обратная совместимость).
 

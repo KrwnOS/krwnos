@@ -1,0 +1,18 @@
+---
+description: Rule for maintaining the CHANGELOG.md file
+globs: *
+---
+# Changelog Maintenance Rule
+
+**Context:** This project uses a `CHANGELOG.md` file at the root to track all notable changes, following the "Keep a Changelog" standard.
+
+**Instructions for AI Agents:**
+1. Whenever you implement a new feature, fix a bug, refactor code, or make any notable change to the codebase, you **MUST** add an entry to the `[Unreleased]` section of the `CHANGELOG.md` file.
+2. The entry must be categorized correctly (e.g., under `### Added`, `### Changed`, `### Fixed`, `### Removed`). If the category header does not exist under `[Unreleased]`, you must create it.
+3. The entry **MUST** include:
+   - A brief, clear description of what the implementation actually does.
+   - Who added it (e.g., your agent name like "Antigravity AI" or "Cursor", or the user's name if applicable).
+   - The current date (YYYY-MM-DD).
+   - Example format: `- Implemented strict database sandboxing for third-party modules. (Added by Cursor on 2026-04-22)`
+4. Do NOT remove or modify historical entries unless specifically asked to fix a typo.
+5. This rule is absolute and must be followed on every meaningful commit or task completion.
