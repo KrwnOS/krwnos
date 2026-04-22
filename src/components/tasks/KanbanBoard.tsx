@@ -111,8 +111,10 @@ export function KanbanBoard({ initialColumns, onTaskMove, onTaskCreate }: Kanban
             return { ...c, tasks: activeItems.filter((t) => t.id !== activeId) };
           }
           if (c.id === overColumn.id) {
+            const moving = activeItems[activeIndex];
+            if (!moving) return c;
             const newTasks = [...overItems];
-            newTasks.splice(newIndex, 0, { ...activeItems[activeIndex], columnId: overColumn.id });
+            newTasks.splice(newIndex, 0, { ...moving, columnId: overColumn.id });
             return { ...c, tasks: newTasks };
           }
           return c;
