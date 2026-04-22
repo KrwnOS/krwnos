@@ -16,6 +16,8 @@ export type {
 export type { KrwnModuleManifest, ValidateKrwnModuleManifestResult } from "./manifest.js";
 export { krwnModuleManifestJsonSchema, validateKrwnModuleManifest } from "./manifest.js";
 
+export { KrwnError } from "./errors.js";
+
 export {
   createMemoryEventBus,
   createNoopModuleLogger,
