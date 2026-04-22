@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createSandboxedContext } from "../module-sandbox";
 import { prisma } from "@/lib/prisma";
 import * as vault from "../module-secret-vault";
+import type { PermissionKey } from "@krwnos/sdk";
 
 // Mock prisma
 vi.mock("@/lib/prisma", () => ({
@@ -23,7 +24,7 @@ describe("createSandboxedContext", () => {
     stateId: "state_12345678_xyz",
     userId: "user_123",
     moduleSlug: "test.module",
-    permissions: new Set(["*"] as any),
+    permissions: new Set<PermissionKey>(["*"]),
     bus: { emit: vi.fn(), on: vi.fn() } as any,
     logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   };
