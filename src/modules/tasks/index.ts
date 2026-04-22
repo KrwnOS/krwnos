@@ -1,23 +1,27 @@
-import { KrwnModule, ModuleContext } from "@krwnos/sdk";
-import { TASK_PERMISSION_DESCRIPTORS } from "./permissions";
+import type { KrwnModule, ModuleContext, ModuleWidget } from "@krwnos/sdk";
+import { TASK_PERMISSION_DESCRIPTORS, TASK_PERMISSIONS } from "./permissions";
 
 export const coreTasksModule: KrwnModule = {
-  manifest: {
-    slug: "core.tasks",
-    version: "0.1.0",
-    permissions: TASK_PERMISSION_DESCRIPTORS,
+  slug: "core.tasks",
+  name: "Tasks",
+  version: "0.1.0",
+  description: "Kanban-style task boards scoped to a State.",
+
+  init() {
+    return { permissions: TASK_PERMISSION_DESCRIPTORS };
   },
 
-  async bootstrap(ctx: ModuleContext) {
-    ctx.logger.info("core.tasks bootstrapped");
-  },
-
-  getWidget() {
+  getWidget(_ctx: ModuleContext): ModuleWidget {
     return {
       id: "tasks-kanban",
       title: "Kanban Board",
       component: "KanbanWidget",
-      defaultPosition: { w: 12, h: 8 },
+      requiredPermission: TASK_PERMISSIONS.read,
+      defaultSize: "lg",
     };
+  },
+
+  getSettings() {
+    return null;
   },
 };
