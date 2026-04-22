@@ -78,7 +78,7 @@ export class TasksService {
     const board = await this.repo.createBoard(ctx.stateId, nodeId, title);
     
     // Emit event
-    await ctx.events.emit("core.tasks.board.created", { boardId: board.id, title, nodeId });
+    await ctx.bus.emit("core.tasks.board.created", { boardId: board.id, title, nodeId });
 
     return board;
   }
@@ -107,7 +107,7 @@ export class TasksService {
     const task = await this.repo.createTask(boardId, columnId, ctx.auth.userId, title, description, assigneeId);
 
     // Emit event
-    await ctx.events.emit("core.tasks.task.created", { taskId: task.id, boardId, title });
+    await ctx.bus.emit("core.tasks.task.created", { taskId: task.id, boardId, title });
 
     return task;
   }
@@ -140,7 +140,7 @@ export class TasksService {
     const task = await this.repo.updateTask(taskId, data);
 
     // Emit event
-    await ctx.events.emit("core.tasks.task.updated", { taskId, updates: Object.keys(data) });
+    await ctx.bus.emit("core.tasks.task.updated", { taskId, updates: Object.keys(data) });
 
     return task;
   }
