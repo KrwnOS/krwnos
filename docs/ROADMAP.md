@@ -326,6 +326,11 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk` v0.1: `KrwnModule`, `ModuleContext`, хелперы
       `prisma-per-schema`, `runModuleHarness` / `createTestModuleContext`
       (`packages/sdk`, `docs/MODULE_GUIDE.md`).
+- [x] 2026-04-22 (S1.0b) Reconcile `@krwnos/sdk` и `core.tasks`: `ModuleAuth` +
+      `ctx.auth` в `ModuleContext`, `KrwnError` экспортирован из SDK, `core.tasks`
+      переписан под реальные `PermissionsEngine.can` / `ctx.bus` / `KrwnModule`,
+      `getAuthenticatedContext` stub в `src/app/api/chat/_context.ts` (временно,
+      извлечение — S1.2). `npm run typecheck` чист.
 
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse
