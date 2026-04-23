@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedContext } from "@/app/api/chat/_context";
+import { getAuthenticatedContext } from "@/app/api/_shared/auth-context";
 import { TasksService } from "@/modules/tasks/service";
 import { TasksRepository } from "@/modules/tasks/repo";
 import { permissionsEngine } from "@/core/permissions-engine";

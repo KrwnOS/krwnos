@@ -67,6 +67,41 @@ const { initResult, widget, settings } = await runModuleHarness(myModule, {
 
 Правила permissions: ключи вида `domain.action`; `owner` в дескрипторе должен совпадать со slug модуля (или `"core"` для общих ключей ядра).
 
+## Authentication in API routes
+
+When building API routes that serve module features, use the shared authentication helper at `@/app/api/_shared/auth-context`. This helper:
+
+- Validates CLI bearer tokens
+- Loads the authenticated user's state and vertical structure
+- Derives permissions through the PermissionsEngine
+- Returns a `ModuleContext` ready for service calls
+
+### Usage
+
+```ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedContext } from "@/app/api/_shared/auth-context";
+import { MyService } from "@/modules/mymodule/service";
+
+export async function GET(req: NextRequest) {
+  try {
+    const { ctx, access } = await getAuthenticatedContext(req);
+    const service = new MyService(/* deps */);
+    const result = await service.doSomething(ctx, access);
+    return NextResponse.json({ result });
+  } catch (err: unknown) {
+    // Handle CliAuthError (401/400) and service errors
+    const e = err as { code?: string; message?: string };
+    if (e.code === "UNAUTHORIZED") {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+```
+
+The returned `access` object includes `isOwner` and `snapshot` (the state's vertical structure and membership graph). Services may use this to filter results, enforce permissions, and structure responses.
+
 ## Дальнейшие шаги
 
 См. `docs/ROADMAP.md`, Horizon 3: песочница БД, подписанные пакеты, маркетплейс.

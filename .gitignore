@@ -60,3 +60,6 @@ next-env.d.ts
 
 # local build logs
 compose-build.log
+
+# local temp / tooling artifacts
+.tmp-trash/
