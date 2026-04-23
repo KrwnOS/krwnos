@@ -1,8 +1,12 @@
 export type {
   KrwnModule,
+  ModuleAuth,
   ModuleContext,
+  ModuleDatabase,
+  ModuleDatabaseTransaction,
   ModuleEventBus,
   ModuleLogger,
+  ModuleSecretStore,
   ModuleSettingsPanel,
   ModuleWidget,
   PermissionDescriptor,
@@ -11,6 +15,8 @@ export type {
 
 export type { KrwnModuleManifest, ValidateKrwnModuleManifestResult } from "./manifest.js";
 export { krwnModuleManifestJsonSchema, validateKrwnModuleManifest } from "./manifest.js";
+
+export { KrwnError } from "./errors.js";
 
 export {
   createMemoryEventBus,

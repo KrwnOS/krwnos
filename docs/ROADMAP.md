@@ -227,9 +227,9 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
       prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`,
       `packages/sdk/src/harness.test.ts`).
-- [ ] Sandboxing: модуль не дергает `prisma` напрямую, только через
+- [x] 2026-04-22 (#—) Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
-- [ ] Секреты модуля — только через `ctx.secrets.get()`.
+- [x] 2026-04-22 (#—) Секреты модуля — только через `ctx.secrets.get()`.
 - [ ] Signed modules: `.krwn`-архив = tarball + detached Ed25519.
       CLI: `krwn module install ./finance.krwn` проверяет подпись.
 - [ ] Marketplace (`modules.krwnos.com`): поиск, категории, отзывы,
@@ -240,7 +240,7 @@
 - [ ] `core.reports` — финансовая отчётность для инвесторов.
 - [ ] `core.changelog` — «Указы» / публичный лог изменений
       конституции.
-- [ ] `core.tasks` — Trello-like kanban с правами по узлам.
+- [x] 2026-04-22 (#—) `core.tasks` — Trello-like kanban с правами по узлам.
 - [ ] `core.elections` — циклические выборы на узлы (отдельно от
       ad-hoc `core.governance`).
 - [ ] `core.kyc` — опциональный gate на `/invite/accept`.
@@ -326,6 +326,11 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk` v0.1: `KrwnModule`, `ModuleContext`, хелперы
       `prisma-per-schema`, `runModuleHarness` / `createTestModuleContext`
       (`packages/sdk`, `docs/MODULE_GUIDE.md`).
+- [x] 2026-04-22 (S1.0b) Reconcile `@krwnos/sdk` и `core.tasks`: `ModuleAuth` +
+      `ctx.auth` в `ModuleContext`, `KrwnError` экспортирован из SDK, `core.tasks`
+      переписан под реальные `PermissionsEngine.can` / `ctx.bus` / `KrwnModule`,
+      `getAuthenticatedContext` stub в `src/app/api/chat/_context.ts` (временно,
+      извлечение — S1.2). `npm run typecheck` чист.
 
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse

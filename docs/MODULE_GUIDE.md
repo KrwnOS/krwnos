@@ -8,7 +8,9 @@
 
 ### Типы
 
-`KrwnModule`, `ModuleContext`, `ModuleEventBus`, `ModuleLogger`, `ModuleWidget`, `ModuleSettingsPanel`, `PermissionKey`, `PermissionDescriptor`.
+`KrwnModule`, `ModuleContext`, `ModuleAuth`, `ModuleEventBus`, `ModuleLogger`, `ModuleWidget`, `ModuleSettingsPanel`, `PermissionKey`, `PermissionDescriptor`, `KrwnError`.
+
+`ModuleContext.auth` — опциональный объект `ModuleAuth = { userId: string }` с идентичностью вызывающего. `null` означает системный вызов (фоновая задача, хук жизненного цикла, событие ядра); при пользовательских вызовах модуль может рассчитывать на `ctx.auth.userId`. Поле `ctx.userId` сохранено ради обратной совместимости — новому коду следует предпочитать `ctx.auth?.userId`. `KrwnError` — базовый класс ошибок модуля с полями `message` и `code`, например `throw new KrwnError("Missing tasks.read permission", "FORBIDDEN")`; код используется роутами для маппинга на HTTP-статус.
 
 В монорепозитории приложения те же типы доступны из `@/types/kernel` (реэкспорт из SDK — обратная совместимость).
 
@@ -64,6 +66,41 @@ const { initResult, widget, settings } = await runModuleHarness(myModule, {
 ```
 
 Правила permissions: ключи вида `domain.action`; `owner` в дескрипторе должен совпадать со slug модуля (или `"core"` для общих ключей ядра).
+
+## Authentication in API routes
+
+When building API routes that serve module features, use the shared authentication helper at `@/app/api/_shared/auth-context`. This helper:
+
+- Validates CLI bearer tokens
+- Loads the authenticated user's state and vertical structure
+- Derives permissions through the PermissionsEngine
+- Returns a `ModuleContext` ready for service calls
+
+### Usage
+
+```ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedContext } from "@/app/api/_shared/auth-context";
+import { MyService } from "@/modules/mymodule/service";
+
+export async function GET(req: NextRequest) {
+  try {
+    const { ctx, access } = await getAuthenticatedContext(req);
+    const service = new MyService(/* deps */);
+    const result = await service.doSomething(ctx, access);
+    return NextResponse.json({ result });
+  } catch (err: unknown) {
+    // Handle CliAuthError (401/400) and service errors
+    const e = err as { code?: string; message?: string };
+    if (e.code === "UNAUTHORIZED") {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+```
+
+The returned `access` object includes `isOwner` and `snapshot` (the state's vertical structure and membership graph). Services may use this to filter results, enforce permissions, and structure responses.
 
 ## Дальнейшие шаги
 
