@@ -10,9 +10,11 @@ import { registry } from "@/core";
 import { coreChatModule } from "./chat";
 import { coreGovernanceModule } from "./governance";
 import { coreWalletModule } from "./wallet";
+import { coreTasksModule } from "./tasks";
 
 export async function bootstrapModules(): Promise<void> {
   await registry.register(coreChatModule);
   await registry.register(coreWalletModule);
   await registry.register(coreGovernanceModule);
+  await registry.register(coreTasksModule);
 }

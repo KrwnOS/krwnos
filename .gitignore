@@ -8,6 +8,8 @@ node_modules/
 /playwright-report/
 /test-results/
 /blob-report/
+# vitest writes transient config timestamp files next to vitest.config.*
+*.timestamp-*.mjs
 
 # next.js
 .next/

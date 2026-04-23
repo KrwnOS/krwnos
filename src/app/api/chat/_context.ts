@@ -168,3 +168,126 @@ export function chatErrorResponse(err: unknown): NextResponse {
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// TODO: S1.2 — extract to @/app/api/_shared/auth-context
+// ---------------------------------------------------------------------------
+// Temporary stub introduced by S1.0b so that /api/tasks/* routes typecheck.
+// Duplicates the core of `loadChatContext` above but returns a
+// ModuleContext + TasksAccessContext pair (what first-party module services
+// currently need). S1.2 is the task where a properly shared helper replaces
+// both this and `loadChatContext`.
+// ---------------------------------------------------------------------------
+
+import { createNoopModuleLogger } from "@krwnos/sdk";
+import type {
+  ModuleContext,
+  ModuleDatabase,
+  ModuleSecretStore,
+} from "@krwnos/sdk";
+import type { TasksAccessContext } from "@/modules/tasks/service";
+
+export interface AuthenticatedRouteContext {
+  ctx: ModuleContext;
+  access: TasksAccessContext;
+}
+
+export async function getAuthenticatedContext(
+  req: NextRequest,
+): Promise<AuthenticatedRouteContext> {
+  const cli = await authenticateCli(req, cliLookup);
+  if (!cli.stateId) {
+    throw new ChatAccessError(
+      "Token is not scoped to any State.",
+      "invalid_input",
+    );
+  }
+  const stateId = cli.stateId;
+
+  const [state, nodes, memberships] = await Promise.all([
+    prisma.state.findUnique({
+      where: { id: stateId },
+      select: { id: true, ownerId: true },
+    }),
+    prisma.verticalNode.findMany({
+      where: { stateId },
+      select: {
+        id: true,
+        stateId: true,
+        parentId: true,
+        title: true,
+        type: true,
+        permissions: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.membership.findMany({
+      where: { node: { stateId } },
+      select: { userId: true, nodeId: true },
+    }),
+  ]);
+
+  if (!state) {
+    throw new ChatAccessError("State not found.", "not_found");
+  }
+
+  const snapshot: VerticalSnapshot = {
+    stateId,
+    nodes: new Map<string, VerticalNode>(
+      nodes.map((n) => [
+        n.id,
+        { ...n, permissions: n.permissions as PermissionKey[] },
+      ]),
+    ),
+    membershipsByUser: new Map(),
+  };
+  for (const m of memberships) {
+    let set = snapshot.membershipsByUser.get(m.userId);
+    if (!set) {
+      set = new Set();
+      snapshot.membershipsByUser.set(m.userId, set);
+    }
+    set.add(m.nodeId);
+  }
+
+  const isOwner = state.ownerId === cli.userId;
+  const permissions = permissionsEngine.resolveAll({
+    stateId,
+    userId: cli.userId,
+    isOwner,
+    snapshot,
+  });
+
+  const stubSecrets: ModuleSecretStore = {
+    async get() {
+      return null;
+    },
+  };
+  const stubDb: ModuleDatabase = {
+    async transaction(fn) {
+      return fn({
+        async queryRaw() {
+          return [];
+        },
+        async executeRaw() {
+          return 0;
+        },
+      });
+    },
+  };
+
+  const ctx: ModuleContext = {
+    stateId,
+    userId: cli.userId,
+    auth: { userId: cli.userId },
+    permissions,
+    bus: eventBus,
+    logger: createNoopModuleLogger(),
+    secrets: stubSecrets,
+    db: stubDb,
+  };
+
+  return { ctx, access: { isOwner, snapshot } };
+}
