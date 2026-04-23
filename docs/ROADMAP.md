@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — синхрон §4/§5 с кодом; «Актуальный горизонт» → Horizon 3
+**Обновлено:** 2026-04-23 — закрыт пункт «Signed modules» (Horizon 3 → Done)
 **Актуальный горизонт:** Horizon 3 — Экосистема модулей (sandboxing, подписи, marketplace)
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -230,8 +230,6 @@
 - [x] 2026-04-22 (#—) Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
 - [x] 2026-04-22 (#—) Секреты модуля — только через `ctx.secrets.get()`.
-- [ ] Signed modules: `.krwn`-архив = tarball + detached Ed25519.
-      CLI: `krwn module install ./finance.krwn` проверяет подпись.
 - [ ] Marketplace (`modules.krwnos.com`): поиск, категории, отзывы,
       скачивание `.krwn`.
 
@@ -331,6 +329,27 @@
       переписан под реальные `PermissionsEngine.can` / `ctx.bus` / `KrwnModule`,
       `getAuthenticatedContext` stub в `src/app/api/chat/_context.ts` (временно,
       извлечение — S1.2). `npm run typecheck` чист.
+
+### 2026-04 — Horizon 3 · Signed modules
+- [x] 2026-04-23 (#—) Signed modules: `.krwn`-архив = tarball + detached Ed25519.
+      CLI: `krwn module install ./finance.krwn` проверяет подпись.
+      Реализация: `packages/sdk/src/sign.ts` (`signKrwnPackage` /
+      `verifyKrwnPackage`, встроенные USTAR `tarPack` / `tarUnpack`),
+      Ed25519 через `node:crypto`, SHA-256 content hash; пакет =
+      `gzip(tar([krwn.module.json, module/**, SIGNATURE]))`. CLI:
+      `krwn module sign <dir> --key <pem> --out <file.krwn>`,
+      `krwn module verify <file.krwn> [--trusted-key ...]`,
+      `krwn module install <file.krwn> [--trusted-key ...]` (verify →
+      POST `/api/cli/modules` с валидированным manifest). Trust store:
+      `StateSettings.extras.trustedModulePublishers` +
+      permission-ключ `modules.trust.manage`
+      (`src/core/module-trust-permissions.ts`,
+      `registerCorePermissions()`); bootstrap из env
+      `KRWN_TRUSTED_MODULE_PUBKEYS`. Тесты: round-trip, tampered
+      payload, swapped signature, untrusted key, manifest invalid —
+      `packages/sdk/src/sign.test.ts`. Docs: `docs/MODULE_GUIDE.md`
+      «Подпись и распространение модулей», `docs/CLI.md`,
+      `docs/DATABASE.md`.
 
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse
