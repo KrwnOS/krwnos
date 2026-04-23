@@ -20,6 +20,6 @@
     "directory": "cli"
   },
   "dependencies": {
-    "@krwnos/sdk": "workspace:*"
+    "@krwnos/sdk": "0.1.0"
   }
 }
