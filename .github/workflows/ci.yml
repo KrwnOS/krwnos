@@ -57,6 +57,11 @@ jobs:
           node-version: "20"
           cache: npm
 
+      # Протокол workspace:* / npm workspaces требует npm ≥7; на части раннеров
+      # встречался старый npm → EUNSUPPORTEDPROTOCOL. Явно выравниваем npm 10.
+      - name: Align npm (workspaces)
+        run: npm install -g npm@10
+
       - name: Install dependencies
         run: npm ci
 

@@ -1,7 +1,17 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
+  resolve: {
+    // Workspace package: Vitest must resolve to source so tests run without a prior `npm run build -w @krwnos/sdk`.
+    alias: {
+      "@krwnos/sdk": path.resolve(__dirname, "packages/sdk/src/index.ts"),
+    },
+  },
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",

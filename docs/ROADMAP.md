@@ -4,7 +4,7 @@
 > `WHITEPAPER.md` описывает, ЧТО система умеет сейчас.
 > `ROADMAP.md` описывает, ЧТО будет и в каком порядке.
 
-**Обновлено:** 2026-04-20 — синхрон §4/§5 с кодом; «Актуальный горизонт» → Horizon 3
+**Обновлено:** 2026-04-23 — закрыт пункт «Signed modules» (Horizon 3 → Done)
 **Актуальный горизонт:** Horizon 3 — Экосистема модулей (sandboxing, подписи, marketplace)
 **Версия платформы:** v0.1 (Phase 4.5 закрыта)
 
@@ -227,11 +227,9 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk`: типы `KrwnModule`, `ModuleContext`, helpers для
       prisma-per-schema, тест-harness (`packages/sdk`, `docs/MODULE_GUIDE.md`,
       `packages/sdk/src/harness.test.ts`).
-- [ ] Sandboxing: модуль не дергает `prisma` напрямую, только через
+- [x] 2026-04-22 (#—) Sandboxing: модуль не дергает `prisma` напрямую, только через
       `ModuleContext`. Таблицы — строго в `krwn_<slug>_<stateIdPrefix>`.
-- [ ] Секреты модуля — только через `ctx.secrets.get()`.
-- [ ] Signed modules: `.krwn`-архив = tarball + detached Ed25519.
-      CLI: `krwn module install ./finance.krwn` проверяет подпись.
+- [x] 2026-04-22 (#—) Секреты модуля — только через `ctx.secrets.get()`.
 - [ ] Marketplace (`modules.krwnos.com`): поиск, категории, отзывы,
       скачивание `.krwn`.
 
@@ -240,7 +238,7 @@
 - [ ] `core.reports` — финансовая отчётность для инвесторов.
 - [ ] `core.changelog` — «Указы» / публичный лог изменений
       конституции.
-- [ ] `core.tasks` — Trello-like kanban с правами по узлам.
+- [x] 2026-04-22 (#—) `core.tasks` — Trello-like kanban с правами по узлам.
 - [ ] `core.elections` — циклические выборы на узлы (отдельно от
       ad-hoc `core.governance`).
 - [ ] `core.kyc` — опциональный gate на `/invite/accept`.
@@ -326,6 +324,32 @@
 - [x] 2026-04-20 (#—) `@krwnos/sdk` v0.1: `KrwnModule`, `ModuleContext`, хелперы
       `prisma-per-schema`, `runModuleHarness` / `createTestModuleContext`
       (`packages/sdk`, `docs/MODULE_GUIDE.md`).
+- [x] 2026-04-22 (S1.0b) Reconcile `@krwnos/sdk` и `core.tasks`: `ModuleAuth` +
+      `ctx.auth` в `ModuleContext`, `KrwnError` экспортирован из SDK, `core.tasks`
+      переписан под реальные `PermissionsEngine.can` / `ctx.bus` / `KrwnModule`,
+      `getAuthenticatedContext` stub в `src/app/api/chat/_context.ts` (временно,
+      извлечение — S1.2). `npm run typecheck` чист.
+
+### 2026-04 — Horizon 3 · Signed modules
+- [x] 2026-04-23 (#—) Signed modules: `.krwn`-архив = tarball + detached Ed25519.
+      CLI: `krwn module install ./finance.krwn` проверяет подпись.
+      Реализация: `packages/sdk/src/sign.ts` (`signKrwnPackage` /
+      `verifyKrwnPackage`, встроенные USTAR `tarPack` / `tarUnpack`),
+      Ed25519 через `node:crypto`, SHA-256 content hash; пакет =
+      `gzip(tar([krwn.module.json, module/**, SIGNATURE]))`. CLI:
+      `krwn module sign <dir> --key <pem> --out <file.krwn>`,
+      `krwn module verify <file.krwn> [--trusted-key ...]`,
+      `krwn module install <file.krwn> [--trusted-key ...]` (verify →
+      POST `/api/cli/modules` с валидированным manifest). Trust store:
+      `StateSettings.extras.trustedModulePublishers` +
+      permission-ключ `modules.trust.manage`
+      (`src/core/module-trust-permissions.ts`,
+      `registerCorePermissions()`); bootstrap из env
+      `KRWN_TRUSTED_MODULE_PUBKEYS`. Тесты: round-trip, tampered
+      payload, swapped signature, untrusted key, manifest invalid —
+      `packages/sdk/src/sign.test.ts`. Docs: `docs/MODULE_GUIDE.md`
+      «Подпись и распространение модулей», `docs/CLI.md`,
+      `docs/DATABASE.md`.
 
 ### 2026-04 — Horizon 2 · PWA
 - [x] 2026-04-20 (#—) PWA MVP: manifest, service worker, офлайн Pulse

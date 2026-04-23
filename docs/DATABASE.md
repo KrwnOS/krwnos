@@ -143,6 +143,7 @@ Per-State установка плагина с собственным `config` J
 | Поле | Заметки |
 |------|---------|
 | `uiLocale` | Nullable `TEXT`. Код интерфейса по умолчанию для инстанса (`en`, `ru`, `es`, `zh`, `tr`). Персональный cookie `krwnos_locale` на устройстве по-прежнему может переопределить при SSR. |
+| `extras.trustedModulePublishers` | JSONB. Массив `{ id: string, pubKeyPem: string }` — доверенные издатели подписанных `.krwn`. Верификация сопоставляет `publicKeyFingerprint` из `SIGNATURE` пакета c SHA-256-отпечатком ключей в этом списке (см. `docs/MODULE_GUIDE.md` — «Подпись и распространение модулей»). Управляется permission-ключом `modules.trust.manage` (sovereignOnly), регистрируется в `registerCorePermissions()`. |
 
 См. `prisma/schema.prisma`, `src/core/state-config.ts`, `/admin/constitution`.
 

@@ -42,8 +42,11 @@ API `/api/cli/tokens`). Каждый токен привязан к одному
 ```bash
 krwn module install finance
 krwn module install treasury --version 1.2.0
+krwn module install ./finance.krwn --trusted-key ./publisher.pub
 krwn module list
 krwn module validate ./path/to/module-or-krwn.module.json
+krwn module sign ./path/to/module --key ./priv.pem --out ./module.krwn
+krwn module verify ./module.krwn --trusted-key ./publisher.pub
 ```
 
 `validate` читает `krwn.module.json` (или каталог, в котором он лежит)
@@ -56,6 +59,41 @@ krwn module validate ./path/to/module-or-krwn.module.json
 манифест невалиден или `slug` в манифесте не совпадает с `slug` в
 запросе. Модуль должен быть зарегистрирован в Registry билда
 (`src/modules/index.ts`) — иначе 404.
+
+#### Подписанные пакеты `.krwn`
+
+`krwn module sign <dir> --key <priv.pem> --out <file.krwn>` упаковывает
+каталог в `.krwn` (gzip-tar с разделами `krwn.module.json`, `module/**`,
+`SIGNATURE`). Подписывает Ed25519 — формат подробно описан в
+`docs/MODULE_GUIDE.md` «Подпись и распространение модулей». Ключ
+должен быть в PEM PKCS#8:
+
+```bash
+# сгенерировать пару один раз
+openssl genpkey -algorithm Ed25519 -out publisher.pem
+openssl pkey -in publisher.pem -pubout -out publisher.pub
+
+# подписать
+krwn module sign ./modules/finance \
+     --key ./publisher.pem \
+     --out ./dist/finance.krwn \
+     --publisher krwnos.core
+```
+
+`krwn module verify <file.krwn>` — read-only проверка подписи и
+целостности. При неудаче печатает причину
+(`invalid_archive`/`manifest_invalid`/`signature_mismatch`/
+`untrusted_signer`/`tampered_payload`) и выходит с кодом `1`.
+Доверенные ключи берутся из:
+
+- `--trusted-key <pub.pem>` (повторяемый флаг), либо
+- `KRWN_TRUSTED_MODULE_PUBKEYS` — `:`/`\n`-разделённые PEM-пути.
+
+`krwn module install <file.krwn>` — сначала проверяет подпись теми же
+правилами, затем POST-ит извлечённый `manifest` в
+`/api/cli/modules`. Сервер повторной распаковкой архива не занимается
+— CLI уже доказал подлинность (см. `docs/MODULE_GUIDE.md`, решение
+option "a").
 
 ### `krwn vertical <sub>`
 

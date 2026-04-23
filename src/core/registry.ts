@@ -31,6 +31,7 @@ import { createPrismaExchangeRepository } from "./exchange-prisma";
 import { credentialsPermissionDescriptors } from "./credentials-permissions";
 import { stateConfigPermissionDescriptors } from "./state-config";
 import { membershipAdminPermissionDescriptors } from "./membership-admin-permissions";
+import { moduleTrustPermissionDescriptors } from "./module-trust-permissions";
 
 interface RegistryEntry {
   module: KrwnModule;
@@ -158,6 +159,11 @@ export function registerCorePermissions(): void {
     registry.registerCorePermission(perm);
   }
   for (const perm of credentialsPermissionDescriptors) {
+    registry.registerCorePermission(perm);
+  }
+  // Signed-module trust store keys (see `docs/MODULE_GUIDE.md` —
+  // «Подпись и распространение модулей»).
+  for (const perm of moduleTrustPermissionDescriptors) {
     registry.registerCorePermission(perm);
   }
 }

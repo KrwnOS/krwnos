@@ -16,6 +16,8 @@ export {
   registerCorePermissions,
 } from "./registry";
 
+export { createSandboxedContext } from "./module-sandbox";
+
 // --- Krwn Exchange Engine (межгосударственная торговля) ---
 export {
   ExchangeService,

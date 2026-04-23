@@ -168,3 +168,31 @@ export function chatErrorResponse(err: unknown): NextResponse {
   );
 }
 
+// ---------------------------------------------------------------------------
+// DEPRECATED: Use @/app/api/_shared/auth-context instead
+// ---------------------------------------------------------------------------
+// Re-exported here for backward compatibility. Chat routes should migrate
+// to use the shared helper directly. S1.2 introduced the shared helper;
+// S1.3 and beyond will migrate all routes to the shared pattern.
+
+import {
+  getAuthenticatedContext as _sharedGetAuthenticatedContext,
+  type AuthenticatedRouteContext,
+  type AccessContext,
+} from "../_shared/auth-context";
+import type {
+  ModuleContext,
+} from "@krwnos/sdk";
+
+/**
+ * @deprecated Use `@/app/api/_shared/auth-context#getAuthenticatedContext` instead.
+ *
+ * This is a compatibility shim. It wraps the shared helper and adapts
+ * the return type for backward compatibility with existing tasks routes.
+ */
+export async function getAuthenticatedContext(
+  req: NextRequest,
+): Promise<{ ctx: ModuleContext; access: AccessContext }> {
+  const result = await _sharedGetAuthenticatedContext(req);
+  return { ctx: result.ctx, access: result.access };
+}
